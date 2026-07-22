@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SOP Recorder</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="panel">
+      <header class="header">
+        <div>
+          <p class="eyebrow">SOP Recorder</p>
+          <h1>操作节点录制</h1>
+        </div>
+        <span id="statusBadge" class="badge">idle</span>
+      </header>
+
+      <section class="stats">
+        <div>
+          <span class="stat-label">节点</span>
+          <strong id="nodeCount">0</strong>
+        </div>
+        <div>
+          <span class="stat-label">标签页</span>
+          <strong id="tabCount">0</strong>
+        </div>
+      </section>
+
+      <section class="controls">
+        <button id="startBtn" class="primary">开始</button>
+        <button id="pauseBtn">暂停</button>
+        <button id="resumeBtn">继续</button>
+        <button id="stopBtn">停止</button>
+      </section>
+
+      <section class="secondary">
+        <button id="viewerBtn">打开预览</button>
+        <button id="exportBtn">导出 JSON</button>
+        <button id="resetBtn" class="danger">清空</button>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ZKBio TimeCloud 创建公司测试页</title>
+    <link rel="stylesheet" href="test.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="visual">
+        <div class="diagram">CO</div>
+        <p>完成邮箱激活后，在当前标签页继续创建公司。</p>
+      </section>
+      <section class="panel">
+        <header>
+          <p class="eyebrow">Test Flow C</p>
+          <h1>Create a Company</h1>
+          <p>Configure company information</p>
+        </header>
+        <form>
+          <label>
+            Company Name
+            <input name="companyName" placeholder="Company Name">
+          </label>
+          <label>
+            Location
+            <select name="location">
+              <option value="">Please select</option>
+              <option>新加坡国家美术馆, Singapore</option>
+              <option>Jakarta, Indonesia</option>
+              <option>Bangkok, Thailand</option>
+            </select>
+          </label>
+          <label class="check">
+            <input name="companyTerms" type="checkbox">
+            <span>I have read and agreed to the company service terms</span>
+          </label>
+          <button type="button" id="confirmBtn">Confirm</button>
+        </form>
+        <p id="done" class="result" hidden>公司创建完成。</p>
+      </section>
+    </main>
+    <script>
+      document.getElementById("confirmBtn").addEventListener("click", () => {
+        document.getElementById("done").hidden = false;
+      });
+    </script>
+  </body>
+</html>

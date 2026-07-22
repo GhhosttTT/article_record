@@ -1,0 +1,138 @@
+{
+  "session": {
+    "id": "rec_sample_zkbiotime",
+    "browser": "Chrome",
+    "startedAt": "2026-07-22T10:00:00+08:00",
+    "endedAt": "2026-07-22T10:03:00+08:00",
+    "status": "completed"
+  },
+  "tabContexts": {
+    "101": {
+      "tabId": 101,
+      "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+      "windowId": 1,
+      "firstUrl": "https://biotimecloud.info/onboard/sign-in",
+      "currentUrl": "https://biotimecloud.info/onboard/sign-in",
+      "title": "ZKBio TimeCloud",
+      "domain": "biotimecloud.info"
+    },
+    "102": {
+      "tabId": 102,
+      "tabAlias": "标签页 B：邮箱收件箱",
+      "windowId": 1,
+      "firstUrl": "https://mail.example.com",
+      "currentUrl": "https://mail.example.com",
+      "title": "邮箱收件箱",
+      "domain": "mail.example.com"
+    }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "sequence": 1,
+      "action": "click",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "button",
+        "text": "SIGN UP",
+        "boundingBox": {
+          "x": 860,
+          "y": 520,
+          "width": 160,
+          "height": 44
+        }
+      },
+      "generatedInstruction": "在登录页点击 SIGN UP，进入新用户注册流程。",
+      "status": "auto_generated"
+    },
+    {
+      "id": "node_002",
+      "sequence": 2,
+      "action": "input",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "input",
+        "placeholder": "Email",
+        "boundingBox": {
+          "x": 780,
+          "y": 430,
+          "width": 320,
+          "height": 42
+        }
+      },
+      "value": "m***@example.com",
+      "privacy": {
+        "containsSensitiveData": true,
+        "maskedFields": ["input[name=email]"]
+      },
+      "generatedInstruction": "在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。",
+      "status": "auto_generated"
+    },
+    {
+      "id": "node_003",
+      "sequence": 3,
+      "action": "tab_open",
+      "fromTab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "url": "https://biotimecloud.info/onboard/sign-in"
+      },
+      "toTab": {
+        "tabId": 102,
+        "tabAlias": "标签页 B：邮箱收件箱",
+        "url": "https://mail.example.com"
+      },
+      "reason": "user_switch",
+      "generatedInstruction": "打开标签页 B：邮箱收件箱，查收账号激活邮件。",
+      "status": "auto_generated"
+    },
+    {
+      "id": "node_004",
+      "sequence": 4,
+      "action": "click",
+      "tab": {
+        "tabId": 102,
+        "tabAlias": "标签页 B：邮箱收件箱",
+        "domain": "mail.example.com"
+      },
+      "target": {
+        "type": "link",
+        "text": "Activate Account",
+        "boundingBox": {
+          "x": 420,
+          "y": 360,
+          "width": 190,
+          "height": 38
+        }
+      },
+      "generatedInstruction": "在邮箱中点击 Activate Account，激活刚注册的账号。",
+      "status": "auto_generated"
+    },
+    {
+      "id": "node_005",
+      "sequence": 5,
+      "action": "tab_switch",
+      "fromTab": {
+        "tabId": 102,
+        "tabAlias": "标签页 B：邮箱收件箱",
+        "url": "https://mail.example.com"
+      },
+      "toTab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "url": "https://biotimecloud.info/onboard/sign-in"
+      },
+      "reason": "user_switch",
+      "generatedInstruction": "完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。",
+      "status": "auto_generated"
+    }
+  ]
+}

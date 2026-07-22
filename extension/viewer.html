@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SOP 预览</title>
+    <link rel="stylesheet" href="viewer.css">
+  </head>
+  <body>
+    <aside class="sidebar">
+      <p class="eyebrow">SOP Preview</p>
+      <h1>流程预览</h1>
+      <div class="summary">
+        <div><span>状态</span><strong id="status">idle</strong></div>
+        <div><span>节点</span><strong id="nodeCount">0</strong></div>
+        <div><span>标签页</span><strong id="tabCount">0</strong></div>
+      </div>
+      <div class="actions">
+        <button id="exportBtn">导出录制 JSON</button>
+        <button id="articleBtn">导出 SOP 文章</button>
+        <button id="timelineBtn">导出视频时间轴</button>
+      </div>
+    </aside>
+    <main class="content">
+      <section id="flowMeta" class="flow-meta"></section>
+      <section id="steps" class="steps"></section>
+    </main>
+    <script src="shared/artifacts.js"></script>
+    <script src="viewer_artifacts.js"></script>
+    <script src="viewer.js"></script>
+  </body>
+</html>

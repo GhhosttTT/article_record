@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ZKBio TimeCloud 测试注册页</title>
+    <link rel="stylesheet" href="test.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="visual">
+        <div class="diagram">SOP</div>
+        <p>本地测试页：注册、邮箱激活、标签页切换、创建公司。</p>
+      </section>
+      <section class="panel">
+        <header>
+          <p class="eyebrow">Test Flow A</p>
+          <h1>ZKBio TimeCloud</h1>
+          <p>Sign up to your company workspace</p>
+        </header>
+
+        <form id="signupForm">
+          <label>
+            Email
+            <input name="email" type="email" placeholder="Email" autocomplete="off">
+          </label>
+          <label>
+            Phone
+            <input name="phone" type="tel" placeholder="Phone" autocomplete="off">
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" placeholder="Password">
+          </label>
+          <label class="check">
+            <input name="terms" type="checkbox">
+            <span>I have read and agreed to the Term of Service & Privacy Policy</span>
+          </label>
+          <button type="submit">SIGN UP</button>
+        </form>
+
+        <div id="result" class="result" hidden>
+          <p>注册请求已提交。下一步需要打开邮箱激活账号。</p>
+          <a class="button-link" target="_blank" href="mail.html">打开邮箱收件箱</a>
+        </div>
+      </section>
+    </main>
+    <script>
+      document.getElementById("signupForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        document.getElementById("result").hidden = false;
+      });
+    </script>
+  </body>
+</html>

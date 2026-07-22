@@ -1,0 +1,11 @@
+file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_001.svg'
+duration 4
+file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_002.svg'
+duration 5
+file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_003.svg'
+duration 2
+file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_004.svg'
+duration 5
+file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_005.svg'
+duration 2
+file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_005.svg'

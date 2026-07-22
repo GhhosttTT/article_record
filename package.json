@@ -1,0 +1,13 @@
+{
+  "name": "sop-recorder-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension MVP for recording SOP steps with screenshots and tab-switch context.",
+  "scripts": {
+    "generate": "node tools/generate_artifacts.js",
+    "package:extension": "node tools/package_extension.js",
+    "render-video": "node tools/render_video.js",
+    "render-video:frames": "node tools/render_video.js --frames-only",
+    "verify": "node tools/verify.js"
+  }
+}

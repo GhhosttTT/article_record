@@ -1,0 +1,91 @@
+{
+  "version": "0.1.0",
+  "duration": 18,
+  "segments": [
+    {
+      "id": "segment_001",
+      "stepId": "article_step_001",
+      "type": "operation",
+      "startTime": 0,
+      "endTime": 4,
+      "caption": "在登录页点击 SIGN UP，进入新用户注册流程。",
+      "currentTabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+      "fromTabAlias": null,
+      "toTabAlias": null,
+      "visual": null,
+      "storyboardVisualType": "screenshot",
+      "highlight": {
+        "x": 860,
+        "y": 520,
+        "width": 160,
+        "height": 44
+      }
+    },
+    {
+      "id": "segment_002",
+      "stepId": "article_step_002",
+      "type": "operation",
+      "startTime": 4,
+      "endTime": 9,
+      "caption": "在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。",
+      "currentTabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+      "fromTabAlias": null,
+      "toTabAlias": null,
+      "visual": null,
+      "storyboardVisualType": "screenshot",
+      "highlight": {
+        "x": 780,
+        "y": 430,
+        "width": 320,
+        "height": 42
+      }
+    },
+    {
+      "id": "segment_003",
+      "stepId": "article_step_003",
+      "type": "tab_transition",
+      "startTime": 9,
+      "endTime": 11,
+      "caption": "打开标签页 B：邮箱收件箱，查收账号激活邮件。",
+      "currentTabAlias": "标签页 B：邮箱收件箱",
+      "fromTabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+      "toTabAlias": "标签页 B：邮箱收件箱",
+      "visual": null,
+      "storyboardVisualType": "tab_transition",
+      "highlight": null
+    },
+    {
+      "id": "segment_004",
+      "stepId": "article_step_004",
+      "type": "operation",
+      "startTime": 11,
+      "endTime": 16,
+      "caption": "在邮箱中点击 Activate Account，激活刚注册的账号。",
+      "currentTabAlias": "标签页 B：邮箱收件箱",
+      "fromTabAlias": null,
+      "toTabAlias": null,
+      "visual": null,
+      "storyboardVisualType": "screenshot",
+      "highlight": {
+        "x": 420,
+        "y": 360,
+        "width": 190,
+        "height": 38
+      }
+    },
+    {
+      "id": "segment_005",
+      "stepId": "article_step_005",
+      "type": "tab_transition",
+      "startTime": 16,
+      "endTime": 18,
+      "caption": "完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。",
+      "currentTabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+      "fromTabAlias": "标签页 B：邮箱收件箱",
+      "toTabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+      "visual": null,
+      "storyboardVisualType": "tab_transition",
+      "highlight": null
+    }
+  ]
+}
