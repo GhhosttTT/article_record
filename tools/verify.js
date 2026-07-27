@@ -226,8 +226,9 @@ runCheck("视频帧生成器可输出 navigation 页面跳转 SVG 帧", () => {
   assertExists(framePath);
   const frame = readText(framePath);
   assert(frame.includes("页面跳转"), `${navigationSegment.id}.svg 缺少页面跳转标题`);
-  assert(frame.includes("原页面"), `${navigationSegment.id}.svg 缺少原页面标注`);
-  assert(frame.includes("ZKBio TimeCloud 注册表单"), `${navigationSegment.id}.svg 缺少目标页面标题`);
+  assert(frame.includes("y=\"586\" width=\"1280\" height=\"134\""), `${navigationSegment.id}.svg 必须使用底部字幕条`);
+  assert(!/\d+(?:\.\d+)?s\s*-\s*\d+(?:\.\d+)?s/.test(frame), `${navigationSegment.id}.svg 不应显示时间范围`);
+  assert(frame.includes("<image href=") || frame.includes(navigationSegment.toUrl || navigationSegment.pageUrl), `${navigationSegment.id}.svg 必须展示目标页面截图或目标地址上下文`);
 });
 
 runCheck("视频帧生成器可输出 chapter_intro 章节 SVG 帧", () => {
@@ -271,6 +272,8 @@ runCheck("视频帧生成器会清理旧 segment SVG 帧", () => {
   assert(fs.existsSync(path.join(frameDir, "segment_current.svg")), "render_video 必须生成当前 segment SVG 帧");
   const frame = fs.readFileSync(path.join(frameDir, "segment_current.svg"), "utf8");
   assert(frame.includes("按键：Enter"), "render_video 生成的 SVG 帧必须显示 key 片段按键");
+  assert(frame.includes("当前片段"), "render_video 生成的 SVG 帧必须把说明作为字幕展示");
+  assert(!/\d+(?:\.\d+)?s\s*-\s*\d+(?:\.\d+)?s/.test(frame), "render_video 生成的 SVG 帧不应显示时间范围");
 });
 
 runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
@@ -279,6 +282,8 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   assert(renderVideo.includes("<image href="), "render_video.js 必须把截图嵌入 SVG");
   assert(renderVideo.includes("privacyMaskBoxes"), "render_video.js 必须渲染打码区域");
   assert(renderVideo.includes("renderFocusZoom"), "render_video.js 必须基于高亮区域渲染局部放大预览");
+  assert(renderVideo.includes("renderSubtitle"), "render_video.js 必须把说明渲染为字幕");
+  assert(renderVideo.includes("{ x: 32, y: 24, width: 1216, height: 548 }"), "render_video.js 必须使用大面积截图主画面");
   assert(renderVideo.includes("已打码"), "render_video.js 必须在有打码区域时显示提示");
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sop-render-video-"));
@@ -307,6 +312,10 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   assert(result.status === 0, result.stderr || result.stdout || "真实截图视频帧生成失败");
   const frame = fs.readFileSync(path.join(outputDir, "frames", "segment_realshot.svg"), "utf8");
   assert(frame.includes("<image href=\"data:image/svg+xml"), "真实截图帧必须包含 image");
+  assert(frame.includes("width=\"1096\" height=\"548\""), "真实截图帧必须把截图作为主画面放大展示");
+  assert(frame.includes("y=\"586\" width=\"1280\" height=\"134\""), "真实截图帧必须使用底部字幕条");
+  assert(frame.includes("真实截图片段"), "真实截图帧必须把说明作为字幕展示");
+  assert(!/\d+(?:\.\d+)?s\s*-\s*\d+(?:\.\d+)?s/.test(frame), "真实截图帧不应显示时间范围");
   assert(frame.includes("已打码"), "真实截图帧必须标注已打码");
   assert(frame.includes("stroke=\"#f18a2a\""), "真实截图帧必须渲染高亮框");
   assert(frame.includes("Focus zoom"), "真实截图帧必须渲染局部放大预览");

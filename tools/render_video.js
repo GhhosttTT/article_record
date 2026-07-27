@@ -85,78 +85,180 @@ function renderFrame(segment) {
   const title = isChapter ? "章节" : isTab ? "标签页切换" : isNavigation ? "页面跳转" : "操作步骤";
   const badgeColor = isChapter ? "#eef2ff" : isTab ? "#fff1e4" : isNavigation ? "#edf7ee" : "#e8f2fa";
   const badgeText = isChapter ? "#354a9f" : isTab ? "#a65016" : isNavigation ? "#226438" : "#145985";
-  const borderColor = isChapter ? "#b8c2f0" : isTab ? "#dca977" : isNavigation ? "#a9d1b4" : "#9ec4df";
-  const captionLines = wrapText(segment.caption || "", 23, 3);
-  const currentTab = segment.currentTabAlias || "";
-  const tabLine = [segment.fromTabAlias, segment.toTabAlias].filter(Boolean).join("  ->  ");
-  const timeText = `${segment.startTime}s - ${segment.endTime}s`;
-  const keyBadge = segment.key ? renderKeyBadge(segment.key) : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-  <rect width="1280" height="720" fill="#f3f6f8"/>
-  <rect x="72" y="64" width="1136" height="592" rx="18" fill="#ffffff" stroke="#dce3ea"/>
-  <rect x="104" y="96" width="190" height="42" rx="21" fill="${badgeColor}" stroke="${borderColor}"/>
-  <text x="199" y="123" text-anchor="middle" font-size="20" font-weight="700" fill="${badgeText}" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(title)}</text>
-  ${keyBadge}
-  <text x="1094" y="123" text-anchor="end" font-size="20" font-weight="700" fill="#66717d" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(timeText)}</text>
-  <text x="104" y="205" font-size="42" font-weight="800" fill="#18212b" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(captionLines[0] || "")}</text>
-  ${captionLines.slice(1).map((line, index) => `<text x="104" y="${260 + index * 52}" font-size="38" font-weight="700" fill="#18212b" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(line)}</text>`).join("\n  ")}
+  <rect width="1280" height="720" fill="#111827"/>
   ${renderSegmentVisual(segment, isTab, isNavigation, isChapter)}
-  <text x="104" y="594" font-size="24" fill="#66717d" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(currentTab)}</text>
-  ${tabLine ? `<text x="104" y="630" font-size="22" fill="#a65016" font-weight="700" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(tabLine)}</text>` : ""}
+  ${renderTypeBadge(title, badgeColor, badgeText)}
+  ${segment.key ? renderKeyBadge(segment.key) : ""}
+  ${renderSubtitle(segment)}
 </svg>`;
+}
+
+function renderTypeBadge(title, badgeColor, badgeText) {
+  const width = Math.max(128, [...title].length * 24 + 38);
+  return `<rect x="34" y="28" width="${width}" height="42" rx="21" fill="${badgeColor}" opacity="0.96"/>
+  <text x="${34 + width / 2}" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="${badgeText}" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(title)}</text>`;
 }
 
 function renderKeyBadge(key) {
   const label = `按键：${key}`;
-  return `<rect x="320" y="96" width="170" height="42" rx="21" fill="#f4f1ff" stroke="#c4b5fd"/>
-  <text x="405" y="123" text-anchor="middle" font-size="20" font-weight="800" fill="#5b21b6" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(label)}</text>`;
+  return `<rect x="196" y="28" width="150" height="42" rx="21" fill="#f4f1ff" opacity="0.96"/>
+  <text x="271" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#5b21b6" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(label)}</text>`;
+}
+
+function renderSubtitle(segment) {
+  const captionLines = wrapText(segment.caption || "", 30, 2);
+  const context = subtitleContext(segment);
+  const firstY = captionLines.length > 1 ? 626 : 648;
+  return `<rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
+  ${captionLines.map((line, index) => `<text x="640" y="${firstY + index * 38}" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(line)}</text>`).join("\n  ")}
+  ${context ? `<text x="640" y="704" text-anchor="middle" font-size="20" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(context)}</text>` : ""}`;
+}
+
+function subtitleContext(segment) {
+  if (segment.fromTabAlias || segment.toTabAlias) return [segment.fromTabAlias, segment.toTabAlias].filter(Boolean).join(" -> ");
+  if (segment.type === "navigation") return trimMiddle(segment.toUrl || segment.pageUrl || "", 60);
+  if (segment.type === "chapter_intro") return segment.currentTabAlias || "";
+  return "";
 }
 
 function renderSegmentVisual(segment, isTab, isNavigation, isChapter) {
-  if (isChapter) {
-    return `
-  <rect x="104" y="342" width="720" height="142" rx="16" fill="#eef2ff" stroke="#b8c2f0"/>
-  <text x="464" y="392" text-anchor="middle" font-size="28" font-weight="800" fill="#354a9f" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(segment.pageTitle || "流程章节")}</text>
-  <text x="464" y="436" text-anchor="middle" font-size="22" fill="#66717d" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(segment.currentTabAlias || segment.pageUrl || "")}</text>`;
-  }
-
-  if (isTab) {
-    return `
-  <rect x="104" y="350" width="470" height="96" rx="14" fill="#edf4fa" stroke="#b7cad9"/>
-  <text x="339" y="408" text-anchor="middle" font-size="26" font-weight="800" fill="#145985" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(segment.fromTabAlias || "当前标签页")}</text>
-  <path d="M610 398 H720" stroke="#cc6b2c" stroke-width="8" stroke-linecap="round"/>
-  <path d="M720 398 l-26 -20 M720 398 l-26 20" stroke="#cc6b2c" stroke-width="8" stroke-linecap="round"/>
-  <rect x="756" y="350" width="420" height="96" rx="14" fill="#fff1e4" stroke="#dca977"/>
-  <text x="966" y="408" text-anchor="middle" font-size="26" font-weight="800" fill="#a65016" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(segment.toTabAlias || "目标标签页")}</text>`;
-  }
-
-  if (isNavigation) {
-    const fromLabel = trimMiddle(segment.fromUrl || "当前页面", 36);
-    const toLabel = trimMiddle(segment.toUrl || segment.pageUrl || "目标页面", 36);
-    return `
-  <rect x="104" y="342" width="470" height="104" rx="14" fill="#edf4fa" stroke="#b7cad9"/>
-  <text x="339" y="384" text-anchor="middle" font-size="24" font-weight="800" fill="#145985" font-family="Microsoft YaHei, Segoe UI, sans-serif">原页面</text>
-  <text x="339" y="420" text-anchor="middle" font-size="19" fill="#66717d" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(fromLabel)}</text>
-  <path d="M610 394 H720" stroke="#2f855a" stroke-width="8" stroke-linecap="round"/>
-  <path d="M720 394 l-26 -20 M720 394 l-26 20" stroke="#2f855a" stroke-width="8" stroke-linecap="round"/>
-  <rect x="756" y="342" width="420" height="104" rx="14" fill="#edf7ee" stroke="#a9d1b4"/>
-  <text x="966" y="384" text-anchor="middle" font-size="24" font-weight="800" fill="#226438" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(segment.pageTitle || "目标页面")}</text>
-  <text x="966" y="420" text-anchor="middle" font-size="19" fill="#4d6b57" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(toLabel)}</text>`;
-  }
-
   if (segment.visual) return renderScreenshotVisual(segment);
+  if (isChapter) return renderChapterVisual(segment);
+  if (isTab) return renderTabTransitionVisual(segment);
+  if (isNavigation) return renderNavigationVisual(segment);
+  return renderPlaceholderVisual(segment);
+}
 
-  const highlight = segment.highlight;
-  const showHighlight = highlight && Number.isFinite(highlight.x);
+function renderChapterVisual(segment) {
+  const heading = segment.pageTitle || "流程章节";
+  const context = segment.currentTabAlias || trimMiddle(segment.pageUrl || "", 58);
   return `
-  <rect x="104" y="338" width="720" height="178" rx="14" fill="#edf4fa" stroke="#b7cad9"/>
-  <rect x="138" y="376" width="652" height="36" rx="8" fill="#ffffff" stroke="#cbd8e2"/>
-  <rect x="138" y="434" width="390" height="36" rx="8" fill="#ffffff" stroke="#cbd8e2"/>
-  <rect x="138" y="486" width="230" height="36" rx="8" fill="#1769aa"/>
-  <text x="253" y="510" text-anchor="middle" font-size="20" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">目标操作区域</text>
-  ${showHighlight ? `<rect x="124" y="470" width="268" height="70" rx="12" fill="none" stroke="#f18a2a" stroke-width="8"/>` : ""}`;
+  <rect x="170" y="176" width="940" height="300" rx="22" fill="#f8fafc"/>
+  <rect x="206" y="212" width="868" height="56" rx="14" fill="#e2e8f0"/>
+  <rect x="206" y="296" width="610" height="34" rx="10" fill="#cbd5e1"/>
+  <rect x="206" y="352" width="742" height="34" rx="10" fill="#dbeafe"/>
+  <rect x="206" y="408" width="480" height="34" rx="10" fill="#bfdbfe"/>
+  <text x="640" y="254" text-anchor="middle" font-size="34" font-weight="900" fill="#1e293b" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(heading)}</text>
+  <text x="640" y="532" text-anchor="middle" font-size="24" font-weight="700" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(context)}</text>`;
+}
+
+function renderTabTransitionVisual(segment) {
+  return `
+  <rect x="78" y="196" width="500" height="176" rx="18" fill="#f8fafc"/>
+  <rect x="110" y="226" width="438" height="36" rx="18" fill="#dbeafe"/>
+  <rect x="110" y="292" width="360" height="30" rx="8" fill="#cbd5e1"/>
+  <text x="328" y="424" text-anchor="middle" font-size="26" font-weight="900" fill="#e2e8f0" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(segment.fromTabAlias || "当前标签页")}</text>
+  <path d="M620 304 H740" stroke="#f97316" stroke-width="10" stroke-linecap="round"/>
+  <path d="M740 304 l-30 -24 M740 304 l-30 24" stroke="#f97316" stroke-width="10" stroke-linecap="round"/>
+  <rect x="792" y="176" width="410" height="216" rx="18" fill="#fff7ed" stroke="#fed7aa" stroke-width="4"/>
+  <rect x="824" y="208" width="346" height="42" rx="21" fill="#fdba74"/>
+  <rect x="824" y="284" width="286" height="30" rx="8" fill="#fed7aa"/>
+  <text x="997" y="444" text-anchor="middle" font-size="28" font-weight="900" fill="#fed7aa" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(segment.toTabAlias || "目标标签页")}</text>`;
+}
+
+function renderNavigationVisual(segment) {
+  const fromLabel = trimMiddle(segment.fromUrl || "当前页面", 42);
+  const toLabel = trimMiddle(segment.toUrl || segment.pageUrl || "目标页面", 42);
+  return `
+  <rect x="70" y="172" width="500" height="234" rx="18" fill="#f8fafc"/>
+  <rect x="106" y="214" width="428" height="42" rx="12" fill="#dbeafe"/>
+  <rect x="106" y="286" width="336" height="30" rx="8" fill="#cbd5e1"/>
+  <text x="320" y="458" text-anchor="middle" font-size="22" font-weight="800" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(fromLabel)}</text>
+  <path d="M620 296 H740" stroke="#22c55e" stroke-width="10" stroke-linecap="round"/>
+  <path d="M740 296 l-30 -24 M740 296 l-30 24" stroke="#22c55e" stroke-width="10" stroke-linecap="round"/>
+  <rect x="792" y="148" width="418" height="282" rx="18" fill="#f0fdf4" stroke="#86efac" stroke-width="4"/>
+  <rect x="828" y="190" width="346" height="48" rx="14" fill="#bbf7d0"/>
+  <rect x="828" y="274" width="310" height="30" rx="8" fill="#dcfce7"/>
+  <text x="1001" y="464" text-anchor="middle" font-size="24" font-weight="900" fill="#bbf7d0" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(toLabel)}</text>`;
+}
+
+function renderPlaceholderVisual(segment) {
+  const showHighlight = segment.highlight && Number.isFinite(segment.highlight.x);
+  return `
+  <rect x="42" y="52" width="1196" height="500" rx="18" fill="#f8fafc"/>
+  <rect x="82" y="96" width="1116" height="52" rx="14" fill="#e2e8f0"/>
+  <rect x="82" y="188" width="720" height="42" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="82" y="260" width="620" height="42" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="82" y="340" width="290" height="54" rx="10" fill="#1769aa"/>
+  <text x="227" y="375" text-anchor="middle" font-size="22" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">目标操作区域</text>
+  ${showHighlight ? `<rect x="68" y="324" width="330" height="90" rx="12" fill="none" stroke="#f18a2a" stroke-width="8"/>` : ""}`;
+}
+
+function renderScreenshotVisual(segment) {
+  const frame = fitRect(
+    segment.screenshot?.viewportWidth || segment.screenshot?.width || 1280,
+    segment.screenshot?.viewportHeight || segment.screenshot?.height || 720,
+    { x: 32, y: 24, width: 1216, height: 548 }
+  );
+  const highlight = renderOverlayBox(segment.highlight, frame, "#f18a2a", "none", 6);
+  const masks = (segment.privacyMaskBoxes || [])
+    .map((box) => renderOverlayBox(box, frame, "#111827", "#111827", 0))
+    .join("\n  ");
+  const zoom = renderFocusZoom(segment, frame);
+  const maskLabel = segment.privacyMaskBoxes?.length
+    ? `<rect x="${frame.x + frame.width - 118}" y="${frame.y + 12}" width="104" height="34" rx="17" fill="#111827" opacity="0.9"/>
+  <text x="${frame.x + frame.width - 66}" y="${frame.y + 35}" text-anchor="middle" font-size="17" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">已打码</text>`
+    : "";
+
+  return `
+  <rect x="${frame.x - 4}" y="${frame.y - 4}" width="${frame.width + 8}" height="${frame.height + 8}" rx="18" fill="#e2e8f0"/>
+  <image href="${escapeXml(segment.visual)}" x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}" preserveAspectRatio="none"/>
+  ${highlight}
+  ${masks}
+  ${zoom}
+  ${maskLabel}`;
+}
+
+function renderFocusZoom(segment, frame) {
+  const box = segment.highlight;
+  if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
+  const zoomRect = focusZoomRect(box, frame);
+  const zoomScale = frame.width / frame.sourceWidth * 2.35;
+  const boxCenterX = box.x + box.width / 2;
+  const boxCenterY = box.y + box.height / 2;
+  const imageWidth = frame.sourceWidth * zoomScale;
+  const imageHeight = frame.sourceHeight * zoomScale;
+  const imageX = zoomRect.x + zoomRect.width / 2 - boxCenterX * zoomScale;
+  const imageY = zoomRect.y + zoomRect.height / 2 - boxCenterY * zoomScale;
+  const clipId = `clip_${String(segment.id || "focus").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+  const masks = (segment.privacyMaskBoxes || []).map((mask) => {
+    const x = imageX + mask.x * zoomScale;
+    const y = imageY + mask.y * zoomScale;
+    return `<rect x="${round(x)}" y="${round(y)}" width="${round(Math.max(1, mask.width * zoomScale))}" height="${round(Math.max(1, mask.height * zoomScale))}" rx="8" fill="#111827" clip-path="url(#${clipId})"/>`;
+  }).join("\n  ");
+  return `
+  <defs>
+    <clipPath id="${clipId}">
+      <rect x="${zoomRect.x}" y="${zoomRect.y}" width="${zoomRect.width}" height="${zoomRect.height}" rx="14"/>
+    </clipPath>
+  </defs>
+  <rect x="${zoomRect.x - 3}" y="${zoomRect.y - 3}" width="${zoomRect.width + 6}" height="${zoomRect.height + 6}" rx="16" fill="#ffffff" stroke="#f18a2a" stroke-width="6"/>
+  <image href="${escapeXml(segment.visual)}" x="${round(imageX)}" y="${round(imageY)}" width="${round(imageWidth)}" height="${round(imageHeight)}" preserveAspectRatio="none" clip-path="url(#${clipId})"/>
+  ${masks}
+  <rect x="${zoomRect.x}" y="${zoomRect.y}" width="${zoomRect.width}" height="${zoomRect.height}" rx="14" fill="none" stroke="#f18a2a" stroke-width="3"/>
+  <rect x="${zoomRect.x + 12}" y="${zoomRect.y + 12}" width="106" height="28" rx="14" fill="#18212b" opacity="0.86"/>
+  <text x="${zoomRect.x + 65}" y="${zoomRect.y + 32}" text-anchor="middle" font-size="15" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">Focus zoom</text>`;
+}
+
+function focusZoomRect(box, frame) {
+  const width = 330;
+  const height = 210;
+  const margin = 20;
+  const boxFrameX = frame.x + box.x / frame.sourceWidth * frame.width;
+  const boxFrameY = frame.y + box.y / frame.sourceHeight * frame.height;
+  const boxFrameW = box.width / frame.sourceWidth * frame.width;
+  const boxFrameH = box.height / frame.sourceHeight * frame.height;
+  const frameRight = frame.x + frame.width;
+  const frameBottom = frame.y + frame.height;
+  const rightSpace = frameRight - (boxFrameX + boxFrameW);
+  const leftCandidate = boxFrameX - width - margin;
+  const rightCandidate = boxFrameX + boxFrameW + margin;
+  const x = rightSpace >= width + margin ? rightCandidate : Math.max(frame.x + margin, leftCandidate);
+  const y = Math.max(frame.y + margin, Math.min(frameBottom - height - margin, boxFrameY + boxFrameH / 2 - height / 2));
+  return { x: round(x), y: round(y), width, height };
 }
 
 function cleanGeneratedFrames(frameDir) {
@@ -221,30 +323,6 @@ function pathToFileUrl(filePath) {
   return `file:///${path.resolve(filePath).replaceAll("\\", "/")}`;
 }
 
-function renderScreenshotVisual(segment) {
-  const frame = fitRect(
-    segment.screenshot?.viewportWidth || segment.screenshot?.width || 1280,
-    segment.screenshot?.viewportHeight || segment.screenshot?.height || 720,
-    { x: 104, y: 318, width: 720, height: 230 }
-  );
-  const highlight = renderOverlayBox(segment.highlight, frame, "#f18a2a", "none", 6);
-  const zoom = renderFocusZoom(segment, frame);
-  const masks = (segment.privacyMaskBoxes || [])
-    .map((box) => renderOverlayBox(box, frame, "#111827", "#111827", 0))
-    .join("\n  ");
-  const maskLabel = segment.privacyMaskBoxes?.length
-    ? `<text x="${frame.x + frame.width - 14}" y="${frame.y + 28}" text-anchor="end" font-size="18" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">已打码</text>`
-    : "";
-
-  return `
-  <rect x="${frame.x - 2}" y="${frame.y - 2}" width="${frame.width + 4}" height="${frame.height + 4}" rx="14" fill="#edf4fa" stroke="#b7cad9"/>
-  <image href="${escapeXml(segment.visual)}" x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}" preserveAspectRatio="none"/>
-  ${highlight}
-  ${masks}
-  ${zoom}
-  ${maskLabel}`;
-}
-
 function fitRect(sourceWidth, sourceHeight, target) {
   const scale = Math.min(target.width / sourceWidth, target.height / sourceHeight);
   const width = Math.round(sourceWidth * scale);
@@ -268,69 +346,30 @@ function renderOverlayBox(box, frame, stroke, fill, strokeWidth) {
   return `<rect x="${round(x)}" y="${round(y)}" width="${round(width)}" height="${round(height)}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
 }
 
-function renderFocusZoom(segment, frame) {
-  const box = segment.highlight;
-  if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
-  const zoomRect = focusZoomRect(box, frame);
-  const zoomScale = frame.width / frame.sourceWidth * 2.35;
-  const boxCenterX = box.x + box.width / 2;
-  const boxCenterY = box.y + box.height / 2;
-  const imageWidth = frame.sourceWidth * zoomScale;
-  const imageHeight = frame.sourceHeight * zoomScale;
-  const imageX = zoomRect.x + zoomRect.width / 2 - boxCenterX * zoomScale;
-  const imageY = zoomRect.y + zoomRect.height / 2 - boxCenterY * zoomScale;
-  const clipId = `clip_${String(segment.id || "focus").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-  const masks = (segment.privacyMaskBoxes || []).map((mask) => {
-    const x = imageX + mask.x * zoomScale;
-    const y = imageY + mask.y * zoomScale;
-    return `<rect x="${round(x)}" y="${round(y)}" width="${round(Math.max(1, mask.width * zoomScale))}" height="${round(Math.max(1, mask.height * zoomScale))}" rx="8" fill="#111827" clip-path="url(#${clipId})"/>`;
-  }).join("\n  ");
-  return `
-  <defs>
-    <clipPath id="${clipId}">
-      <rect x="${zoomRect.x}" y="${zoomRect.y}" width="${zoomRect.width}" height="${zoomRect.height}" rx="14"/>
-    </clipPath>
-  </defs>
-  <rect x="${zoomRect.x - 3}" y="${zoomRect.y - 3}" width="${zoomRect.width + 6}" height="${zoomRect.height + 6}" rx="16" fill="#ffffff" stroke="#f18a2a" stroke-width="6"/>
-  <image href="${escapeXml(segment.visual)}" x="${round(imageX)}" y="${round(imageY)}" width="${round(imageWidth)}" height="${round(imageHeight)}" preserveAspectRatio="none" clip-path="url(#${clipId})"/>
-  ${masks}
-  <rect x="${zoomRect.x}" y="${zoomRect.y}" width="${zoomRect.width}" height="${zoomRect.height}" rx="14" fill="none" stroke="#f18a2a" stroke-width="3"/>
-  <rect x="${zoomRect.x + 12}" y="${zoomRect.y + 12}" width="106" height="28" rx="14" fill="#18212b" opacity="0.86"/>
-  <text x="${zoomRect.x + 65}" y="${zoomRect.y + 32}" text-anchor="middle" font-size="15" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">Focus zoom</text>`;
-}
-
-function focusZoomRect(box, frame) {
-  const width = 300;
-  const height = 190;
-  const margin = 22;
-  const boxFrameX = frame.x + box.x / frame.sourceWidth * frame.width;
-  const boxFrameY = frame.y + box.y / frame.sourceHeight * frame.height;
-  const boxFrameW = box.width / frame.sourceWidth * frame.width;
-  const boxFrameH = box.height / frame.sourceHeight * frame.height;
-  const rightSpace = 1180 - (boxFrameX + boxFrameW);
-  const x = rightSpace >= width + margin ? boxFrameX + boxFrameW + margin : Math.max(104, boxFrameX - width - margin);
-  const y = Math.max(318, Math.min(548 - height, boxFrameY + boxFrameH / 2 - height / 2));
-  return { x: round(x), y: round(y), width, height };
-}
-
 function round(value) {
   return Math.round(value * 100) / 100;
 }
 
 function wrapText(text, maxChars, maxLines) {
-  const chars = [...text];
+  const tokens = String(text ?? "").match(/[A-Za-z0-9_:/.-]+|\s+|./gu) || [];
   const lines = [];
   let current = "";
-  for (const char of chars) {
-    if ([...current].length >= maxChars) {
+  for (const token of tokens) {
+    const next = current + token;
+    if (current.trim() && textLength(next) > maxChars) {
       lines.push(current);
-      current = "";
+      current = token.trimStart();
       if (lines.length === maxLines) break;
+    } else {
+      current = next;
     }
-    current += char;
   }
-  if (current && lines.length < maxLines) lines.push(current);
-  return lines;
+  if (current.trim() && lines.length < maxLines) lines.push(current);
+  return lines.map((line) => line.trim());
+}
+
+function textLength(text) {
+  return [...String(text ?? "")].reduce((length, char) => length + (/[\x00-\x7F]/.test(char) ? 0.62 : 1), 0);
 }
 
 function trimMiddle(text, maxChars) {
