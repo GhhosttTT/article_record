@@ -428,6 +428,10 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("sendInputLikeEvent(target, \"select\")"), "content.js 必须发送 select 事件");
   assert(content.includes("sendInputLikeEvent(target, \"check\")"), "content.js 必须发送 check 事件");
   assert(content.includes("action: \"submit\""), "content.js 必须发送 submit 事件");
+  assert(content.includes("response?.ok || response?.duplicateEvent"), "content.js 只有收到 background 确认后才能删除事件队列");
+  assert(content.includes("retryRecorderEvent(event, attempt"), "content.js 发送失败或未确认时必须重试事件");
+  assert(content.includes("MAX_EVENT_DELIVERY_ATTEMPTS"), "content.js 必须限制事件重试次数");
+  assert(content.includes("lastError"), "content.js 必须记录事件投递失败原因以便排查");
   assert(background.includes("payload.action === \"submit\""), "background 必须生成 submit 默认说明");
   assert(background.includes("payload.action === \"key\""), "background 必须生成 key 默认说明");
   assert(background.includes("[\"click\", \"submit\", \"key\"].includes(last.action)"), "键盘关键动作必须能关联后续页面跳转");

@@ -27,6 +27,8 @@ const activeModalTargets = new Map();
 let modalScanTimer = null;
 const EVENT_QUEUE_KEY = "sopRecorderPendingEvents";
 const MAX_QUEUED_EVENTS = 80;
+const MAX_EVENT_DELIVERY_ATTEMPTS = 8;
+const MAX_EVENT_QUEUE_AGE_MS = 2 * 60 * 1000;
 
 drainQueuedRecorderEvents();
 
@@ -272,16 +274,37 @@ function sendRecorderEvent(payload) {
 }
 
 function drainQueuedRecorderEvents() {
-  readQueuedRecorderEvents().forEach((event) => deliverRecorderEvent(event, 0));
+  pruneQueuedRecorderEvents();
+  readQueuedRecorderEvents().forEach((event) => deliverRecorderEvent(event, event.attempts || 0));
 }
 
 function deliverRecorderEvent(event, attempt) {
   chrome.runtime.sendMessage({ type: "recorder:event", eventId: event.id, payload: event.payload })
-    .then(() => removeQueuedRecorderEvent(event.id))
-    .catch(() => {
-      if (attempt >= 2) return;
-      window.setTimeout(() => deliverRecorderEvent(event, attempt + 1), 180 * (attempt + 1));
-    });
+    .then((response) => {
+      if (response?.ok || response?.duplicateEvent) {
+        removeQueuedRecorderEvent(event.id);
+        return;
+      }
+      retryRecorderEvent(event, attempt, response?.error || response?.skipped || "not_acknowledged");
+    })
+    .catch((error) => retryRecorderEvent(event, attempt, error?.message || "send_failed"));
+}
+
+function retryRecorderEvent(event, attempt, lastError) {
+  const nextAttempt = attempt + 1;
+  const queuedAt = Number(event.queuedAt || Date.now());
+  if (nextAttempt >= MAX_EVENT_DELIVERY_ATTEMPTS || Date.now() - queuedAt > MAX_EVENT_QUEUE_AGE_MS) {
+    removeQueuedRecorderEvent(event.id);
+    return;
+  }
+  updateQueuedRecorderEvent({
+    ...event,
+    attempts: nextAttempt,
+    lastError,
+    lastAttemptAt: Date.now()
+  });
+  const delay = Math.min(5000, 250 * 2 ** Math.min(nextAttempt, 5));
+  window.setTimeout(() => deliverRecorderEvent(event, nextAttempt), delay);
 }
 
 function queueRecorderEvent(event) {
@@ -292,6 +315,16 @@ function queueRecorderEvent(event) {
 
 function removeQueuedRecorderEvent(eventId) {
   writeQueuedRecorderEvents(readQueuedRecorderEvents().filter((event) => event.id !== eventId));
+}
+
+function updateQueuedRecorderEvent(event) {
+  const events = readQueuedRecorderEvents().map((item) => item.id === event.id ? event : item);
+  writeQueuedRecorderEvents(events);
+}
+
+function pruneQueuedRecorderEvents() {
+  const now = Date.now();
+  writeQueuedRecorderEvents(readQueuedRecorderEvents().filter((event) => now - Number(event.queuedAt || now) <= MAX_EVENT_QUEUE_AGE_MS));
 }
 
 function readQueuedRecorderEvents() {
