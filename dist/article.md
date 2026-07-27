@@ -84,6 +84,8 @@
 
 高亮区域：x=760, y=610, width=320, height=42
 
+打码区域：x=780, y=430, width=320, height=42
+
 ### 8. 填写 Support Contact
 
 **类型**：操作步骤
@@ -91,6 +93,8 @@
 在 Support Contact 中输入内容。
 
 高亮区域：x=760, y=670, width=320, height=42
+
+打码区域：x=780, y=430, width=320, height=42
 
 ### 9. 填写 Legal Representative ID
 
@@ -102,7 +106,7 @@
 
 高亮区域：x=760, y=730, width=320, height=42
 
-打码区域：x=760, y=730, width=320, height=42
+打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42
 
 ### 10. 填写 Billing Bank Card
 
@@ -114,4 +118,4 @@
 
 高亮区域：x=760, y=790, width=320, height=42
 
-打码区域：x=760, y=790, width=320, height=42
+打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42; x=760, y=790, width=320, height=42

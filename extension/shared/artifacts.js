@@ -8,6 +8,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function createArtifactShared() {
   function buildArticleSteps(nodes) {
     const activeNodes = filterMeaningfulTransitionNodes((nodes || []).filter((node) => node.status !== "discarded"));
+    const privacyMasksByContext = {};
     return activeNodes.map((node, index) => {
       const type = articleStepType(node);
       const isTransition = type === "tab_transition" || type === "navigation";
@@ -15,7 +16,11 @@
       const description = node.descriptionOverride || node.generatedInstruction || title;
       const voiceoverText = normalizeText(node.voiceoverText || "");
       const focusBox = normalizeBox(node.focusBoxOverride || (node.target?.visibility?.canHighlight === false ? null : node.target?.boundingBox));
-      const privacyMaskBoxes = Array.isArray(node.privacyMaskBoxes) ? node.privacyMaskBoxes : [];
+      const contextKey = privacyContextKey(node);
+      const currentPrivacyMaskBoxes = normalizeBoxes(Array.isArray(node.privacyMaskBoxes) ? node.privacyMaskBoxes : []);
+      const priorPrivacyMaskBoxes = contextKey ? privacyMasksByContext[contextKey] || [] : [];
+      const privacyMaskBoxes = mergeBoxes([...priorPrivacyMaskBoxes, ...currentPrivacyMaskBoxes]);
+      if (contextKey && currentPrivacyMaskBoxes.length) privacyMasksByContext[contextKey] = privacyMaskBoxes;
       return {
         id: `article_step_${String(index + 1).padStart(3, "0")}`,
         nodeId: node.id,
@@ -195,6 +200,12 @@
       const containsSensitiveData = Boolean(step.privacyWarnings?.length);
       const hasMaskBoxes = Boolean(step.privacyMaskBoxes?.length);
       if (!step.image || (!containsSensitiveData && !hasMaskBoxes)) return step;
+      if (hasMaskBoxes) {
+        return {
+          ...step,
+          imageMaskedForPrivacy: true
+        };
+      }
       const { dataUrl, ...screenshot } = step.screenshot || {};
       return {
         ...step,
@@ -207,6 +218,28 @@
         imageRedactedForPrivacy: true
       };
     });
+  }
+
+  function privacyContextKey(node) {
+    const tabId = node.tab?.tabId || node.toTab?.tabId || node.fromTab?.tabId || "unknown_tab";
+    const url = node.afterUrl || node.pageUrl || node.tab?.url || node.toTab?.url || "";
+    return `${tabId}|${normalizeUrlForChapter(url)}`;
+  }
+
+  function normalizeBoxes(boxes) {
+    return boxes.map(normalizeBox).filter(Boolean);
+  }
+
+  function mergeBoxes(boxes) {
+    const seen = new Set();
+    const result = [];
+    for (const box of boxes) {
+      const key = [Math.round(box.x), Math.round(box.y), Math.round(box.width), Math.round(box.height)].join(":");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(box);
+    }
+    return result;
   }
 
   function buildVideoTimelineWithChapters(steps, chapters) {

@@ -32,7 +32,8 @@ function renderArticleHtml(state, tabs, steps) {
     .shot { position:relative; margin:18px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#f7f9fb; }
     .shot img { display:block; width:100%; }
     .focus { position:absolute; border:3px solid #f18a2a; border-radius:8px; box-shadow:0 0 0 9999px rgb(0 0 0 / 32%); pointer-events:none; }
-    .focus-zoom { position:absolute; right:16px; bottom:16px; width:min(260px, 34%); aspect-ratio:16/10; border:3px solid #f18a2a; border-radius:8px; background-repeat:no-repeat; box-shadow:0 12px 28px rgb(0 0 0 / 28%); pointer-events:none; }
+    .focus-zoom { position:absolute; width:min(280px, 36%); aspect-ratio:16/10; border:3px solid #f18a2a; border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 12px 28px rgb(0 0 0 / 28%); pointer-events:none; }
+    .focus-zoom img { position:absolute; display:block; max-width:none; width:auto; }
     .focus-zoom::before { content:"Focus zoom"; position:absolute; left:8px; top:8px; padding:3px 7px; border-radius:999px; background:rgb(24 33 43 / 82%); color:#fff; font-size:11px; font-weight:800; }
     .mask { position:absolute; border-radius:6px; background:#111827; box-shadow:inset 0 0 0 2px rgb(255 255 255 / 45%); pointer-events:none; }
   </style>
@@ -137,7 +138,11 @@ function renderArticleWordDocument(state, tabs, steps) {
     .kind { color:#145985; font-weight:bold; }
     .switch { color:#854513; background:#fff8f0; border:1pt dashed #dca977; padding:8pt; margin:8pt 0; }
     .warning { color:#9a3f00; font-weight:bold; }
-    .shot img { max-width:100%; height:auto; border:1pt solid #dce3ea; }
+    .shot { position:relative; max-width:100%; border:1pt solid #dce3ea; overflow:hidden; }
+    .shot img { display:block; max-width:100%; height:auto; }
+    .focus { position:absolute; border:2pt solid #f18a2a; }
+    .focus-zoom { display:none; }
+    .mask { position:absolute; background:#111827; }
     .redacted { color:#66717d; font-weight:bold; border:1pt dashed #dce3ea; padding:10pt; }
     .coords { color:#66717d; font-size:9pt; }
   </style>
@@ -178,7 +183,7 @@ function renderWordStep(step) {
     : "";
   const warnings = step.privacyWarnings?.map((warning) => `<p class="warning">${escapeHtml(warning)}</p>`).join("") || "";
   const image = step.image
-    ? `<div class="shot"><img src="${step.image}" alt="步骤截图"></div>`
+    ? renderArticleImage(step)
     : step.imageRedactedForPrivacy ? `<p class="redacted">截图已因隐私保护从导出文件中移除，仅保留截图元数据。</p>` : "";
   const focus = step.focusBox
     ? `<p class="coords">高亮区域：x=${escapeHtml(step.focusBox.x)}, y=${escapeHtml(step.focusBox.y)}, width=${escapeHtml(step.focusBox.width)}, height=${escapeHtml(step.focusBox.height)}</p>`
@@ -260,7 +265,7 @@ function renderArticleImage(step) {
   const viewportWidth = shot.viewportWidth || shot.width;
   const viewportHeight = shot.viewportHeight || shot.height;
   const focus = box && viewportWidth && viewportHeight ? renderFocusBox(box, viewportWidth, viewportHeight) : "";
-  const zoom = box && viewportWidth && viewportHeight ? renderFocusZoom(step.image, box, viewportWidth, viewportHeight) : "";
+  const zoom = box && viewportWidth && viewportHeight ? renderFocusZoom(step.image, box, viewportWidth, viewportHeight, step.privacyMaskBoxes || []) : "";
   const masks = viewportWidth && viewportHeight ? renderMaskBoxes(step.privacyMaskBoxes || [], viewportWidth, viewportHeight) : "";
   return `<div class="shot"><img src="${step.image}" alt="步骤截图">${focus}${masks}${zoom}</div>`;
 }
@@ -279,10 +284,36 @@ function renderFocusBox(box, viewportWidth, viewportHeight) {
   return `<div class="focus" style="left:${focus.left};top:${focus.top};width:${focus.width};height:${focus.height}"></div>`;
 }
 
-function renderFocusZoom(image, box, viewportWidth, viewportHeight) {
-  const centerX = Math.max(0, Math.min(100, (box.x + box.width / 2) / viewportWidth * 100));
-  const centerY = Math.max(0, Math.min(100, (box.y + box.height / 2) / viewportHeight * 100));
-  return `<div class="focus-zoom" style="background-image:url('${escapeCssUrl(image)}');background-size:320% auto;background-position:${centerX}% ${centerY}%"></div>`;
+function renderFocusZoom(image, box, viewportWidth, viewportHeight, maskBoxes = []) {
+  const zoom = focusZoomLayout(box, viewportWidth, viewportHeight);
+  const scale = Math.max(2.2, Math.min(5, Math.min(zoom.width / Math.max(1, box.width), zoom.height / Math.max(1, box.height)) * 1.9));
+  const imageWidth = viewportWidth * scale;
+  const imageHeight = viewportHeight * scale;
+  const imageLeft = zoom.width / 2 - (box.x + box.width / 2) * scale;
+  const imageTop = zoom.height / 2 - (box.y + box.height / 2) * scale;
+  const masks = maskBoxes.map((mask) => {
+    const left = imageLeft + mask.x * scale;
+    const top = imageTop + mask.y * scale;
+    return `<div class="mask" style="left:${left}px;top:${top}px;width:${Math.max(1, mask.width * scale)}px;height:${Math.max(1, mask.height * scale)}px"></div>`;
+  }).join("");
+  return `<div class="focus-zoom" style="left:${zoom.left};top:${zoom.top};width:${zoom.width}px;height:${zoom.height}px"><img src="${image}" alt="Focus zoom" style="left:${imageLeft}px;top:${imageTop}px;width:${imageWidth}px;height:${imageHeight}px">${masks}</div>`;
+}
+
+function focusZoomLayout(box, viewportWidth, viewportHeight) {
+  const zoomWidth = Math.min(280, Math.max(180, viewportWidth * 0.28));
+  const zoomHeight = Math.round(zoomWidth * 0.625);
+  const margin = 16;
+  const rightSpace = viewportWidth - (box.x + box.width);
+  const leftPx = rightSpace >= zoomWidth + margin * 2
+    ? box.x + box.width + margin
+    : Math.max(margin, box.x - zoomWidth - margin);
+  const topPx = Math.max(margin, Math.min(viewportHeight - zoomHeight - margin, box.y + box.height / 2 - zoomHeight / 2));
+  return {
+    left: `${leftPx / viewportWidth * 100}%`,
+    top: `${topPx / viewportHeight * 100}%`,
+    width: Math.round(zoomWidth),
+    height: Math.round(zoomHeight)
+  };
 }
 
 function renderMaskBoxes(boxes, viewportWidth, viewportHeight) {

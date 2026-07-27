@@ -1172,6 +1172,8 @@ runCheck("扩展预览页支持手动调整高亮区域", () => {
   assert(artifactsJs.includes("renderFocusZoom"), "viewer_artifacts.js 必须用 focusBox 渲染局部放大预览");
   assert(artifactsJs.includes("focus-zoom"), "viewer_artifacts.js 必须提供局部放大预览样式");
   assert(readText("tools/generate_artifacts.js").includes("renderFocusZoom"), "离线文章生成器必须渲染局部放大预览");
+  assert(artifactsJs.includes("function focusZoomLayout"), "导出文章局部放大框必须按高亮位置布局");
+  assert(!artifactsJs.includes("right:16px; bottom:16px"), "导出文章局部放大框不能固定在右下角");
   assert(artifactsJs.includes("/ viewportWidth * 100"), "导出文章高亮框必须随截图响应式缩放");
 
   const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
@@ -1439,17 +1441,17 @@ runCheck("录制 JSON 导出不会携带敏感步骤原始截图", () => {
   assert(safeExportNode.screenshot.redactedForPrivacy === true, "敏感步骤导出 JSON 必须保留隐私裁剪标记");
 });
 
-runCheck("文章和视频时间轴导出不会携带敏感步骤原始截图", () => {
+runCheck("文章和视频时间轴导出会保留已打码截图", () => {
   const shared = readText("extension/shared/artifacts.js");
   const viewerJs = readText("extension/viewer.js");
   const viewerArtifacts = readText("extension/viewer_artifacts.js");
   const generator = readText("tools/generate_artifacts.js");
   assert(shared.includes("buildPrivacySafeArticleSteps"), "共享 artifact 必须提供隐私安全导出步骤构建");
-  assert(shared.includes("imageRedactedForPrivacy"), "共享 artifact 必须标记文章截图隐私裁剪");
+  assert(shared.includes("imageMaskedForPrivacy"), "共享 artifact 必须标记文章截图已打码");
   assert(viewerJs.includes("buildPrivacySafeArticleSteps(currentSteps)"), "预览页导出必须使用隐私安全步骤副本");
-  assert(viewerArtifacts.includes("截图已因隐私保护从导出文件中移除"), "预览文章/Markdown 必须显示截图隐私裁剪提示");
+  assert(viewerArtifacts.includes("renderMaskBoxes"), "预览文章必须渲染打码区域");
   assert(generator.includes("buildPrivacySafeArticleSteps(steps)"), "离线导出必须使用隐私安全步骤副本");
-  assert(generator.includes("截图已因隐私保护从导出文件中移除"), "离线文章/分镜必须显示截图隐私裁剪提示");
+  assert(generator.includes("renderMaskBoxes"), "离线文章/分镜必须渲染打码区域");
 
   const { buildArticleSteps, buildPrivacySafeArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
   const originalDataUrl = "data:image/png;base64,RAW_SENSITIVE_SCREENSHOT";
@@ -1477,15 +1479,14 @@ runCheck("文章和视频时间轴导出不会携带敏感步骤原始截图", (
   assert(steps[0].image === originalDataUrl, "普通 ArticleStep 应保留内部截图供预览使用");
 
   const safeSteps = buildPrivacySafeArticleSteps(steps);
-  assert(safeSteps[0].image === null, "隐私安全导出步骤必须移除敏感截图 image");
-  assert(safeSteps[0].imageRedactedForPrivacy === true, "隐私安全导出步骤必须标记 imageRedactedForPrivacy");
-  assert(safeSteps[0].screenshot.redactedForPrivacy === true, "隐私安全导出步骤必须标记截图已裁剪");
-  assert(!("dataUrl" in safeSteps[0].screenshot), "隐私安全导出步骤 screenshot 不应包含 dataUrl");
+  assert(safeSteps[0].image === originalDataUrl, "有打码框的隐私安全导出步骤应保留截图 image");
+  assert(safeSteps[0].imageMaskedForPrivacy === true, "有打码框的隐私安全导出步骤必须标记 imageMaskedForPrivacy");
+  assert(safeSteps[0].screenshot.dataUrl === originalDataUrl, "有打码框的隐私安全导出步骤应保留截图 dataUrl 供渲染遮挡");
+  assert(safeSteps[0].privacyMaskBoxes.length === 1, "隐私安全导出步骤必须保留打码框");
 
   const timeline = buildVideoTimeline(safeSteps);
-  assert(timeline.segments[0].visual === null, "隐私安全 VideoTimeline 不应携带敏感截图 visual");
-  assert(timeline.segments[0].screenshot.redactedForPrivacy === true, "隐私安全 VideoTimeline 必须保留截图裁剪元数据");
-  assert(JSON.stringify(timeline).includes(originalDataUrl) === false, "隐私安全 VideoTimeline JSON 不应包含原始截图 dataUrl");
+  assert(timeline.segments[0].visual === originalDataUrl, "隐私安全 VideoTimeline 应携带已打码截图 visual");
+  assert(timeline.segments[0].privacyMaskBoxes.length === 1, "隐私安全 VideoTimeline 必须携带打码区域");
 });
 
 runCheck("扩展预览页支持调整步骤顺序", () => {
@@ -1745,6 +1746,39 @@ runCheck("自动打码区域会同步进入文章步骤和视频时间轴", () =
   assert(steps[0].privacyMaskBoxes[0].width === 160, "ArticleStep 必须保留自动打码区域");
   assert(steps[0].privacyWarnings.length === 1, "ArticleStep 必须保留自动打码隐私警告");
   assert(timeline.segments[0].privacyMaskBoxes[0].height === 36, "VideoTimeline 必须携带自动打码区域");
+});
+
+runCheck("同一页面后续敏感步骤会继承已有打码区域", () => {
+  const { buildArticleSteps, buildPrivacySafeArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildPrivacySafeArticleSteps(buildArticleSteps([
+    {
+      id: "node_email_mask",
+      sequence: 1,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：登录页", url: "https://example.com/login" },
+      target: { type: "input", text: "Email", boundingBox: { x: 100, y: 120, width: 220, height: 36 } },
+      screenshot: { dataUrl: "data:image/png;base64,SCREENSHOT_EMAIL", viewportWidth: 800, viewportHeight: 600 },
+      privacy: { containsSensitiveData: true, autoMaskApplied: true },
+      privacyMaskBoxes: [{ x: 100, y: 120, width: 220, height: 36 }],
+      generatedInstruction: "填写 Email。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_password_mask",
+      sequence: 2,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：登录页", url: "https://example.com/login" },
+      target: { type: "password", text: "Password", boundingBox: { x: 100, y: 180, width: 220, height: 36 } },
+      screenshot: { dataUrl: "data:image/png;base64,SCREENSHOT_PASSWORD", viewportWidth: 800, viewportHeight: 600 },
+      privacy: { containsSensitiveData: true, autoMaskApplied: true },
+      privacyMaskBoxes: [{ x: 100, y: 180, width: 220, height: 36 }],
+      generatedInstruction: "填写 Password。",
+      status: "auto_generated"
+    }
+  ]));
+  assert(steps[0].privacyMaskBoxes.length === 1, "账号步骤应包含账号打码框");
+  assert(steps[1].privacyMaskBoxes.length === 2, "密码步骤应同时遮挡账号和密码区域");
+  assert(steps[1].image === "data:image/png;base64,SCREENSHOT_PASSWORD", "密码步骤截图应保留并叠加遮挡");
 });
 
 runCheck("节点数组顺序会决定文章步骤和视频时间轴顺序", () => {

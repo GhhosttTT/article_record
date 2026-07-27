@@ -271,7 +271,7 @@ function renderOverlayBox(box, frame, stroke, fill, strokeWidth) {
 function renderFocusZoom(segment, frame) {
   const box = segment.highlight;
   if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
-  const zoomRect = { x: 858, y: 318, width: 300, height: 190 };
+  const zoomRect = focusZoomRect(box, frame);
   const zoomScale = frame.width / frame.sourceWidth * 2.35;
   const boxCenterX = box.x + box.width / 2;
   const boxCenterY = box.y + box.height / 2;
@@ -280,6 +280,11 @@ function renderFocusZoom(segment, frame) {
   const imageX = zoomRect.x + zoomRect.width / 2 - boxCenterX * zoomScale;
   const imageY = zoomRect.y + zoomRect.height / 2 - boxCenterY * zoomScale;
   const clipId = `clip_${String(segment.id || "focus").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+  const masks = (segment.privacyMaskBoxes || []).map((mask) => {
+    const x = imageX + mask.x * zoomScale;
+    const y = imageY + mask.y * zoomScale;
+    return `<rect x="${round(x)}" y="${round(y)}" width="${round(Math.max(1, mask.width * zoomScale))}" height="${round(Math.max(1, mask.height * zoomScale))}" rx="8" fill="#111827" clip-path="url(#${clipId})"/>`;
+  }).join("\n  ");
   return `
   <defs>
     <clipPath id="${clipId}">
@@ -288,9 +293,24 @@ function renderFocusZoom(segment, frame) {
   </defs>
   <rect x="${zoomRect.x - 3}" y="${zoomRect.y - 3}" width="${zoomRect.width + 6}" height="${zoomRect.height + 6}" rx="16" fill="#ffffff" stroke="#f18a2a" stroke-width="6"/>
   <image href="${escapeXml(segment.visual)}" x="${round(imageX)}" y="${round(imageY)}" width="${round(imageWidth)}" height="${round(imageHeight)}" preserveAspectRatio="none" clip-path="url(#${clipId})"/>
+  ${masks}
   <rect x="${zoomRect.x}" y="${zoomRect.y}" width="${zoomRect.width}" height="${zoomRect.height}" rx="14" fill="none" stroke="#f18a2a" stroke-width="3"/>
   <rect x="${zoomRect.x + 12}" y="${zoomRect.y + 12}" width="106" height="28" rx="14" fill="#18212b" opacity="0.86"/>
   <text x="${zoomRect.x + 65}" y="${zoomRect.y + 32}" text-anchor="middle" font-size="15" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">Focus zoom</text>`;
+}
+
+function focusZoomRect(box, frame) {
+  const width = 300;
+  const height = 190;
+  const margin = 22;
+  const boxFrameX = frame.x + box.x / frame.sourceWidth * frame.width;
+  const boxFrameY = frame.y + box.y / frame.sourceHeight * frame.height;
+  const boxFrameW = box.width / frame.sourceWidth * frame.width;
+  const boxFrameH = box.height / frame.sourceHeight * frame.height;
+  const rightSpace = 1180 - (boxFrameX + boxFrameW);
+  const x = rightSpace >= width + margin ? boxFrameX + boxFrameW + margin : Math.max(104, boxFrameX - width - margin);
+  const y = Math.max(318, Math.min(548 - height, boxFrameY + boxFrameH / 2 - height / 2));
+  return { x: round(x), y: round(y), width, height };
 }
 
 function round(value) {

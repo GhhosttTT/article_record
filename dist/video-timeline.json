@@ -322,7 +322,15 @@
         "height": 42,
         "coordinateSpace": "viewport-css-pixel"
       },
-      "privacyMaskBoxes": []
+      "privacyMaskBoxes": [
+        {
+          "x": 780,
+          "y": 430,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        }
+      ]
     },
     {
       "id": "segment_008",
@@ -351,7 +359,15 @@
         "height": 42,
         "coordinateSpace": "viewport-css-pixel"
       },
-      "privacyMaskBoxes": []
+      "privacyMaskBoxes": [
+        {
+          "x": 780,
+          "y": 430,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        }
+      ]
     },
     {
       "id": "segment_009",
@@ -381,6 +397,13 @@
         "coordinateSpace": "viewport-css-pixel"
       },
       "privacyMaskBoxes": [
+        {
+          "x": 780,
+          "y": 430,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        },
         {
           "x": 760,
           "y": 730,
@@ -418,6 +441,20 @@
         "coordinateSpace": "viewport-css-pixel"
       },
       "privacyMaskBoxes": [
+        {
+          "x": 780,
+          "y": 430,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        },
+        {
+          "x": 760,
+          "y": 730,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        },
         {
           "x": 760,
           "y": 790,

@@ -17,7 +17,11 @@
     .kind { color:#145985; font-weight:bold; }
     .switch { color:#854513; background:#fff8f0; border:1pt dashed #dca977; padding:8pt; margin:8pt 0; }
     .warning { color:#9a3f00; font-weight:bold; }
-    .shot img { max-width:100%; height:auto; border:1pt solid #dce3ea; }
+    .shot { position:relative; max-width:100%; border:1pt solid #dce3ea; overflow:hidden; }
+    .shot img { display:block; max-width:100%; height:auto; }
+    .focus { position:absolute; border:2pt solid #f18a2a; }
+    .focus-zoom { display:none; }
+    .mask { position:absolute; background:#111827; }
     .redacted { color:#66717d; font-weight:bold; border:1pt dashed #dce3ea; padding:10pt; }
     .coords { color:#66717d; font-size:9pt; }
   </style>
@@ -138,7 +142,7 @@
   <p class="coords">高亮区域：x=760, y=610, width=320, height=42</p>
   
   
-  
+  <p class="coords">打码区域：x=780, y=430, width=320, height=42</p>
 </article>
 <article class="step">
   <h3>8. 填写 Support Contact</h3>
@@ -151,7 +155,7 @@
   <p class="coords">高亮区域：x=760, y=670, width=320, height=42</p>
   
   
-  
+  <p class="coords">打码区域：x=780, y=430, width=320, height=42</p>
 </article>
 <article class="step">
   <h3>9. 填写 Legal Representative ID</h3>
@@ -164,7 +168,7 @@
   <p class="coords">高亮区域：x=760, y=730, width=320, height=42</p>
   
   
-  <p class="coords">打码区域：x=760, y=730, width=320, height=42</p>
+  <p class="coords">打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42</p>
 </article>
 <article class="step">
   <h3>10. 填写 Billing Bank Card</h3>
@@ -177,7 +181,7 @@
   <p class="coords">高亮区域：x=760, y=790, width=320, height=42</p>
   
   
-  <p class="coords">打码区域：x=760, y=790, width=320, height=42</p>
+  <p class="coords">打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42; x=760, y=790, width=320, height=42</p>
 </article>
 </section>
 </body>
