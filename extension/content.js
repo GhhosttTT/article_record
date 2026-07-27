@@ -34,6 +34,9 @@ const CONTENT_INSTANCE_ID = `content_${Date.now()}_${Math.random().toString(36).
 window.__sopRecorderContentInstanceId = CONTENT_INSTANCE_ID;
 window.__sopRecorderContentLoadedAt = Date.now();
 
+window.addEventListener("error", suppressInvalidatedRuntimeError, true);
+window.addEventListener("unhandledrejection", suppressInvalidatedRuntimeError, true);
+
 drainQueuedRecorderEvents();
 
 if (document.readyState === "complete") {
@@ -329,6 +332,10 @@ function deliverRecorderEvent(event, attempt) {
 
 function retryRecorderEvent(event, attempt, lastError) {
   if (!isActiveContentInstance()) return;
+  if (isExtensionContextInvalidatedError(lastError)) {
+    removeQueuedRecorderEvent(event.id);
+    return;
+  }
   const nextAttempt = attempt + 1;
   const queuedAt = Number(event.queuedAt || Date.now());
   if (nextAttempt >= MAX_EVENT_DELIVERY_ATTEMPTS || Date.now() - queuedAt > MAX_EVENT_QUEUE_AGE_MS) {
@@ -355,6 +362,18 @@ function hasRuntimeContext() {
   } catch {
     return false;
   }
+}
+
+function suppressInvalidatedRuntimeError(event) {
+  const message = event?.message || event?.reason?.message || event?.error?.message || String(event?.reason || "");
+  if (!isExtensionContextInvalidatedError(message)) return;
+  event.preventDefault?.();
+  event.stopImmediatePropagation?.();
+}
+
+function isExtensionContextInvalidatedError(error) {
+  const message = String(error || "");
+  return message.includes("Extension context invalidated") || message.includes("extension_context_invalidated");
 }
 
 function queueRecorderEvent(event) {
