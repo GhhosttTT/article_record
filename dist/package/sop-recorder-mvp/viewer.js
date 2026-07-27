@@ -506,9 +506,18 @@ function renderMaskBoxes(boxes, viewportWidth, viewportHeight) {
 
 function downloadBlobFile(filename, blob) {
   const url = URL.createObjectURL(blob);
-  return Promise.resolve(chrome.downloads.download({ url, filename, saveAs: true })).finally(() => {
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
+  return Promise.resolve(chrome.downloads.download({ url, filename, saveAs: true }))
+    .catch(() => {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+    })
+    .finally(() => {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
 }
 
 async function renderTimelineWebm(timeline) {
@@ -532,13 +541,23 @@ async function renderTimelineWebm(timeline) {
 
   recorder.start(1000);
   for (const segment of timeline.segments || []) {
-    await drawVideoFrame(ctx, segment);
-    await wait(Math.max(0.5, (segment.endTime || 0) - (segment.startTime || 0)) * 1000);
+    await renderSegmentFrames(ctx, stream, segment, fps);
   }
   recorder.stop();
   await stopped;
   stream.getTracks().forEach((track) => track.stop());
+  if (!chunks.length) throw new Error("浏览器没有生成视频数据，请改用导出视频时间轴后离线生成 MP4。");
   return new Blob(chunks, { type: mimeType || "video/webm" });
+}
+
+async function renderSegmentFrames(ctx, stream, segment, fps) {
+  const durationMs = Math.max(500, ((segment.endTime || 0) - (segment.startTime || 0)) * 1000);
+  const frameCount = Math.max(1, Math.ceil(durationMs / (1000 / fps)));
+  for (let index = 0; index < frameCount; index += 1) {
+    await drawVideoFrame(ctx, segment);
+    stream.getVideoTracks?.()[0]?.requestFrame?.();
+    await wait(1000 / fps);
+  }
 }
 
 function pickVideoMimeType() {

@@ -417,9 +417,10 @@
   }
 
   function operationDescription(node) {
-    if (!node.navigationOutcome || !["click", "submit", "key"].includes(node.action)) return "";
     const target = node.target || {};
     const name = target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
+    if (node.action === "wait") return `等待 ${name} 加载完成。`;
+    if (!node.navigationOutcome || !["click", "submit", "key"].includes(node.action)) return "";
     return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面。`;
   }
 

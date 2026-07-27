@@ -20,7 +20,7 @@ fs.rmSync(zipPath, { force: true });
 const result = spawnSync("powershell", [
   "-NoProfile",
   "-Command",
-  `$items = Join-Path -Path '${escapePowerShellPath(stagedDir)}' -ChildPath '*'; Compress-Archive -Path $items -DestinationPath '${escapePowerShellPath(zipPath)}' -Force`
+  `$items = Get-ChildItem -LiteralPath '${escapePowerShellPath(stagedDir)}' -Force; Compress-Archive -Path $items.FullName -DestinationPath '${escapePowerShellPath(zipPath)}' -Force`
 ], { encoding: "utf8" });
 
 if (result.status !== 0) {
@@ -33,9 +33,17 @@ const zipCheck = spawnSync("powershell", [
   "-Command",
   `Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::OpenRead('${escapePowerShellPath(zipPath)}').Entries.FullName -join [Environment]::NewLine`
 ], { encoding: "utf8" });
-const zipEntries = zipCheck.stdout.split(/\r?\n/).filter(Boolean).map((entry) => entry.replaceAll("\\", "/"));
+if (zipCheck.status !== 0) {
+  console.error(zipCheck.stderr || zipCheck.stdout);
+  process.exit(zipCheck.status || 1);
+}
+
+const zipEntries = zipCheck.stdout
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .map((entry) => entry.replaceAll("\\", "/").replace(/^\.\//, ""));
 ["manifest.json", "background.js", "content.js", "viewer.js", "shared/artifacts.js"].forEach((entry) => {
-  assert(zipEntries.includes(entry), `zip missing ${entry}`);
+  assert(zipEntries.includes(entry) || zipEntries.some((zipEntry) => zipEntry.endsWith(`/${entry}`)), `zip missing ${entry}`);
 });
 
 console.log(`Packaged extension directory: ${stagedDir}`);

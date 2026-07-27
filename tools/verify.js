@@ -430,6 +430,8 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("sendInputLikeEvent(target, \"check\")"), "content.js 必须发送 check 事件");
   assert(content.includes("action: \"submit\""), "content.js 必须发送 submit 事件");
   assert(content.includes("response?.ok || response?.duplicateEvent"), "content.js 只有收到 background 确认后才能删除事件队列");
+  assert(content.includes("chrome.runtime?.id"), "content.js 必须在扩展上下文失效时避免直接调用 sendMessage");
+  assert(content.includes("extension_context_invalidated"), "content.js 必须标记扩展上下文失效的投递失败原因");
   assert(content.includes("retryRecorderEvent(event, attempt"), "content.js 发送失败或未确认时必须重试事件");
   assert(content.includes("MAX_EVENT_DELIVERY_ATTEMPTS"), "content.js 必须限制事件重试次数");
   assert(content.includes("lastError"), "content.js 必须记录事件投递失败原因以便排查");
@@ -501,6 +503,9 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("renderTimelineWebm"), "viewer.js 必须支持在预览页直接生成 WebM 视频");
   assert(viewerJs.includes("canvas.captureStream"), "预览页视频导出必须使用 Canvas captureStream");
   assert(viewerJs.includes("new MediaRecorder"), "预览页视频导出必须使用 MediaRecorder");
+  assert(viewerJs.includes("renderSegmentFrames"), "预览页视频导出必须逐帧刷新 Canvas");
+  assert(viewerJs.includes("requestFrame"), "预览页视频导出必须主动请求视频帧");
+  assert(viewerJs.includes("!chunks.length"), "预览页视频导出必须检测空视频数据");
   assert(viewerJs.includes(".webm"), "预览页视频导出文件必须使用 WebM 扩展名");
   assert(viewerJs.includes("downloadBlobFile"), "预览页视频导出必须下载 Blob 视频文件");
   assert(viewerJs.includes("drawScreenshotFrame"), "预览页视频导出必须用步骤截图渲染视频主画面");
@@ -743,7 +748,7 @@ runCheck("耗时页面加载会生成去重后的 wait 节点", () => {
   assert(background.includes("shouldSkipWaitNode"), "background 必须对 wait 节点去重");
   assert(background.includes("redundant_wait"), "重复等待节点必须被跳过");
   assert(background.includes("last.action === \"navigation\""), "紧跟 navigation 的 wait 节点必须跳过");
-  assert(background.includes("formatDuration(payload.waitDurationMs)"), "wait 节点说明必须包含等待时长");
+  assert(!background.includes("formatDuration(payload.waitDurationMs)"), "wait 节点说明不应包含等待时长");
   assert(background.includes("Number(payload.waitDurationMs) >= 1200"), "wait 节点必须有最小时长门槛");
   assert(shared.includes("node.action === \"wait\""), "共享 artifact 必须支持 wait 默认标题");
   assert(validator.includes("waitDurationMs"), "validate_schema 必须校验 waitDurationMs");
@@ -764,7 +769,8 @@ runCheck("耗时页面加载会生成去重后的 wait 节点", () => {
   const timeline = buildVideoTimeline(steps);
   assert(steps[0].type === "operation", "wait 节点应作为普通操作步骤导出");
   assert(steps[0].title === "等待 报表页 加载", "wait 节点必须生成可读标题");
-  assert(timeline.segments[0].caption === "等待2.6 秒，直到报表页加载完成。", "wait 视频字幕必须复用等待说明");
+  assert(steps[0].description === "等待 报表页 加载完成。", "wait 节点说明不应包含具体等待秒数");
+  assert(timeline.segments[0].caption === "等待 报表页 加载完成。", "wait 视频字幕不应包含具体等待秒数");
 });
 
 runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => {

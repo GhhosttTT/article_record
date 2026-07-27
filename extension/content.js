@@ -300,7 +300,20 @@ function drainQueuedRecorderEvents() {
 
 function deliverRecorderEvent(event, attempt) {
   if (!isActiveContentInstance()) return;
-  chrome.runtime.sendMessage({ type: "recorder:event", eventId: event.id, payload: event.payload })
+  if (!hasRuntimeContext()) {
+    retryRecorderEvent(event, attempt, "extension_context_invalidated");
+    return;
+  }
+
+  let delivery;
+  try {
+    delivery = chrome.runtime.sendMessage({ type: "recorder:event", eventId: event.id, payload: event.payload });
+  } catch (error) {
+    retryRecorderEvent(event, attempt, error?.message || "send_failed");
+    return;
+  }
+
+  delivery
     .then((response) => {
       if (response?.ok || response?.duplicateEvent) {
         removeQueuedRecorderEvent(event.id);
@@ -331,6 +344,14 @@ function retryRecorderEvent(event, attempt, lastError) {
 
 function isActiveContentInstance() {
   return window.__sopRecorderContentInstanceId === CONTENT_INSTANCE_ID;
+}
+
+function hasRuntimeContext() {
+  try {
+    return Boolean(chrome.runtime?.id);
+  } catch {
+    return false;
+  }
 }
 
 function queueRecorderEvent(event) {
