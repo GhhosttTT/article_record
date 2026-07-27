@@ -484,11 +484,20 @@ runCheck("项目文档覆盖当前编辑、隐私和视频能力", () => {
 
 runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   const viewerHtml = readText("extension/viewer.html");
+  const viewerJs = readText("extension/viewer.js");
   const artifactsJs = readText("extension/viewer_artifacts.js");
   assert(viewerHtml.includes("articleBtn"), "viewer.html 缺少 SOP 文章导出按钮");
   assert(viewerHtml.includes("markdownBtn"), "viewer.html 缺少 SOP Markdown 导出按钮");
   assert(viewerHtml.includes("wordBtn"), "viewer.html 缺少 SOP Word 导出按钮");
   assert(viewerHtml.includes("timelineBtn"), "viewer.html 缺少视频时间轴导出按钮");
+  assert(viewerHtml.includes("videoBtn"), "viewer.html 缺少视频 WebM 直接导出按钮");
+  assert(viewerJs.includes("renderTimelineWebm"), "viewer.js 必须支持在预览页直接生成 WebM 视频");
+  assert(viewerJs.includes("canvas.captureStream"), "预览页视频导出必须使用 Canvas captureStream");
+  assert(viewerJs.includes("new MediaRecorder"), "预览页视频导出必须使用 MediaRecorder");
+  assert(viewerJs.includes(".webm"), "预览页视频导出文件必须使用 WebM 扩展名");
+  assert(viewerJs.includes("downloadBlobFile"), "预览页视频导出必须下载 Blob 视频文件");
+  assert(viewerJs.includes("drawScreenshotFrame"), "预览页视频导出必须用步骤截图渲染视频主画面");
+  assert(viewerJs.includes("drawBlankStepFrame"), "预览页视频导出必须在缺少截图时输出空白步骤帧");
   assert(viewerHtml.indexOf("shared/artifacts.js") < viewerHtml.indexOf("viewer_artifacts.js"), "shared/artifacts.js 必须先于 viewer_artifacts.js 加载");
   assert(viewerHtml.indexOf("viewer_artifacts.js") < viewerHtml.indexOf("viewer.js"), "viewer_artifacts.js 必须先于 viewer.js 加载");
   assert(artifactsJs.includes("SopArtifactShared"), "viewer_artifacts.js 必须使用共享 artifact 库");

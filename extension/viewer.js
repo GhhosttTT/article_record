@@ -10,7 +10,8 @@ const els = {
   articleBtn: document.getElementById("articleBtn"),
   markdownBtn: document.getElementById("markdownBtn"),
   wordBtn: document.getElementById("wordBtn"),
-  timelineBtn: document.getElementById("timelineBtn")
+  timelineBtn: document.getElementById("timelineBtn"),
+  videoBtn: document.getElementById("videoBtn")
 };
 
 let currentState = null;
@@ -178,6 +179,31 @@ els.timelineBtn.addEventListener("click", () => {
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
   const timeline = buildVideoTimeline(exportSteps);
   downloadTextFile(`sop-video-timeline-${currentState?.session?.id || Date.now()}.json`, "application/json", JSON.stringify(timeline, null, 2));
+});
+
+els.videoBtn.addEventListener("click", async () => {
+  if (!currentState) return;
+  if (!confirmPrivacyBeforeExport("视频 WebM")) return;
+  if (!window.MediaRecorder) {
+    alert("当前浏览器不支持直接生成视频，请导出视频时间轴后使用离线工具生成 MP4。");
+    return;
+  }
+
+  const originalText = els.videoBtn.textContent;
+  els.videoBtn.disabled = true;
+  els.videoBtn.textContent = "生成视频中...";
+  try {
+    const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
+    const timeline = buildVideoTimeline(exportSteps);
+    const blob = await renderTimelineWebm(timeline);
+    await downloadBlobFile(`sop-video-${currentState?.session?.id || Date.now()}.webm`, blob);
+  } catch (error) {
+    console.error(error);
+    alert(`视频生成失败：${error?.message || error}`);
+  } finally {
+    els.videoBtn.disabled = false;
+    els.videoBtn.textContent = originalText;
+  }
 });
 
 load();
@@ -476,6 +502,299 @@ function renderMaskBoxes(boxes, viewportWidth, viewportHeight) {
     };
     return `<div class="mask-box" style="left:${mask.left};top:${mask.top};width:${mask.width};height:${mask.height}"></div>`;
   }).join("");
+}
+
+function downloadBlobFile(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  return Promise.resolve(chrome.downloads.download({ url, filename, saveAs: true })).finally(() => {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+}
+
+async function renderTimelineWebm(timeline) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1280;
+  canvas.height = 720;
+  const ctx = canvas.getContext("2d");
+  const fps = 12;
+  const mimeType = pickVideoMimeType();
+  const stream = canvas.captureStream(fps);
+  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  const chunks = [];
+  recorder.addEventListener("dataavailable", (event) => {
+    if (event.data?.size) chunks.push(event.data);
+  });
+
+  const stopped = new Promise((resolve, reject) => {
+    recorder.addEventListener("stop", resolve, { once: true });
+    recorder.addEventListener("error", () => reject(recorder.error), { once: true });
+  });
+
+  recorder.start(1000);
+  for (const segment of timeline.segments || []) {
+    await drawVideoFrame(ctx, segment);
+    await wait(Math.max(0.5, (segment.endTime || 0) - (segment.startTime || 0)) * 1000);
+  }
+  recorder.stop();
+  await stopped;
+  stream.getTracks().forEach((track) => track.stop());
+  return new Blob(chunks, { type: mimeType || "video/webm" });
+}
+
+function pickVideoMimeType() {
+  return [
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm"
+  ].find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+async function drawVideoFrame(ctx, segment) {
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(0, 0, 1280, 720);
+  if (segment.visual) {
+    await drawScreenshotFrame(ctx, segment);
+  } else if (segment.type === "tab_transition") {
+    drawTabTransitionFrame(ctx, segment);
+  } else if (segment.type === "navigation") {
+    drawNavigationFrame(ctx, segment);
+  } else {
+    drawBlankStepFrame(ctx, segment);
+  }
+  drawTypeBadge(ctx, segment);
+  if (segment.key) drawKeyBadge(ctx, segment.key);
+  drawSubtitle(ctx, segment);
+}
+
+async function drawScreenshotFrame(ctx, segment) {
+  const sourceWidth = segment.screenshot?.viewportWidth || segment.screenshot?.width || 1280;
+  const sourceHeight = segment.screenshot?.viewportHeight || segment.screenshot?.height || 720;
+  const frame = fitVideoRect(sourceWidth, sourceHeight, { x: 32, y: 24, width: 1216, height: 548 });
+  const image = await loadCanvasImage(segment.visual);
+  roundRect(ctx, frame.x - 4, frame.y - 4, frame.width + 8, frame.height + 8, 18, "#e2e8f0");
+  ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
+  drawOverlayBox(ctx, segment.highlight, frame, "#f18a2a", null, 6);
+  (segment.privacyMaskBoxes || []).forEach((box) => drawOverlayBox(ctx, box, frame, "#111827", "#111827", 0));
+  drawFocusZoom(ctx, image, segment, frame);
+  if (segment.privacyMaskBoxes?.length) {
+    roundRect(ctx, frame.x + frame.width - 118, frame.y + 12, 104, 34, 17, "rgba(17,24,39,.9)");
+    drawText(ctx, "已打码", frame.x + frame.width - 66, frame.y + 35, 17, "#fff", "800", "center");
+  }
+}
+
+function drawBlankStepFrame(ctx, segment) {
+  const label = segment.pageTitle || segment.currentTabAlias || "此步骤没有可用截图";
+  roundRect(ctx, 32, 24, 1216, 548, 18, "#f8fafc");
+  roundRect(ctx, 64, 58, 1152, 72, 14, "#fff", "#dce3ea", 1);
+  drawText(ctx, label, 640, 104, 24, "#475569", "800", "center");
+  drawText(ctx, "暂无截图", 640, 310, 32, "#18212b", "900", "center");
+  drawText(ctx, "请根据底部字幕完成该步骤", 640, 354, 22, "#66717d", "400", "center");
+}
+
+function drawTabTransitionFrame(ctx, segment) {
+  roundRect(ctx, 78, 196, 500, 176, 18, "#f8fafc");
+  roundRect(ctx, 110, 226, 438, 36, 18, "#dbeafe");
+  roundRect(ctx, 110, 292, 360, 30, 8, "#cbd5e1");
+  drawText(ctx, segment.fromTabAlias || "当前标签页", 328, 424, 26, "#e2e8f0", "900", "center");
+  drawArrow(ctx, 620, 304, 740, 304, "#f97316");
+  roundRect(ctx, 792, 176, 410, 216, 18, "#fff7ed", "#fed7aa", 4);
+  roundRect(ctx, 824, 208, 346, 42, 21, "#fdba74");
+  roundRect(ctx, 824, 284, 286, 30, 8, "#fed7aa");
+  drawText(ctx, segment.toTabAlias || "目标标签页", 997, 444, 28, "#fed7aa", "900", "center");
+}
+
+function drawNavigationFrame(ctx, segment) {
+  roundRect(ctx, 70, 172, 500, 234, 18, "#f8fafc");
+  roundRect(ctx, 106, 214, 428, 42, 12, "#dbeafe");
+  roundRect(ctx, 106, 286, 336, 30, 8, "#cbd5e1");
+  drawText(ctx, trimMiddle(segment.fromUrl || "当前页面", 42), 320, 458, 22, "#cbd5e1", "800", "center");
+  drawArrow(ctx, 620, 296, 740, 296, "#22c55e");
+  roundRect(ctx, 792, 148, 418, 282, 18, "#f0fdf4", "#86efac", 4);
+  roundRect(ctx, 828, 190, 346, 48, 14, "#bbf7d0");
+  roundRect(ctx, 828, 274, 310, 30, 8, "#dcfce7");
+  drawText(ctx, trimMiddle(segment.toUrl || segment.pageUrl || "目标页面", 42), 1001, 464, 24, "#bbf7d0", "900", "center");
+}
+
+function drawTypeBadge(ctx, segment) {
+  const isTab = segment.type === "tab_transition";
+  const isNavigation = segment.type === "navigation";
+  const isChapter = segment.type === "chapter_intro";
+  const title = isChapter ? "章节" : isTab ? "标签页切换" : isNavigation ? "页面跳转" : "操作步骤";
+  const badgeColor = isChapter ? "#eef2ff" : isTab ? "#fff1e4" : isNavigation ? "#edf7ee" : "#e8f2fa";
+  const badgeText = isChapter ? "#354a9f" : isTab ? "#a65016" : isNavigation ? "#226438" : "#145985";
+  const width = Math.max(128, [...title].length * 24 + 38);
+  roundRect(ctx, 34, 28, width, 42, 21, badgeColor);
+  drawText(ctx, title, 34 + width / 2, 56, 20, badgeText, "800", "center");
+}
+
+function drawKeyBadge(ctx, key) {
+  roundRect(ctx, 196, 28, 150, 42, 21, "#f4f1ff");
+  drawText(ctx, `按键：${key}`, 271, 56, 20, "#5b21b6", "800", "center");
+}
+
+function drawSubtitle(ctx, segment) {
+  ctx.fillStyle = "rgba(17,24,39,.88)";
+  ctx.fillRect(0, 586, 1280, 134);
+  const lines = wrapCanvasText(segment.caption || "", 30, 2);
+  const firstY = lines.length > 1 ? 626 : 648;
+  lines.forEach((line, index) => drawText(ctx, line, 640, firstY + index * 38, 32, "#fff", "800", "center"));
+  const context = videoSubtitleContext(segment);
+  if (context) drawText(ctx, context, 640, 704, 20, "#cbd5e1", "400", "center");
+}
+
+function videoSubtitleContext(segment) {
+  if (segment.fromTabAlias || segment.toTabAlias) return [segment.fromTabAlias, segment.toTabAlias].filter(Boolean).join(" -> ");
+  if (segment.type === "navigation") return trimMiddle(segment.toUrl || segment.pageUrl || "", 60);
+  if (segment.type === "chapter_intro") return segment.currentTabAlias || "";
+  return "";
+}
+
+function drawFocusZoom(ctx, image, segment, frame) {
+  const box = segment.highlight;
+  if (!box || !Number.isFinite(box.x)) return;
+  const zoom = focusZoomFrameRect(box, frame);
+  const scale = frame.width / frame.sourceWidth * 2.35;
+  const imageWidth = frame.sourceWidth * scale;
+  const imageHeight = frame.sourceHeight * scale;
+  const imageX = zoom.x + zoom.width / 2 - (box.x + box.width / 2) * scale;
+  const imageY = zoom.y + zoom.height / 2 - (box.y + box.height / 2) * scale;
+  roundRect(ctx, zoom.x - 3, zoom.y - 3, zoom.width + 6, zoom.height + 6, 16, "#fff", "#f18a2a", 6);
+  ctx.save();
+  roundedClip(ctx, zoom.x, zoom.y, zoom.width, zoom.height, 14);
+  ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+  (segment.privacyMaskBoxes || []).forEach((mask) => {
+    roundRect(ctx, imageX + mask.x * scale, imageY + mask.y * scale, Math.max(1, mask.width * scale), Math.max(1, mask.height * scale), 8, "#111827");
+  });
+  ctx.restore();
+  roundRect(ctx, zoom.x + 12, zoom.y + 12, 106, 28, 14, "rgba(24,33,43,.86)");
+  drawText(ctx, "Focus zoom", zoom.x + 65, zoom.y + 32, 15, "#fff", "800", "center");
+}
+
+function drawOverlayBox(ctx, box, frame, stroke, fill, lineWidth) {
+  if (!box || !Number.isFinite(box.x)) return;
+  const x = frame.x + box.x / frame.sourceWidth * frame.width;
+  const y = frame.y + box.y / frame.sourceHeight * frame.height;
+  const width = Math.max(1, box.width / frame.sourceWidth * frame.width);
+  const height = Math.max(1, box.height / frame.sourceHeight * frame.height);
+  if (fill) roundRect(ctx, x, y, width, height, 8, fill);
+  if (stroke && lineWidth) roundRect(ctx, x, y, width, height, 8, null, stroke, lineWidth);
+}
+
+function fitVideoRect(sourceWidth, sourceHeight, bounds) {
+  const scale = Math.min(bounds.width / sourceWidth, bounds.height / sourceHeight);
+  const width = sourceWidth * scale;
+  const height = sourceHeight * scale;
+  return {
+    x: bounds.x + (bounds.width - width) / 2,
+    y: bounds.y + (bounds.height - height) / 2,
+    width,
+    height,
+    sourceWidth,
+    sourceHeight
+  };
+}
+
+function focusZoomFrameRect(box, frame) {
+  const width = 330;
+  const height = 210;
+  const margin = 20;
+  const boxX = frame.x + box.x / frame.sourceWidth * frame.width;
+  const boxY = frame.y + box.y / frame.sourceHeight * frame.height;
+  const boxW = box.width / frame.sourceWidth * frame.width;
+  const boxH = box.height / frame.sourceHeight * frame.height;
+  const rightSpace = frame.x + frame.width - (boxX + boxW);
+  const x = rightSpace >= width + margin ? boxX + boxW + margin : Math.max(frame.x + margin, boxX - width - margin);
+  const y = Math.max(frame.y + margin, Math.min(frame.y + frame.height - height - margin, boxY + boxH / 2 - height / 2));
+  return { x, y, width, height };
+}
+
+function loadCanvasImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("截图加载失败，无法生成视频帧"));
+    image.src = src;
+  });
+}
+
+function roundRect(ctx, x, y, width, height, radius, fill, stroke, lineWidth = 1) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+}
+
+function roundedClip(ctx, x, y, width, height, radius) {
+  roundRect(ctx, x, y, width, height, radius);
+  ctx.clip();
+}
+
+function drawArrow(ctx, fromX, fromY, toX, toY, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 10;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - 30, toY - 24);
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - 30, toY + 24);
+  ctx.stroke();
+}
+
+function drawText(ctx, text, x, y, size, color, weight = "400", align = "left") {
+  ctx.font = `${weight} ${size}px "Microsoft YaHei", "Segoe UI", sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = align;
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(String(text || ""), x, y);
+}
+
+function wrapCanvasText(text, maxChars, maxLines) {
+  const chars = [...String(text || "")];
+  const lines = [];
+  let current = "";
+  for (const char of chars) {
+    current += char;
+    if ([...current].length >= maxChars) {
+      lines.push(current);
+      current = "";
+      if (lines.length === maxLines) break;
+    }
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+  if (chars.length > maxChars * maxLines && lines.length) lines[lines.length - 1] = `${lines[lines.length - 1].slice(0, -1)}…`;
+  return lines.length ? lines : [""];
+}
+
+function trimMiddle(value, maxLength) {
+  const text = String(value || "");
+  if (text.length <= maxLength) return text;
+  const keep = Math.floor((maxLength - 1) / 2);
+  return `${text.slice(0, keep)}…${text.slice(-keep)}`;
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function escapeHtml(value) {
