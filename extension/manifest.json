@@ -3,7 +3,7 @@
   "name": "SOP Recorder MVP",
   "version": "0.1.0",
   "description": "Record web operations as structured SOP nodes with screenshots and tab-switch context.",
-  "permissions": ["activeTab", "downloads", "storage", "tabs"],
+  "permissions": ["activeTab", "downloads", "scripting", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

@@ -559,9 +559,23 @@ async function startRecording() {
     pendingTabOpens: {},
     nodes: []
   };
-  if (activeTabIsRecordable) await ensureTabContext(activeTab, activeTab.windowId);
+  if (activeTabIsRecordable) {
+    await ensureTabContext(activeTab, activeTab.windowId);
+    await injectRecorderContentScript(activeTab.id);
+  }
   await persistState();
   return publicState();
+}
+
+async function injectRecorderContentScript(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ["content.js"]
+    });
+  } catch {
+    // The manifest-declared content script will still run after the page is refreshed.
+  }
 }
 
 async function cleanupCurrentSessionScreenshots() {

@@ -30,6 +30,10 @@ const MAX_QUEUED_EVENTS = 80;
 const MAX_EVENT_DELIVERY_ATTEMPTS = 8;
 const MAX_EVENT_QUEUE_AGE_MS = 2 * 60 * 1000;
 
+const CONTENT_INSTANCE_ID = `content_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+window.__sopRecorderContentInstanceId = CONTENT_INSTANCE_ID;
+window.__sopRecorderContentLoadedAt = Date.now();
+
 drainQueuedRecorderEvents();
 
 if (document.readyState === "complete") {
@@ -45,6 +49,7 @@ if (document.readyState === "loading") {
 }
 
 document.addEventListener("click", (event) => {
+  if (!isActiveContentInstance()) return;
   const target = resolveActionTarget(event.target);
   if (!target) return;
   flushPendingInputs();
@@ -64,12 +69,14 @@ document.addEventListener("click", (event) => {
 }, true);
 
 document.addEventListener("input", (event) => {
+  if (!isActiveContentInstance()) return;
   const target = event.target;
   if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
   scheduleInputEvent(target);
 }, true);
 
 document.addEventListener("change", (event) => {
+  if (!isActiveContentInstance()) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
   if (target instanceof HTMLSelectElement) {
@@ -86,6 +93,7 @@ document.addEventListener("change", (event) => {
 }, true);
 
 document.addEventListener("submit", (event) => {
+  if (!isActiveContentInstance()) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
   flushPendingInputs();
@@ -99,6 +107,7 @@ document.addEventListener("submit", (event) => {
 }, true);
 
 document.addEventListener("keydown", (event) => {
+  if (!isActiveContentInstance()) return;
   if (event.repeat || !["Enter", "Escape"].includes(event.key)) return;
   const baseTarget = event.target instanceof Element ? event.target : document.activeElement;
   if (!(baseTarget instanceof Element)) return;
@@ -114,9 +123,14 @@ document.addEventListener("keydown", (event) => {
   });
 }, true);
 
-window.addEventListener("pagehide", flushPendingInputs, { capture: true });
-window.addEventListener("beforeunload", flushPendingInputs, { capture: true });
+window.addEventListener("pagehide", () => {
+  if (isActiveContentInstance()) flushPendingInputs();
+}, { capture: true });
+window.addEventListener("beforeunload", () => {
+  if (isActiveContentInstance()) flushPendingInputs();
+}, { capture: true });
 document.addEventListener("visibilitychange", () => {
+  if (!isActiveContentInstance()) return;
   if (document.visibilityState === "hidden") flushPendingInputs();
 }, true);
 
@@ -124,11 +138,13 @@ function scheduleInputEvent(target) {
   pendingInputTargets.add(target);
   window.clearTimeout(inputTimers.get(target));
   inputTimers.set(target, window.setTimeout(() => {
+    if (!isActiveContentInstance()) return;
     flushPendingInput(target);
   }, INPUT_DEBOUNCE_MS));
 }
 
 function flushPendingInputs() {
+  if (!isActiveContentInstance()) return;
   Array.from(pendingInputTargets).forEach((target) => flushPendingInput(target));
 }
 
@@ -155,6 +171,7 @@ function sendInputLikeEvent(target, action) {
 }
 
 function reportPageLoadWait() {
+  if (!isActiveContentInstance()) return;
   const duration = getPageLoadDuration();
   if (duration < PAGE_LOAD_WAIT_THRESHOLD_MS) return;
   sendRecorderEvent({
@@ -169,8 +186,10 @@ function reportPageLoadWait() {
 }
 
 function startModalObserver() {
+  if (!isActiveContentInstance()) return;
   scanModals({ initial: true });
   const observer = new MutationObserver(() => {
+    if (!isActiveContentInstance()) return;
     window.clearTimeout(modalScanTimer);
     modalScanTimer = window.setTimeout(scanModals, MODAL_SCAN_DEBOUNCE_MS);
   });
@@ -183,6 +202,7 @@ function startModalObserver() {
 }
 
 function scanModals(options = {}) {
+  if (!isActiveContentInstance()) return;
   const currentTargets = new Map();
   getVisibleModalElements().forEach((element) => {
     const target = {
@@ -279,6 +299,7 @@ function drainQueuedRecorderEvents() {
 }
 
 function deliverRecorderEvent(event, attempt) {
+  if (!isActiveContentInstance()) return;
   chrome.runtime.sendMessage({ type: "recorder:event", eventId: event.id, payload: event.payload })
     .then((response) => {
       if (response?.ok || response?.duplicateEvent) {
@@ -291,6 +312,7 @@ function deliverRecorderEvent(event, attempt) {
 }
 
 function retryRecorderEvent(event, attempt, lastError) {
+  if (!isActiveContentInstance()) return;
   const nextAttempt = attempt + 1;
   const queuedAt = Number(event.queuedAt || Date.now());
   if (nextAttempt >= MAX_EVENT_DELIVERY_ATTEMPTS || Date.now() - queuedAt > MAX_EVENT_QUEUE_AGE_MS) {
@@ -305,6 +327,10 @@ function retryRecorderEvent(event, attempt, lastError) {
   });
   const delay = Math.min(5000, 250 * 2 ** Math.min(nextAttempt, 5));
   window.setTimeout(() => deliverRecorderEvent(event, nextAttempt), delay);
+}
+
+function isActiveContentInstance() {
+  return window.__sopRecorderContentInstanceId === CONTENT_INSTANCE_ID;
 }
 
 function queueRecorderEvent(event) {

@@ -11,6 +11,7 @@ runCheck("manifest.json 可解析且为 MV3", () => {
   assert(manifest.manifest_version === 3, "manifest_version 必须为 3");
   assert(manifest.background?.service_worker === "background.js", "缺少 background service_worker");
   assert(manifest.permissions.includes("tabs"), "需要 tabs 权限记录多标签页");
+  assert(manifest.permissions.includes("scripting"), "需要 scripting 权限在开始录制时注入 content.js");
 });
 
 [
@@ -432,6 +433,8 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("retryRecorderEvent(event, attempt"), "content.js 发送失败或未确认时必须重试事件");
   assert(content.includes("MAX_EVENT_DELIVERY_ATTEMPTS"), "content.js 必须限制事件重试次数");
   assert(content.includes("lastError"), "content.js 必须记录事件投递失败原因以便排查");
+  assert(content.includes("CONTENT_INSTANCE_ID"), "content.js 必须用实例标识避免重复注入后重复监听");
+  assert(content.includes("isActiveContentInstance()"), "content.js 旧实例监听器必须能自动失效");
   assert(background.includes("payload.action === \"submit\""), "background 必须生成 submit 默认说明");
   assert(background.includes("payload.action === \"key\""), "background 必须生成 key 默认说明");
   assert(background.includes("[\"click\", \"submit\", \"key\"].includes(last.action)"), "键盘关键动作必须能关联后续页面跳转");
@@ -609,7 +612,9 @@ runCheck("录制控制状态会保持 runtime 和 session 一致", () => {
   assert(normalizedBackground.includes("await cleanupCurrentSessionScreenshots();\n      runtimeState = structuredClone(initialState);"), "清空录制前必须清理当前截图");
   assert(background.includes("const activeTabIsRecordable = Boolean(activeTab?.id && !isIgnoredTab(activeTab))"), "开始录制时必须先判断当前 tab 是否可记录");
   assert(background.includes("activeTabId: activeTabIsRecordable ? activeTab.id : null"), "从内部页开始录制时 activeTabId 必须保持为空");
-  assert(background.includes("if (activeTabIsRecordable) await ensureTabContext(activeTab, activeTab.windowId)"), "开始录制时只能为可记录 tab 建立上下文");
+  assert(background.includes("if (activeTabIsRecordable)") && background.includes("await ensureTabContext(activeTab, activeTab.windowId)"), "开始录制时只能为可记录 tab 建立上下文");
+  assert(background.includes("injectRecorderContentScript(activeTab.id)"), "开始录制时必须主动向当前页面注入 content.js");
+  assert(background.includes("chrome.scripting.executeScript"), "background 必须通过 scripting API 注入 content.js");
   assert(background.includes("deleteScreenshotRecords(runtimeState.nodes.map((node) => node.screenshot?.id))"), "截图清理必须删除当前节点引用的截图记录");
   assert(background.includes("MAX_SCREENSHOT_RECORDS = 120"), "background 必须限制单次录制截图数量");
   assert(background.includes("function pruneScreenshotCapacity"), "background 必须集中执行截图容量裁剪");
