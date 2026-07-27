@@ -407,6 +407,8 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(background.includes("last.action !== \"key\" || last.key !== \"Enter\""), "submit 去重必须只针对 Enter key");
   assert(background.includes("payload.target.form.selector === last.target.form.selector"), "submit 去重必须支持同表单判断");
   assert(background.includes("payload.action === \"select\""), "background 必须生成 select 默认说明");
+  assert(background.includes("if (payload.action === \"select\") await delay(250)"), "select 节点截图必须等待选中状态稳定后再捕获");
+  assert(background.includes("function delay(milliseconds)"), "background 必须提供截图延迟工具函数");
   assert(background.includes("payload.action === \"check\""), "background 必须生成 check 默认说明");
   assert(shared.includes("node.action === \"submit\""), "共享 artifact 必须生成 submit 默认标题");
   assert(shared.includes("node.action === \"key\""), "共享 artifact 必须生成 key 默认标题");
@@ -549,6 +551,10 @@ runCheck("扩展预览页侧栏显示章节列表", () => {
   assert(viewerJs.includes("id=\"${escapeHtml(node.id)}\""), "步骤卡片必须提供稳定锚点");
   assert(viewerCss.includes(".chapter-nav"), "viewer.css 必须提供章节导航样式");
   assert(viewerCss.includes("max-height: 32vh"), "章节列表必须限制高度避免挤压导出按钮");
+  assert(viewerCss.includes(".actions"), "viewer.css 必须提供流程预览底部操作区样式");
+  assert(viewerCss.includes("position: sticky"), "流程预览底部操作按钮必须固定在侧栏底部");
+  assert(viewerCss.includes("bottom: 0"), "流程预览底部操作按钮必须贴近侧栏底部");
+  assert(viewerCss.includes("margin-top: auto"), "流程预览底部操作按钮必须在侧栏内容不足时靠底显示");
 });
 
 runCheck("录制控制状态会保持 runtime 和 session 一致", () => {
@@ -725,7 +731,10 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   assert(viewerJs.includes("renderArticleWordDocument(currentState, currentTabs, exportSteps)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Word");
   assert(viewerJs.includes("application/msword"), "viewer.js 必须以 Word 兼容 MIME 导出 .doc");
   assert(viewerArtifacts.includes("privacyMaskBoxes"), "预览 Markdown/Word 必须包含打码区域信息");
-  assert(viewerArtifacts.includes("step.clickPoint"), "预览 Markdown/Word 必须包含点击坐标信息");
+  assert(!viewerArtifacts.includes("点击坐标：x="), "预览 Markdown/Word 不应输出点击坐标元数据");
+  assert(!viewerArtifacts.includes("高亮区域：x="), "预览 Markdown/Word 不应输出高亮区域元数据");
+  assert(!generator.includes("点击坐标：x="), "离线 Markdown/Word 不应输出点击坐标元数据");
+  assert(!generator.includes("高亮区域：x="), "离线 Markdown/Word 不应输出高亮区域元数据");
   assert(viewerArtifacts.includes("step.key") && viewerArtifacts.includes("按键"), "预览 HTML/Markdown/Word 必须包含键盘按键信息");
   assert(generator.includes("article.md"), "离线生成器必须输出 article.md");
   assert(generator.includes("article.doc"), "离线生成器必须输出 article.doc");
@@ -735,7 +744,8 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   assert(readText("tools/render_video.js").includes("renderKeyBadge"), "SVG 视频帧必须支持显示键盘按键信息");
   assert(markdown.includes("# rec_sample_zkbiotime"), "article.md 必须包含流程标题");
   assert(markdown.includes("## 涉及标签页"), "article.md 必须包含标签页摘要");
-  assert(markdown.includes("点击坐标"), "article.md 必须包含点击坐标说明");
+  assert(!markdown.includes("点击坐标：x="), "article.md 不应包含点击坐标元数据");
+  assert(!markdown.includes("高亮区域：x="), "article.md 不应包含高亮区域元数据");
   assert(markdown.includes("打码区域"), "article.md 必须包含打码区域说明");
   assert(markdown.includes("操作步骤"), "article.md 必须按操作步骤导出");
   assert(markdown.includes("上传 Business License"), "article.md 必须包含文件上传步骤");
@@ -744,7 +754,8 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   assert(markdown.includes("填写 Billing Bank Card"), "article.md 必须包含银行卡号步骤");
   assert(word.includes("rec_sample_zkbiotime"), "article.doc 必须包含流程标题");
   assert(word.includes("操作步骤"), "article.doc 必须包含操作步骤标题");
-  assert(word.includes("点击坐标"), "article.doc 必须包含点击坐标说明");
+  assert(!word.includes("点击坐标：x="), "article.doc 不应包含点击坐标元数据");
+  assert(!word.includes("高亮区域：x="), "article.doc 不应包含高亮区域元数据");
   assert(word.includes("打码区域"), "article.doc 必须包含打码区域说明");
   assert(!word.includes("完整地址："), "article.doc 不应重复输出完整地址");
   assert(word.includes("上传 Business License"), "article.doc 必须包含文件上传步骤");
@@ -1211,9 +1222,13 @@ runCheck("扩展预览页支持手动调整高亮区域", () => {
   assert(artifactsJs.includes("renderFocusBox"), "viewer_artifacts.js 必须用可复用函数渲染导出高亮框");
   assert(artifactsJs.includes("renderFocusZoom"), "viewer_artifacts.js 必须用 focusBox 渲染局部放大预览");
   assert(artifactsJs.includes("focus-zoom"), "viewer_artifacts.js 必须提供局部放大预览样式");
-  assert(readText("tools/generate_artifacts.js").includes("renderFocusZoom"), "离线文章生成器必须渲染局部放大预览");
+  const generator = readText("tools/generate_artifacts.js");
+  assert(generator.includes("renderFocusZoom"), "离线文章生成器必须渲染局部放大预览");
   assert(artifactsJs.includes("function focusZoomLayout"), "导出文章局部放大框必须按高亮位置布局");
   assert(!artifactsJs.includes("right:16px; bottom:16px"), "导出文章局部放大框不能固定在右下角");
+  assert(!artifactsJs.includes(".focus-zoom { display:none; }"), "Word 导出不能隐藏局部放大预览");
+  assert(!generator.includes(".focus-zoom { display:none; }"), "离线 Word 导出不能隐藏局部放大预览");
+  assert(artifactsJs.includes("widthPercent") && generator.includes("widthPercent"), "局部放大预览尺寸必须随截图响应式缩放");
   assert(artifactsJs.includes("/ viewportWidth * 100"), "导出文章高亮框必须随截图响应式缩放");
 
   const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));

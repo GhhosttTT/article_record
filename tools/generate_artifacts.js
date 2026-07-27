@@ -121,14 +121,6 @@ function renderArticleMarkdown(recording, tabs, steps) {
       lines.push("");
       lines.push("> 截图已因隐私保护从导出文件中移除，仅保留截图元数据。");
     }
-    if (step.focusBox) {
-      lines.push("");
-      lines.push(`高亮区域：x=${step.focusBox.x}, y=${step.focusBox.y}, width=${step.focusBox.width}, height=${step.focusBox.height}`);
-    }
-    if (step.clickPoint) {
-      lines.push("");
-      lines.push(`点击坐标：x=${step.clickPoint.x}, y=${step.clickPoint.y}`);
-    }
     if (step.key) {
       lines.push("");
       lines.push(`按键：${escapeMarkdown(step.key)}`);
@@ -164,10 +156,11 @@ function renderArticleWordDocument(recording, tabs, steps) {
     .kind { color:#145985; font-weight:bold; }
     .switch { color:#854513; background:#fff8f0; border:1pt dashed #dca977; padding:8pt; margin:8pt 0; }
     .warning { color:#9a3f00; font-weight:bold; }
-    .shot { position:relative; max-width:100%; border:1pt solid #dce3ea; overflow:hidden; }
+    .shot { position:relative; max-width:100%; border:1pt solid #dce3ea; overflow:visible; }
     .shot img { display:block; max-width:100%; height:auto; }
     .focus { position:absolute; border:2pt solid #f18a2a; }
-    .focus-zoom { display:none; }
+    .focus-zoom { position:absolute; border:2pt solid #f18a2a; overflow:hidden; background:#fff; }
+    .focus-zoom img { position:absolute; display:block; max-width:none; height:auto; }
     .mask { position:absolute; background:#111827; }
     .redacted { color:#66717d; font-weight:bold; border:1pt dashed #dce3ea; padding:10pt; }
     .coords { color:#66717d; font-size:9pt; }
@@ -194,12 +187,6 @@ function renderWordStep(step) {
   const image = step.image
     ? renderImage(step)
     : step.imageRedactedForPrivacy ? `<p class="redacted">截图已因隐私保护从导出文件中移除，仅保留截图元数据。</p>` : "";
-  const focus = step.focusBox
-    ? `<p class="coords">高亮区域：x=${escapeHtml(step.focusBox.x)}, y=${escapeHtml(step.focusBox.y)}, width=${escapeHtml(step.focusBox.width)}, height=${escapeHtml(step.focusBox.height)}</p>`
-    : "";
-  const click = step.clickPoint
-    ? `<p class="coords">点击坐标：x=${escapeHtml(step.clickPoint.x)}, y=${escapeHtml(step.clickPoint.y)}</p>`
-    : "";
   const key = step.key
     ? `<p class="coords">按键：${escapeHtml(step.key)}</p>`
     : "";
@@ -214,8 +201,6 @@ function renderWordStep(step) {
   <p>${escapeHtml(step.description)}</p>
   ${warnings}
   ${image}
-  ${focus}
-  ${click}
   ${key}
   ${masks}
 </article>`;
@@ -342,9 +327,9 @@ function renderFocusZoom(image, box, viewportWidth, viewportHeight, maskBoxes = 
   const masks = maskBoxes.map((mask) => {
     const left = imageLeft + mask.x * scale;
     const top = imageTop + mask.y * scale;
-    return `<div class="mask" style="left:${left}px;top:${top}px;width:${Math.max(1, mask.width * scale)}px;height:${Math.max(1, mask.height * scale)}px"></div>`;
+    return `<div class="mask" style="left:${left / zoom.width * 100}%;top:${top / zoom.height * 100}%;width:${Math.max(1, mask.width * scale) / zoom.width * 100}%;height:${Math.max(1, mask.height * scale) / zoom.height * 100}%"></div>`;
   }).join("");
-  return `<div class="focus-zoom" style="left:${zoom.left};top:${zoom.top};width:${zoom.width}px;height:${zoom.height}px"><img src="${image}" alt="Focus zoom" style="left:${imageLeft}px;top:${imageTop}px;width:${imageWidth}px;height:${imageHeight}px">${masks}</div>`;
+  return `<div class="focus-zoom" style="left:${zoom.left};top:${zoom.top};width:${zoom.widthPercent};height:${zoom.heightPercent}"><img src="${image}" alt="Focus zoom" style="left:${imageLeft / zoom.width * 100}%;top:${imageTop / zoom.height * 100}%;width:${imageWidth / zoom.width * 100}%;height:${imageHeight / zoom.height * 100}%">${masks}</div>`;
 }
 
 function focusZoomLayout(box, viewportWidth, viewportHeight) {
@@ -359,6 +344,8 @@ function focusZoomLayout(box, viewportWidth, viewportHeight) {
   return {
     left: `${leftPx / viewportWidth * 100}%`,
     top: `${topPx / viewportHeight * 100}%`,
+    widthPercent: `${zoomWidth / viewportWidth * 100}%`,
+    heightPercent: `${zoomHeight / viewportHeight * 100}%`,
     width: Math.round(zoomWidth),
     height: Math.round(zoomHeight)
   };

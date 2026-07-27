@@ -15,10 +15,6 @@
 
 点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面。
 
-高亮区域：x=860, y=520, width=160, height=44
-
-点击坐标：x=940, y=542
-
 ### 2. 填写注册邮箱
 
 **类型**：操作步骤
@@ -26,8 +22,6 @@
 在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。
 
 > 此步骤包含敏感字段，已脱敏。
-
-高亮区域：x=780, y=430, width=320, height=42
 
 打码区域：x=780, y=430, width=320, height=42
 
@@ -44,8 +38,6 @@
 
 在邮箱中点击 Activate Account，激活刚注册的账号。
 
-高亮区域：x=420, y=360, width=190, height=38
-
 ### 5. 切换到标签页 A：ZKBio TimeCloud 注册页
 
 **类型**：标签页切换
@@ -59,8 +51,6 @@
 
 在 Business License 中上传文件。
 
-高亮区域：x=760, y=610, width=320, height=42
-
 打码区域：x=780, y=430, width=320, height=42
 
 ### 7. 填写 Support Contact
@@ -68,8 +58,6 @@
 **类型**：操作步骤
 
 在 Support Contact 中输入内容。
-
-高亮区域：x=760, y=670, width=320, height=42
 
 打码区域：x=780, y=430, width=320, height=42
 
@@ -81,8 +69,6 @@
 
 > 此步骤包含敏感字段，已脱敏。
 
-高亮区域：x=760, y=730, width=320, height=42
-
 打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42
 
 ### 9. 填写 Billing Bank Card
@@ -92,7 +78,5 @@
 在 Billing Bank Card 中输入内容。
 
 > 此步骤包含敏感字段，已脱敏。
-
-高亮区域：x=760, y=790, width=320, height=42
 
 打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42; x=760, y=790, width=320, height=42

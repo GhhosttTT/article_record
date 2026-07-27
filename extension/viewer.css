@@ -26,6 +26,8 @@ body {
   position: sticky;
   top: 0;
   height: 100vh;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--line);
   background: #eaf0f5;
   padding: 28px;
@@ -162,8 +164,13 @@ h1 {
 }
 
 .actions {
+  position: sticky;
+  bottom: 0;
   display: grid;
   gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  background: #eaf0f5;
 }
 
 button {

@@ -615,6 +615,7 @@ async function captureOperationNode(payload, sender, eventId = null) {
     return { ok: true, skipped: "redundant_wait", state: publicState() };
   }
 
+  if (payload.action === "select") await delay(250);
   const screenshot = await captureVisibleScreenshot(sender.tab.windowId, payload.viewport, getScreenshotCaptureTiming(payload.action));
   const privacy = payload.privacy || { containsSensitiveData: false, maskedFields: [] };
   const maskedValue = payload.maskedValue ?? payload.value ?? null;
@@ -1149,6 +1150,10 @@ function getScreenshotCaptureTiming(action) {
   if (action === "modal_open" || action === "modal_close") return "after_action";
   if (["input", "select", "check", "upload", "submit"].includes(action)) return "after_action";
   return "after_action";
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function isMeaningfulEvent(payload) {

@@ -17,10 +17,11 @@
     .kind { color:#145985; font-weight:bold; }
     .switch { color:#854513; background:#fff8f0; border:1pt dashed #dca977; padding:8pt; margin:8pt 0; }
     .warning { color:#9a3f00; font-weight:bold; }
-    .shot { position:relative; max-width:100%; border:1pt solid #dce3ea; overflow:hidden; }
+    .shot { position:relative; max-width:100%; border:1pt solid #dce3ea; overflow:visible; }
     .shot img { display:block; max-width:100%; height:auto; }
     .focus { position:absolute; border:2pt solid #f18a2a; }
-    .focus-zoom { display:none; }
+    .focus-zoom { position:absolute; border:2pt solid #f18a2a; overflow:hidden; background:#fff; }
+    .focus-zoom img { position:absolute; display:block; max-width:none; height:auto; }
     .mask { position:absolute; background:#111827; }
     .redacted { color:#66717d; font-weight:bold; border:1pt dashed #dce3ea; padding:10pt; }
     .coords { color:#66717d; font-size:9pt; }
@@ -39,8 +40,6 @@
   <p>点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面。</p>
   
   
-  <p class="coords">高亮区域：x=860, y=520, width=160, height=44</p>
-  <p class="coords">点击坐标：x=940, y=542</p>
   
   
 </article>
@@ -51,8 +50,6 @@
   
   <p>在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。</p>
   <p class="warning">此步骤包含敏感字段，已脱敏。</p>
-  
-  <p class="coords">高亮区域：x=780, y=430, width=320, height=42</p>
   
   
   <p class="coords">打码区域：x=780, y=430, width=320, height=42</p>
@@ -67,8 +64,6 @@
   
   
   
-  
-  
 </article>
 <article class="step">
   <h3>4. 点击 Activate Account</h3>
@@ -77,8 +72,6 @@
   
   <p>在邮箱中点击 Activate Account，激活刚注册的账号。</p>
   
-  
-  <p class="coords">高亮区域：x=420, y=360, width=190, height=38</p>
   
   
   
@@ -93,8 +86,6 @@
   
   
   
-  
-  
 </article>
 <article class="step">
   <h3>6. 上传 Business License</h3>
@@ -103,8 +94,6 @@
   
   <p>在 Business License 中上传文件。</p>
   
-  
-  <p class="coords">高亮区域：x=760, y=610, width=320, height=42</p>
   
   
   <p class="coords">打码区域：x=780, y=430, width=320, height=42</p>
@@ -117,8 +106,6 @@
   <p>在 Support Contact 中输入内容。</p>
   
   
-  <p class="coords">高亮区域：x=760, y=670, width=320, height=42</p>
-  
   
   <p class="coords">打码区域：x=780, y=430, width=320, height=42</p>
 </article>
@@ -130,8 +117,6 @@
   <p>在 Legal Representative ID 中输入内容。</p>
   <p class="warning">此步骤包含敏感字段，已脱敏。</p>
   
-  <p class="coords">高亮区域：x=760, y=730, width=320, height=42</p>
-  
   
   <p class="coords">打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42</p>
 </article>
@@ -142,8 +127,6 @@
   
   <p>在 Billing Bank Card 中输入内容。</p>
   <p class="warning">此步骤包含敏感字段，已脱敏。</p>
-  
-  <p class="coords">高亮区域：x=760, y=790, width=320, height=42</p>
   
   
   <p class="coords">打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42; x=760, y=790, width=320, height=42</p>
