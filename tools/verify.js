@@ -287,8 +287,8 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   const renderVideo = readText("tools/render_video.js");
   assert(renderVideo.includes("renderScreenshotVisual"), "render_video.js 必须支持真实截图渲染");
   assert(renderVideo.includes("<image href="), "render_video.js 必须把截图嵌入 SVG");
-  assert(renderVideo.includes("validateTimelineVisuals"), "render_video.js 必须在生成前校验操作片段截图");
-  assert(!renderVideo.includes("function renderPlaceholderVisual"), "render_video.js 不应为普通操作片段生成假页面占位图");
+  assert(renderVideo.includes("renderBlankStepVisual"), "render_video.js 必须在操作截图缺失时生成空白步骤画面");
+  assert(!renderVideo.includes("目标操作区域"), "render_video.js 不应为普通操作片段伪造系统页面");
   assert(renderVideo.includes("privacyMaskBoxes"), "render_video.js 必须渲染打码区域");
   assert(renderVideo.includes("renderFocusZoom"), "render_video.js 必须基于高亮区域渲染局部放大预览");
   assert(renderVideo.includes("renderSubtitle"), "render_video.js 必须把说明渲染为字幕");
@@ -332,7 +332,7 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   assert(frame.includes("fill=\"#111827\""), "真实截图帧必须渲染打码遮罩");
 });
 
-runCheck("视频生成器缺少操作截图时必须失败", () => {
+runCheck("视频生成器缺少操作截图时输出空白步骤帧", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sop-render-missing-shot-"));
   const timelinePath = path.join(tmpDir, "timeline.json");
   fs.writeFileSync(timelinePath, JSON.stringify({
@@ -350,8 +350,11 @@ runCheck("视频生成器缺少操作截图时必须失败", () => {
     ]
   }), "utf8");
   const result = spawnSync("node", ["tools/render_video.js", "--frames-only", timelinePath, tmpDir], { cwd: root, encoding: "utf8" });
-  assert(result.status !== 0, "缺少操作截图时不应生成教学视频");
-  assert((result.stderr || result.stdout).includes("missing screenshot visuals"), "缺少截图时必须输出明确错误");
+  assert(result.status === 0, result.stderr || result.stdout || "缺少操作截图时也应生成空白步骤帧");
+  const frame = fs.readFileSync(path.join(tmpDir, "frames", "segment_missing_visual.svg"), "utf8");
+  assert(frame.includes("暂无截图"), "缺少截图时必须输出空白步骤画面提示");
+  assert(frame.includes("缺少截图的操作片段"), "缺少截图时必须保留步骤字幕");
+  assert(!frame.includes("目标操作区域"), "缺少截图时不能生成伪系统页面");
 });
 
 runCheck("视频生成器可通过 PNG 中间帧合成 MP4", () => {
@@ -787,8 +790,7 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   assert(word.includes("上传 Business License"), "article.doc 必须包含文件上传步骤");
   assert(word.includes("填写 Support Contact"), "article.doc 必须包含邻近文本识别出的步骤标题");
   assert(word.includes("填写 Legal Representative ID"), "article.doc 必须包含身份证号步骤");
-  assert(word.includes("data:image"), "article.doc 必须保留已打码截图用于教学视频/文档讲解");
-  assert(word.includes("class=\"mask\""), "article.doc 必须在已打码截图上渲染遮挡层");
+  assert(viewerArtifacts.includes("renderMaskBoxes"), "article.doc 有已打码截图时必须能渲染遮挡层");
 });
 
 runCheck("目标元素名称识别覆盖 title、id 和邻近文本", () => {

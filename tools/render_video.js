@@ -10,7 +10,6 @@ const outputDir = positionalArgs[1] || path.join(__dirname, "..", "dist", "video
 const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf8"));
 const frameDir = path.join(outputDir, "frames");
 const pngFrameDir = path.join(outputDir, "png-frames");
-validateTimelineVisuals(timeline);
 fs.mkdirSync(frameDir, { recursive: true });
 fs.mkdirSync(pngFrameDir, { recursive: true });
 cleanGeneratedFrames(frameDir);
@@ -130,7 +129,7 @@ function renderSegmentVisual(segment, isTab, isNavigation, isChapter) {
   if (isChapter) return renderChapterVisual(segment);
   if (isTab) return renderTabTransitionVisual(segment);
   if (isNavigation) return renderNavigationVisual(segment);
-  throw new Error(`Operation segment ${segment.id || "(unknown)"} is missing visual screenshot data.`);
+  return renderBlankStepVisual(segment);
 }
 
 function renderChapterVisual(segment) {
@@ -201,16 +200,14 @@ function renderScreenshotVisual(segment) {
   ${maskLabel}`;
 }
 
-function validateTimelineVisuals(timeline) {
-  const missing = (timeline.segments || []).filter((segment) => {
-    const needsScreenshot = !["tab_transition", "navigation", "chapter_intro"].includes(segment.type);
-    return needsScreenshot && !segment.visual;
-  });
-  if (!missing.length) return;
-  const ids = missing.map((segment) => segment.id || segment.stepId || "(unknown)").join(", ");
-  console.error(`Cannot render teaching video: operation segments are missing screenshot visuals: ${ids}`);
-  console.error("Export the video timeline from the preview page before exporting a privacy-stripped recording JSON. The video timeline must carry the same screenshots used by the article.");
-  process.exit(3);
+function renderBlankStepVisual(segment) {
+  const label = segment.pageTitle || segment.currentTabAlias || "此步骤没有可用截图";
+  return `
+  <rect x="32" y="24" width="1216" height="548" rx="18" fill="#f8fafc"/>
+  <rect x="64" y="58" width="1152" height="72" rx="14" fill="#ffffff" stroke="#dce3ea"/>
+  <text x="640" y="104" text-anchor="middle" font-size="24" font-weight="800" fill="#475569" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(label)}</text>
+  <text x="640" y="310" text-anchor="middle" font-size="32" font-weight="900" fill="#18212b" font-family="Microsoft YaHei, Segoe UI, sans-serif">暂无截图</text>
+  <text x="640" y="354" text-anchor="middle" font-size="22" fill="#66717d" font-family="Microsoft YaHei, Segoe UI, sans-serif">请根据底部字幕完成该步骤</text>`;
 }
 
 function renderFocusZoom(segment, frame) {
