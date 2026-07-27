@@ -454,6 +454,19 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(artifactsJs.includes("stepTypeText"), "viewer_artifacts.js 必须按步骤类型渲染导出标签");
 });
 
+runCheck("文章导出只在章节处说明访问路径", () => {
+  const viewerArtifacts = readText("extension/viewer_artifacts.js");
+  const generator = readText("tools/generate_artifacts.js");
+  assert(viewerArtifacts.includes("function renderChapterContext"), "预览页文章导出必须格式化章节访问路径");
+  assert(generator.includes("function renderChapterContext"), "离线文章导出必须格式化章节访问路径");
+  assert(viewerArtifacts.includes("访问路径："), "章节上下文必须明确标注访问路径");
+  assert(generator.includes("访问路径："), "离线章节上下文必须明确标注访问路径");
+  assert(!viewerArtifacts.includes("step.tabAlias ? `<p>${escapeHtml(step.tabAlias)}</p>`"), "HTML 步骤不应重复显示标签页");
+  assert(!generator.includes("step.tabAlias ? `<p>${escapeHtml(step.tabAlias)}</p>`"), "离线 HTML 步骤不应重复显示标签页");
+  assert(!viewerArtifacts.includes("**当前标签页**"), "Markdown 步骤不应重复显示当前标签页");
+  assert(!generator.includes("**当前标签页**"), "离线 Markdown 步骤不应重复显示当前标签页");
+});
+
 runCheck("文章导出会按 ArticleChapter 组织步骤", () => {
   const { buildArticleSteps, buildArticleChapters } = require(path.join(root, "extension/shared/artifacts.js"));
   const shared = readText("extension/shared/artifacts.js");
@@ -1017,7 +1030,8 @@ runCheck("页面弹窗出现和关闭会生成可导出的操作节点", () => {
   assert(background.includes("页面出现弹窗"), "background 必须生成弹窗出现说明");
   assert(background.includes("关闭弹窗"), "background 必须生成弹窗关闭说明");
   assert(shared.includes("node.action === \"modal_open\""), "共享 artifact 必须生成弹窗出现标题");
-  assert(shared.includes("node.action === \"modal_close\""), "共享 artifact 必须生成弹窗关闭标题");
+  assert(shared.includes("node.action === \"modal_close\""), "共享 artifact 必须保留弹窗关闭标题兼容");
+  assert(shared.includes("if (node.action === \"modal_close\") return;"), "modal_close 不应进入最终文章和视频片段");
   assert(viewerJs.includes("弹窗出现"), "viewer.js 必须显示可读弹窗步骤类型");
   assert(company.includes("<dialog"), "公司测试页必须覆盖原生弹窗");
   assert(company.includes("showModal()"), "公司测试页必须能打开弹窗");
@@ -1058,11 +1072,10 @@ runCheck("页面弹窗出现和关闭会生成可导出的操作节点", () => {
   ]);
   const timeline = buildVideoTimeline(steps);
   assert(steps[0].title === "弹窗出现：Company Review Confirm the company profile before submitting.", "ArticleStep 必须生成弹窗出现标题");
-  assert(steps[1].title === "关闭弹窗：Company Review Confirm the company profile before submitting.", "ArticleStep 必须生成弹窗关闭标题");
   assert(steps[0].focusMode === "highlight", "弹窗出现步骤应可高亮弹窗区域");
-  assert(timeline.segments.length === 2, "VideoTimeline 必须包含弹窗开关片段");
+  assert(steps.length === 1, "ArticleStep 不应导出 modal_close 空截图步骤");
+  assert(timeline.segments.length === 1, "VideoTimeline 不应包含 modal_close 空截图片段");
   assert(timeline.segments[0].caption === "页面出现弹窗：Company Review。", "VideoTimeline 必须复用弹窗出现说明");
-  assert(timeline.segments[1].caption === "关闭弹窗：Company Review。", "VideoTimeline 必须复用弹窗关闭说明");
 });
 
 runCheck("同一输入框连续输入会合并为一个节点", () => {

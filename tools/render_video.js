@@ -32,8 +32,8 @@ const concatPath = path.join(outputDir, "concat.txt");
 console.log(`Generated frames: ${frameDir}`);
 
 if (!framesOnly) {
-  const ffmpeg = spawnSync("ffmpeg", ["-version"], { encoding: "utf8" });
-  if (ffmpeg.status !== 0) {
+  const ffmpegPath = findFfmpegExecutable();
+  if (!ffmpegPath) {
     console.warn("FFmpeg not found. Install ffmpeg or rerun with --frames-only to generate frames only.");
     process.exitCode = 2;
   } else {
@@ -59,7 +59,7 @@ if (!framesOnly) {
     console.log(`Generated concat list: ${concatPath}`);
 
     const outputPath = path.join(outputDir, "sop-video.mp4");
-    const result = spawnSync("ffmpeg", [
+    const result = spawnSync(ffmpegPath, [
       "-y",
       "-f", "concat",
       "-safe", "0",
@@ -203,6 +203,18 @@ function findChromeExecutable() {
     path.join(process.env.LOCALAPPDATA || "", "Google", "Chrome", "Application", "chrome.exe")
   ].filter(Boolean);
   return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
+
+function findFfmpegExecutable() {
+  const system = spawnSync("ffmpeg", ["-version"], { encoding: "utf8" });
+  if (system.status === 0) return "ffmpeg";
+
+  const python = spawnSync("python", [
+    "-c",
+    "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
+  ], { encoding: "utf8" });
+  const candidate = python.status === 0 ? python.stdout.trim().split(/\r?\n/).at(-1) : "";
+  return candidate && fs.existsSync(candidate) ? candidate : null;
 }
 
 function pathToFileUrl(filePath) {

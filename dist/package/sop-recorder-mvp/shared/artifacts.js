@@ -124,6 +124,8 @@
     let currentMeaningfulTabId = null;
 
     (nodes || []).forEach((node, index) => {
+      if (node.action === "modal_close") return;
+
       if (!node.action?.startsWith("tab_")) {
         filtered.push(node);
         currentMeaningfulTabId = operationTabId(node) || currentMeaningfulTabId;

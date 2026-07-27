@@ -69,15 +69,14 @@ function renderArticleMarkdown(state, tabs, steps) {
   lines.push("");
   chapters.forEach((chapter) => {
     lines.push(`## 章节 ${chapter.sequence}：${escapeMarkdown(chapter.title)}`);
-    if (chapter.tabAlias) lines.push(`当前标签页：${escapeMarkdown(chapter.tabAlias)}`);
-    if (chapter.pageUrl) lines.push(`页面地址：${escapeMarkdown(chapter.pageUrl)}`);
+    const chapterContext = renderChapterContext(chapter);
+    if (chapterContext) lines.push(escapeMarkdown(chapterContext));
     lines.push("");
 
     chapter.steps.forEach((step) => {
     lines.push(`### ${step.sequence}. ${escapeMarkdown(step.title)}`);
     lines.push("");
     lines.push(`**类型**：${stepTypeText(step.type)}`);
-    if (step.tabAlias) lines.push(`**当前标签页**：${escapeMarkdown(step.tabAlias)}`);
     if (step.fromTabAlias || step.toTabAlias) lines.push(`**标签页变化**：${escapeMarkdown(step.fromTabAlias || "当前标签页")} -> ${escapeMarkdown(step.toTabAlias || "目标标签页")}`);
     if (step.type === "navigation") lines.push(`**页面变化**：${escapeMarkdown(step.fromUrl || "当前页面")} -> ${escapeMarkdown(step.toUrl || step.pageUrl || "目标页面")}`);
     lines.push("");
@@ -156,7 +155,7 @@ function renderArticleChapter(chapter) {
   return `<section class="chapter">
   <header class="chapter-head">
     <h2>章节 ${chapter.sequence}：${escapeHtml(chapter.title)}</h2>
-    <p>${escapeHtml([chapter.tabAlias, chapter.pageUrl].filter(Boolean).join(" · "))}</p>
+    <p>${escapeHtml(renderChapterContext(chapter))}</p>
   </header>
   ${chapter.steps.map(renderArticleStep).join("\n")}
 </section>`;
@@ -165,7 +164,7 @@ function renderArticleChapter(chapter) {
 function renderWordChapter(chapter) {
   return `<section>
   <h2>章节 ${chapter.sequence}：${escapeHtml(chapter.title)}</h2>
-  ${chapter.tabAlias || chapter.pageUrl ? `<p class="meta">${escapeHtml([chapter.tabAlias, chapter.pageUrl].filter(Boolean).join(" · "))}</p>` : ""}
+  ${chapter.tabAlias || chapter.pageUrl ? `<p class="meta">${escapeHtml(renderChapterContext(chapter))}</p>` : ""}
   ${chapter.steps.map(renderWordStep).join("\n")}
 </section>`;
 }
@@ -195,7 +194,7 @@ function renderWordStep(step) {
     : "";
   return `<article class="step">
   <h3>${step.sequence}. ${escapeHtml(step.title)}</h3>
-  <p><span class="kind">${stepTypeText(step.type)}</span>${step.tabAlias ? ` · ${escapeHtml(step.tabAlias)}` : ""}</p>
+  <p><span class="kind">${stepTypeText(step.type)}</span></p>
   ${transition}
   ${navigation}
   <p>${escapeHtml(step.description)}</p>
@@ -215,7 +214,6 @@ function renderArticleStep(step) {
     <div>
       <h2>${step.sequence}. ${escapeHtml(step.title)}</h2>
       <p>${escapeHtml(step.description)}</p>
-      ${step.tabAlias ? `<p>${escapeHtml(step.tabAlias)}</p>` : ""}
       ${step.key ? `<p>按键：${escapeHtml(step.key)}</p>` : ""}
     </div>
     <span class="kind ${isTransition ? "tab" : ""}">${stepTypeText(step.type)}</span>
@@ -223,6 +221,24 @@ function renderArticleStep(step) {
   ${step.type === "navigation" ? `<div class="tabswitch">${escapeHtml(step.fromUrl || "当前页面")} -> ${escapeHtml(step.toUrl || step.pageUrl || "目标页面")}</div>` : ""}
   ${step.image ? renderArticleImage(step) : step.imageRedactedForPrivacy ? renderRedactedImageNotice() : ""}
 </article>`;
+}
+
+function renderChapterContext(chapter) {
+  const parts = [];
+  if (chapter.tabAlias) parts.push(`当前标签页：${chapter.tabAlias}`);
+  const path = pagePath(chapter.pageUrl);
+  if (path) parts.push(`访问路径：${path}`);
+  if (chapter.pageUrl) parts.push(`完整地址：${chapter.pageUrl}`);
+  return parts.join(" · ");
+}
+
+function pagePath(url) {
+  if (!url) return "";
+  try {
+    return new URL(url).pathname || "/";
+  } catch {
+    return "";
+  }
 }
 
 function renderStepSummary(steps, chapters = []) {
