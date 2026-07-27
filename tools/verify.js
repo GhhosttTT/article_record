@@ -500,6 +500,8 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerHtml.includes("wordBtn"), "viewer.html 缺少 SOP Word 导出按钮");
   assert(viewerHtml.includes("timelineBtn"), "viewer.html 缺少视频时间轴导出按钮");
   assert(viewerHtml.includes("videoBtn"), "viewer.html 缺少视频 WebM 直接导出按钮");
+  assert(viewerHtml.includes("articleTitleInput"), "viewer.html 必须支持选择/填写文章标题");
+  assert(viewerHtml.includes("privacyMaskToggle"), "viewer.html 必须提供邮箱和密码打码开关");
   assert(viewerJs.includes("renderTimelineWebm"), "viewer.js 必须支持在预览页直接生成 WebM 视频");
   assert(viewerJs.includes("canvas.captureStream"), "预览页视频导出必须使用 Canvas captureStream");
   assert(viewerJs.includes("new MediaRecorder"), "预览页视频导出必须使用 MediaRecorder");
@@ -516,6 +518,7 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(artifactsJs.includes("操作步骤"), "viewer_artifacts.js 必须按步骤教学渲染文章");
   assert(artifactsJs.includes("renderArticleMarkdown"), "viewer_artifacts.js 必须支持 Markdown 渲染");
   assert(artifactsJs.includes("renderArticleWordDocument"), "viewer_artifacts.js 必须支持 Word 兼容文档渲染");
+  assert(artifactsJs.includes("resolveArticleTitle"), "viewer_artifacts.js 必须按用户选择生成文章标题");
   assert(artifactsJs.includes("stepTypeText"), "viewer_artifacts.js 必须按步骤类型渲染导出标签");
 });
 
@@ -779,9 +782,9 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   const generator = readText("tools/generate_artifacts.js");
   const markdown = readText("dist/article.md");
   const word = readText("dist/article.doc");
-  assert(viewerJs.includes("const exportSteps = buildPrivacySafeArticleSteps(currentSteps)"), "viewer.js 必须从当前 ArticleStep 生成隐私安全 Markdown 步骤");
-  assert(viewerJs.includes("renderArticleMarkdown(currentState, currentTabs, exportSteps)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Markdown");
-  assert(viewerJs.includes("renderArticleWordDocument(currentState, currentTabs, exportSteps)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Word");
+  assert(viewerJs.includes("const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options)"), "viewer.js 必须从当前 ArticleStep 和隐私开关生成 Markdown 步骤");
+  assert(viewerJs.includes("renderArticleMarkdown(currentState, currentTabs, exportSteps, options)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Markdown");
+  assert(viewerJs.includes("renderArticleWordDocument(currentState, currentTabs, exportSteps, options)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Word");
   assert(viewerJs.includes("application/msword"), "viewer.js 必须以 Word 兼容 MIME 导出 .doc");
   assert(viewerArtifacts.includes("privacyMaskBoxes"), "预览 Markdown/Word 必须包含打码区域信息");
   assert(!viewerArtifacts.includes("点击坐标：x="), "预览 Markdown/Word 不应输出点击坐标元数据");
@@ -1087,6 +1090,35 @@ runCheck("同域页面变化会合并进触发操作，跨域变化才保留独�
   assert(steps[1].type === "navigation", "跨域 navigation 必须保留为独立步骤");
   assert(steps[1].title === "进入支付页", "navigation 默认标题必须使用进入目标页面文案");
   assert(timeline.segments.some((segment) => segment.type === "navigation"), "VideoTimeline 必须保留跨域 navigation 类型");
+});
+
+runCheck("缺少触发 ID 的同域导航会向前折叠到点击步骤", () => {
+  const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_click_gps",
+      sequence: 1,
+      action: "click",
+      capturedAt: "2026-07-27T10:08:07.436Z",
+      tab: { tabId: 1, tabAlias: "标签页 A：ZKBio TimeCloud", domain: "biotimecloud.info", title: "ZKBio TimeCloud", url: "https://biotimecloud.info/company/area" },
+      target: { type: "link", text: "GPS", boundingBox: { x: 10, y: 10, width: 60, height: 30 } },
+      generatedInstruction: "点击GPS。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_navigation_without_trigger",
+      sequence: 2,
+      action: "navigation",
+      capturedAt: "2026-07-27T10:08:07.440Z",
+      fromTab: { tabId: 1, url: "https://biotimecloud.info/gps", domain: "biotimecloud.info", title: "ZKBio TimeCloud" },
+      pageTitle: "ZKBio TimeCloud",
+      pageUrl: "https://biotimecloud.info/gps/accounts",
+      generatedInstruction: "页面跳转到：ZKBio TimeCloud",
+      status: "auto_generated"
+    }
+  ]);
+  assert(steps.length === 1, "缺少 triggeredByNodeId 的同域 navigation 不应成为独立步骤");
+  assert(steps[0].title.includes("GPS"), "同域 navigation 应合并回前一个点击目标");
 });
 
 runCheck("文件上传控件会生成 upload 节点并脱敏文件名", () => {
@@ -1443,21 +1475,20 @@ runCheck("敏感字段录制时会自动生成截图打码区域", () => {
   const background = readText("extension/background.js");
   assert(content.includes("containsSensitiveData: sensitive"), "content.js 必须识别敏感字段");
   assert(content.includes("isEmailValue(value)"), "content.js 必须按输入值识别邮箱");
-  assert(content.includes("isPhoneValue(value)"), "content.js 必须按输入值识别手机号");
-  assert(content.includes("isIdCardValue(value)"), "content.js 必须按输入值识别身份证号");
-  assert(content.includes("isBankCardValue(value)"), "content.js 必须按输入值识别银行卡号");
+  assert(content.includes("isPasswordElement(element)"), "content.js 必须按字段识别密码");
+  assert(content.includes("collectPagePrivacyMaskBoxes"), "content.js 必须扫描页面中后续出现的邮箱/密码区域");
+  assert(content.includes("pagePrivacyMaskBoxes"), "content.js 必须把页面级邮箱/密码打码区域传给 background");
   assert(content.includes("\"email\""), "content.js 必须记录邮箱敏感原因");
-  assert(content.includes("\"phone\""), "content.js 必须记录手机号敏感原因");
-  assert(content.includes("\"id_card\""), "content.js 必须记录身份证号敏感原因");
-  assert(content.includes("\"bank_card\""), "content.js 必须记录银行卡号敏感原因");
+  assert(content.includes("\"password\""), "content.js 必须记录密码敏感原因");
+  assert(!content.includes("\"phone\""), "content.js 不应再把手机号作为默认打码对象");
+  assert(!content.includes("\"id_card\""), "content.js 不应再把身份证号作为默认打码对象");
+  assert(!content.includes("\"bank_card\""), "content.js 不应再把银行卡号作为默认打码对象");
   assert(content.indexOf("if (isEmailValue(value)) return maskEmail(value)") < content.indexOf("if (sensitive) return \"***\""), "邮箱应保留部分脱敏展示，而不是直接全量 ***");
-  assert(content.indexOf("if (isIdCardValue(value)) return maskIdCard(value)") < content.indexOf("if (sensitive) return \"***\""), "身份证号应保留部分脱敏展示，而不是直接全量 ***");
-  assert(content.indexOf("if (isBankCardValue(value)) return maskBankCard(value)") < content.indexOf("if (sensitive) return \"***\""), "银行卡号应保留部分脱敏展示，而不是直接全量 ***");
-  assert(content.includes("maskIdCard"), "content.js 必须实现身份证号脱敏");
-  assert(content.includes("maskBankCard"), "content.js 必须实现银行卡号脱敏");
   assert(background.includes("buildAutoMaskBoxes"), "background 必须根据敏感字段生成自动打码区域");
   assert(background.includes("payload.privacy?.containsSensitiveData"), "自动打码必须基于隐私识别结果");
   assert(background.includes("payload.target?.boundingBox"), "自动打码必须使用目标元素区域");
+  assert(background.includes("payload.pagePrivacyMaskBoxes"), "自动打码必须合并页面级邮箱/密码区域");
+  assert(background.includes("isEmailOrPasswordPrivacy"), "自动打码必须限制在邮箱和密码");
   assert(background.includes("autoMaskApplied"), "节点隐私元数据必须标记自动打码");
 });
 
@@ -1556,7 +1587,7 @@ runCheck("文章和视频时间轴导出会保留已打码截图", () => {
   const generator = readText("tools/generate_artifacts.js");
   assert(shared.includes("buildPrivacySafeArticleSteps"), "共享 artifact 必须提供隐私安全导出步骤构建");
   assert(shared.includes("imageMaskedForPrivacy"), "共享 artifact 必须标记文章截图已打码");
-  assert(viewerJs.includes("buildPrivacySafeArticleSteps(currentSteps)"), "预览页导出必须使用隐私安全步骤副本");
+  assert(viewerJs.includes("buildPrivacySafeArticleSteps(currentSteps, options)"), "预览页导出必须按隐私开关使用隐私安全步骤副本");
   assert(viewerArtifacts.includes("renderMaskBoxes"), "预览文章必须渲染打码区域");
   assert(generator.includes("buildPrivacySafeArticleSteps(steps)"), "离线导出必须使用隐私安全步骤副本");
   assert(generator.includes("renderMaskBoxes"), "离线文章/分镜必须渲染打码区域");

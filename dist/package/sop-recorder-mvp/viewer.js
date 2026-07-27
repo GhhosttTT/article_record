@@ -11,12 +11,18 @@ const els = {
   markdownBtn: document.getElementById("markdownBtn"),
   wordBtn: document.getElementById("wordBtn"),
   timelineBtn: document.getElementById("timelineBtn"),
-  videoBtn: document.getElementById("videoBtn")
+  videoBtn: document.getElementById("videoBtn"),
+  articleTitleInput: document.getElementById("articleTitleInput"),
+  privacyMaskToggle: document.getElementById("privacyMaskToggle")
 };
 
 let currentState = null;
 let currentTabs = [];
 let currentSteps = [];
+
+els.privacyMaskToggle?.addEventListener("change", () => {
+  if (currentState) applyState(currentState, { preserveTitle: true });
+});
 
 els.steps.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-node-action]");
@@ -153,30 +159,34 @@ els.exportBtn.addEventListener("click", () => {
 els.articleBtn.addEventListener("click", () => {
   if (!currentState) return;
   if (!confirmPrivacyBeforeExport("SOP 文章")) return;
-  const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
-  const html = renderArticleHtml(currentState, currentTabs, exportSteps);
+  const options = getExportOptions();
+  const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
+  const html = renderArticleHtml(currentState, currentTabs, exportSteps, options);
   downloadTextFile(`sop-article-${currentState.session?.id || Date.now()}.html`, "text/html", html);
 });
 
 els.markdownBtn.addEventListener("click", () => {
   if (!currentState) return;
   if (!confirmPrivacyBeforeExport("SOP Markdown")) return;
-  const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
-  const markdown = renderArticleMarkdown(currentState, currentTabs, exportSteps);
+  const options = getExportOptions();
+  const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
+  const markdown = renderArticleMarkdown(currentState, currentTabs, exportSteps, options);
   downloadTextFile(`sop-article-${currentState.session?.id || Date.now()}.md`, "text/markdown", markdown);
 });
 
 els.wordBtn.addEventListener("click", () => {
   if (!currentState) return;
   if (!confirmPrivacyBeforeExport("SOP Word")) return;
-  const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
-  const word = renderArticleWordDocument(currentState, currentTabs, exportSteps);
+  const options = getExportOptions();
+  const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
+  const word = renderArticleWordDocument(currentState, currentTabs, exportSteps, options);
   downloadTextFile(`sop-article-${currentState.session?.id || Date.now()}.doc`, "application/msword", word);
 });
 
 els.timelineBtn.addEventListener("click", () => {
   if (!confirmPrivacyBeforeExport("视频时间轴")) return;
-  const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
+  const options = getExportOptions();
+  const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
   const timeline = buildVideoTimeline(exportSteps);
   downloadTextFile(`sop-video-timeline-${currentState?.session?.id || Date.now()}.json`, "application/json", JSON.stringify(timeline, null, 2));
 });
@@ -193,7 +203,8 @@ els.videoBtn.addEventListener("click", async () => {
   els.videoBtn.disabled = true;
   els.videoBtn.textContent = "生成视频中...";
   try {
-    const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
+    const options = getExportOptions();
+    const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
     const timeline = buildVideoTimeline(exportSteps);
     const blob = await renderTimelineWebm(timeline);
     await downloadBlobFile(`sop-video-${currentState?.session?.id || Date.now()}.webm`, blob);
@@ -213,14 +224,19 @@ async function load() {
   applyState(state);
 }
 
-function applyState(state) {
+function applyState(state, options = {}) {
   const nodes = state.nodes || [];
   const tabs = Object.values(state.tabContexts || {});
-  const steps = buildArticleSteps(nodes);
+  const exportOptions = getExportOptions();
+  const steps = buildArticleSteps(nodes, exportOptions);
 
   currentState = state;
   currentTabs = tabs;
   currentSteps = steps;
+
+  if (!options.preserveTitle && els.articleTitleInput && !els.articleTitleInput.value) {
+    els.articleTitleInput.value = defaultArticleTitle(state, tabs);
+  }
 
   els.status.textContent = state.status || "idle";
   els.nodeCount.textContent = nodes.length;
@@ -230,6 +246,21 @@ function applyState(state) {
   renderPrivacyAudit(steps);
   renderChapterList(steps);
   renderSteps(nodes);
+}
+
+function getExportOptions() {
+  return {
+    title: els.articleTitleInput?.value || "",
+    privacyMaskingEnabled: els.privacyMaskToggle?.checked !== false
+  };
+}
+
+function defaultArticleTitle(state, tabs) {
+  const explicit = state?.session?.title || state?.session?.name;
+  if (explicit) return explicit;
+  const firstTab = (tabs || []).find((tab) => tab.title || tab.domain);
+  if (firstTab) return `${firstTab.title || firstTab.domain} 操作步骤`;
+  return state?.session?.id || "SOP 操作手册";
 }
 
 function renderMeta(session, tabs) {

@@ -286,7 +286,10 @@ function getPageTarget() {
 function sendRecorderEvent(payload) {
   const event = {
     id: `event_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    payload,
+    payload: {
+      ...payload,
+      pagePrivacyMaskBoxes: collectPagePrivacyMaskBoxes()
+    },
     queuedAt: Date.now()
   };
   queueRecorderEvent(event);
@@ -584,6 +587,61 @@ function buildSelector(element) {
 }
 
 function detectPrivacy(element) {
+  const value = getElementValue(element);
+  const sensitiveByField = isPasswordElement(element);
+  const sensitiveByValue = isEmailValue(value);
+  const sensitive = sensitiveByField || sensitiveByValue;
+  return {
+    containsSensitiveData: sensitive,
+    reasons: [
+      sensitiveByField ? "password" : null,
+      sensitiveByValue ? "email" : null
+    ].filter(Boolean),
+    maskedFields: sensitive ? [buildSelector(element)] : []
+  };
+}
+
+function collectPagePrivacyMaskBoxes() {
+  const boxes = [];
+  Array.from(document.querySelectorAll("input, textarea, [contenteditable='true']"))
+    .filter((element) => element instanceof Element)
+    .forEach((element) => {
+      if (!isEmailOrPasswordElement(element)) return;
+      const box = getMaskableBox(element);
+      if (box) boxes.push(box);
+    });
+
+  const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const text = normalizeText(node.nodeValue || "");
+      if (!containsEmailText(text)) return NodeFilter.FILTER_REJECT;
+      const parent = node.parentElement;
+      if (!parent || ["SCRIPT", "STYLE", "NOSCRIPT"].includes(parent.tagName)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  while (walker.nextNode()) {
+    const range = document.createRange();
+    range.selectNodeContents(walker.currentNode);
+    Array.from(range.getClientRects()).forEach((rect) => {
+      const box = normalizeRectToMaskBox(rect);
+      if (box) boxes.push(box);
+    });
+    range.detach();
+  }
+
+  return mergeMaskBoxes(boxes).slice(0, 30);
+}
+
+function isEmailOrPasswordElement(element) {
+  const value = getElementValue(element);
+  return isPasswordElement(element) ||
+    (element instanceof HTMLInputElement && element.type === "email") ||
+    isEmailValue(value);
+}
+
+function isPasswordElement(element) {
   const text = [
     element.getAttribute("type"),
     element.getAttribute("name"),
@@ -593,32 +651,53 @@ function detectPrivacy(element) {
     element.getAttribute("title"),
     findLabelText(element)
   ].filter(Boolean).join(" ").toLowerCase();
-  const value = getElementValue(element);
-  const sensitiveByField = /password|passwd|token|secret|otp|验证码|code|captcha/.test(text);
-  const sensitiveByValue = isEmailValue(value) || isPhoneValue(value) || isIdCardValue(value) || isBankCardValue(value);
-  const sensitive = sensitiveByField || sensitiveByValue;
+  return /password|passwd/.test(text) || (element instanceof HTMLInputElement && element.type === "password");
+}
+
+function getMaskableBox(element) {
+  const box = element.getBoundingClientRect();
+  const visibility = getTargetVisibility(element, box);
+  if (!visibility.visible) return null;
+  return normalizeRectToMaskBox(box);
+}
+
+function normalizeRectToMaskBox(rect) {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const left = Math.max(0, rect.left);
+  const top = Math.max(0, rect.top);
+  const right = Math.min(viewportWidth, rect.right);
+  const bottom = Math.min(viewportHeight, rect.bottom);
+  const width = right - left;
+  const height = bottom - top;
+  if (width <= 2 || height <= 2) return null;
   return {
-    containsSensitiveData: sensitive,
-    reasons: [
-      sensitiveByField ? "sensitive_field" : null,
-      isEmailValue(value) ? "email" : null,
-      isPhoneValue(value) ? "phone" : null,
-      isIdCardValue(value) ? "id_card" : null,
-      isBankCardValue(value) ? "bank_card" : null
-    ].filter(Boolean),
-    maskedFields: sensitive ? [buildSelector(element)] : []
+    x: Math.round(left),
+    y: Math.round(top),
+    width: Math.round(width),
+    height: Math.round(height),
+    coordinateSpace: "viewport-css-pixel",
+    source: "email_password_scan"
   };
 }
 
+function mergeMaskBoxes(boxes) {
+  const seen = new Set();
+  const result = [];
+  boxes.forEach((box) => {
+    const key = [box.x, box.y, box.width, box.height].join(":");
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(box);
+  });
+  return result;
+}
 function getMaskedValue(element, sensitive) {
   if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) return null;
   if (element instanceof HTMLSelectElement) return normalizeText(element.selectedOptions[0]?.text || element.value);
   if (element instanceof HTMLInputElement && element.type === "file") return getFileUploadSummary(element);
   const value = getElementValue(element);
   if (isEmailValue(value)) return maskEmail(value);
-  if (isPhoneValue(value)) return value.replace(/\d(?=\d{4})/g, "*");
-  if (isIdCardValue(value)) return maskIdCard(value);
-  if (isBankCardValue(value)) return maskBankCard(value);
   if (sensitive) return "***";
   return value ? "已输入内容" : "";
 }
@@ -649,6 +728,10 @@ function getElementValue(element) {
 
 function isEmailValue(value = "") {
   return /^\S+@\S+\.\S+$/.test(value);
+}
+
+function containsEmailText(value = "") {
+  return /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(value);
 }
 
 function isPhoneValue(value = "") {

@@ -1,7 +1,7 @@
 const { buildArticleSteps, buildArticleChapters, buildPrivacySafeArticleSteps, buildVideoTimeline } = SopArtifactShared;
 
-function renderArticleHtml(state, tabs, steps) {
-  const title = state.session?.id || "SOP 操作手册";
+function renderArticleHtml(state, tabs, steps, options = {}) {
+  const title = resolveArticleTitle(state, tabs, options);
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -53,8 +53,8 @@ function renderArticleHtml(state, tabs, steps) {
 </html>`;
 }
 
-function renderArticleMarkdown(state, tabs, steps) {
-  const title = state.session?.id || "SOP 操作手册";
+function renderArticleMarkdown(state, tabs, steps, options = {}) {
+  const title = resolveArticleTitle(state, tabs, options);
   const lines = [
     `# ${escapeMarkdown(title)}`,
     "",
@@ -106,8 +106,8 @@ function renderArticleMarkdown(state, tabs, steps) {
   return `${lines.join("\n").trim()}\n`;
 }
 
-function renderArticleWordDocument(state, tabs, steps) {
-  const title = state.session?.id || "SOP 操作手册";
+function renderArticleWordDocument(state, tabs, steps, options = {}) {
+  const title = resolveArticleTitle(state, tabs, options);
   return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN">
 <head>
@@ -200,6 +200,20 @@ function renderStepSummary(steps) {
   if (tabCount) extras.push(`${tabCount} 个标签页切换`);
   if (navigationCount) extras.push(`${navigationCount} 个跨域页面变化`);
   return `共 ${steps.length} 个操作步骤${extras.length ? `，其中 ${extras.join("、")}` : ""}。`;
+}
+
+function resolveArticleTitle(state, tabs, options = {}) {
+  const explicitTitle = normalizeTitle(options.title);
+  if (explicitTitle) return explicitTitle;
+  const sessionTitle = normalizeTitle(state?.session?.title || state?.session?.name);
+  if (sessionTitle) return sessionTitle;
+  const firstTab = (tabs || []).find((tab) => normalizeTitle(tab.title || tab.domain));
+  if (firstTab) return `${normalizeTitle(firstTab.title || firstTab.domain)} 操作步骤`;
+  return state?.session?.id || "SOP 操作手册";
+}
+
+function normalizeTitle(value = "") {
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function stepTypeText(type) {

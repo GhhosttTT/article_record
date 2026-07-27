@@ -6,8 +6,9 @@
     root.SopArtifactShared = api;
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function createArtifactShared() {
-  function buildArticleSteps(nodes) {
+  function buildArticleSteps(nodes, options = {}) {
     const sourceNodes = nodes || [];
+    const privacyMaskingEnabled = options.privacyMaskingEnabled !== false;
     const navigationOutcomes = collectSameOriginNavigationOutcomes(sourceNodes);
     const activeNodes = filterMeaningfulTransitionNodes(sourceNodes.filter((node) => node.status !== "discarded"))
       .filter((node) => !shouldFoldNavigationNode(node, navigationOutcomes));
@@ -23,7 +24,9 @@
       const voiceoverText = normalizeText(node.voiceoverText || "");
       const focusBox = normalizeBox(node.focusBoxOverride || (node.target?.visibility?.canHighlight === false ? null : node.target?.boundingBox));
       const contextKey = privacyContextKey(node);
-      const currentPrivacyMaskBoxes = normalizeBoxes(Array.isArray(node.privacyMaskBoxes) ? node.privacyMaskBoxes : []);
+      const currentPrivacyMaskBoxes = privacyMaskingEnabled
+        ? normalizeBoxes(Array.isArray(node.privacyMaskBoxes) ? node.privacyMaskBoxes : [])
+        : [];
       const priorPrivacyMaskBoxes = contextKey ? privacyMasksByContext[contextKey] || [] : [];
       const privacyMaskBoxes = mergeBoxes([...priorPrivacyMaskBoxes, ...currentPrivacyMaskBoxes]);
       if (contextKey && currentPrivacyMaskBoxes.length) privacyMasksByContext[contextKey] = privacyMaskBoxes;
@@ -48,7 +51,7 @@
         focusBox,
         focusMode: focusBox ? "highlight" : "none",
         privacyMaskBoxes,
-        privacyWarnings: node.privacy?.containsSensitiveData ? ["此步骤包含敏感字段，已脱敏。"] : [],
+        privacyWarnings: privacyMaskingEnabled && node.privacy?.containsSensitiveData ? ["此步骤包含敏感字段，已脱敏。"] : [],
         durationOverrideSeconds: normalizeDuration(node.durationOverrideSeconds),
         voiceoverText: voiceoverText || description,
         voiceoverTextOverridden: Boolean(node.voiceoverTextOverridden && voiceoverText),
@@ -201,7 +204,8 @@
     };
   }
 
-  function buildPrivacySafeArticleSteps(steps) {
+  function buildPrivacySafeArticleSteps(steps, options = {}) {
+    if (options.privacyMaskingEnabled === false) return steps || [];
     return (steps || []).map((step) => {
       const containsSensitiveData = Boolean(step.privacyWarnings?.length);
       const hasMaskBoxes = Boolean(step.privacyMaskBoxes?.length);
@@ -235,7 +239,9 @@
   function collectSameOriginNavigationOutcomes(nodes) {
     const byTriggerId = {};
     const foldedNavigationIds = new Set();
-    for (const node of nodes || []) {
+    const sourceNodes = nodes || [];
+    for (let index = 0; index < sourceNodes.length; index += 1) {
+      const node = sourceNodes[index];
       if (node.status === "discarded" || node.action !== "navigation" || !node.triggeredByNodeId) continue;
       if (!isSameTabSameOriginNavigation(node)) continue;
       const pageUrl = node.pageUrl || node.toTab?.url || node.afterUrl || "";
@@ -246,7 +252,37 @@
       };
       foldedNavigationIds.add(node.id);
     }
+    for (let index = 0; index < sourceNodes.length; index += 1) {
+      const node = sourceNodes[index];
+      if (node.status === "discarded" || node.action !== "navigation" || node.triggeredByNodeId) continue;
+      if (!isSameTabSameOriginNavigation(node)) continue;
+      const trigger = findFallbackNavigationTrigger(sourceNodes, index, node);
+      if (!trigger || byTriggerId[trigger.id]) continue;
+      const pageUrl = node.pageUrl || node.toTab?.url || node.afterUrl || "";
+      byTriggerId[trigger.id] = {
+        navigationNodeId: node.id,
+        pageTitle: node.pageTitle || node.toTab?.title || pageNameFromUrl(pageUrl),
+        pageUrl
+      };
+      foldedNavigationIds.add(node.id);
+    }
     return { byTriggerId, foldedNavigationIds };
+  }
+
+  function findFallbackNavigationTrigger(nodes, navigationIndex, navigationNode) {
+    const navigationTime = new Date(navigationNode.capturedAt || 0).getTime();
+    const fromTabId = navigationNode.fromTab?.tabId || navigationNode.tab?.tabId || null;
+    for (let index = navigationIndex - 1; index >= 0; index -= 1) {
+      const candidate = nodes[index];
+      if (!candidate || candidate.status === "discarded") continue;
+      if (!["click", "submit", "key"].includes(candidate.action)) continue;
+      const candidateTabId = candidate.tab?.tabId || candidate.toTab?.tabId || candidate.fromTab?.tabId || null;
+      if (fromTabId && candidateTabId && fromTabId !== candidateTabId) continue;
+      const candidateTime = new Date(candidate.capturedAt || candidate.updatedAt || 0).getTime();
+      if (Number.isFinite(navigationTime) && Number.isFinite(candidateTime) && navigationTime - candidateTime > 5000) return null;
+      return candidate;
+    }
+    return null;
   }
 
   function shouldFoldNavigationNode(node, navigationOutcomes) {
@@ -438,17 +474,33 @@
   }
 
   function formatPageName(outcome) {
-    return normalizeText(outcome?.pageTitle || pageNameFromUrl(outcome?.pageUrl) || "目标");
+    const title = normalizeText(outcome?.pageTitle || "");
+    const pathName = pageNameFromUrl(outcome?.pageUrl);
+    if (pathName && isGenericPageTitle(title)) return pathName;
+    return title || pathName || "目标";
   }
 
   function pageNameFromUrl(url = "") {
     try {
       const parsed = new URL(url);
       const last = parsed.pathname.split("/").filter(Boolean).at(-1);
-      return last || parsed.hostname;
+      return formatPathSegment(last) || parsed.hostname;
     } catch {
       return "";
     }
+  }
+
+  function formatPathSegment(segment = "") {
+    return String(segment || "")
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+  }
+
+  function isGenericPageTitle(title = "") {
+    const normalized = normalizeText(title).toLowerCase();
+    if (!normalized) return true;
+    return normalized === "zkbio timecloud" || normalized === "timecloud" || normalized === "system";
   }
 
   return {

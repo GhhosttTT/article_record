@@ -750,9 +750,35 @@ function findMergeableClickNode(payload, context) {
 }
 
 function buildAutoMaskBoxes(payload = {}) {
-  if (!payload.privacy?.containsSensitiveData) return [];
-  const box = normalizeFocusBox(payload.target?.boundingBox);
-  return box ? [box] : [];
+  const boxes = [];
+  if (payload.privacy?.containsSensitiveData && isEmailOrPasswordPrivacy(payload.privacy)) {
+    const targetBox = normalizeFocusBox(payload.target?.boundingBox);
+    if (targetBox) boxes.push(targetBox);
+  }
+  if (Array.isArray(payload.pagePrivacyMaskBoxes)) {
+    payload.pagePrivacyMaskBoxes.forEach((box) => {
+      const normalized = normalizeFocusBox(box);
+      if (normalized) boxes.push(normalized);
+    });
+  }
+  return mergePrivacyMaskBoxes(boxes);
+}
+
+function isEmailOrPasswordPrivacy(privacy = {}) {
+  const reasons = privacy.reasons || [];
+  return reasons.includes("email") || reasons.includes("password");
+}
+
+function mergePrivacyMaskBoxes(boxes = []) {
+  const seen = new Set();
+  const result = [];
+  boxes.forEach((box) => {
+    const key = [box.x, box.y, box.width, box.height].join(":");
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(box);
+  });
+  return result;
 }
 
 async function addTabNode(action, details) {
