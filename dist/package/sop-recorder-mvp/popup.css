@@ -66,6 +66,12 @@ h1 {
   color: var(--accent-dark);
 }
 
+.badge.paused {
+  border-color: #d7bd75;
+  background: #fff7dc;
+  color: #7a5514;
+}
+
 .stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -115,6 +121,11 @@ button {
 
 button:hover {
   border-color: #9fb5c9;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .48;
 }
 
 button.primary {

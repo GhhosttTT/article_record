@@ -32,17 +32,78 @@
               <option>Bangkok, Thailand</option>
             </select>
           </label>
+          <fieldset class="radio-group">
+            <legend>Company Type</legend>
+            <label class="check">
+              <input name="companyType" type="radio" value="headquarters">
+              <span>Headquarters</span>
+            </label>
+            <label class="check">
+              <input name="companyType" type="radio" value="branch">
+              <span>Branch Office</span>
+            </label>
+          </fieldset>
+          <label>
+            Business License
+            <input name="businessLicense" type="file" accept=".pdf,.png,.jpg,.jpeg">
+          </label>
+          <div class="field-hint">Support Contact</div>
+          <input name="supportContact" placeholder="" autocomplete="off">
+          <label>
+            Legal Representative ID
+            <input name="legalIdCard" placeholder="Legal Representative ID" autocomplete="off">
+          </label>
+          <label>
+            Billing Bank Card
+            <input name="billingBankCard" placeholder="Billing Bank Card" autocomplete="off">
+          </label>
           <label class="check">
             <input name="companyTerms" type="checkbox">
             <span>I have read and agreed to the company service terms</span>
           </label>
+          <button type="button" id="reviewBtn">Review Details</button>
           <button type="button" id="confirmBtn">Confirm</button>
         </form>
+        <dialog id="reviewDialog" aria-label="Company Review">
+          <h2>Company Review</h2>
+          <p>Confirm the company profile before submitting.</p>
+          <button type="button" id="closeReviewBtn">Close Review</button>
+        </dialog>
+        <table class="records" aria-label="Recent Companies">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="recentCompanyCell">Acme Singapore</td>
+              <td>Draft</td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="customAction" class="custom-action" tabindex="0">Open Audit Trail</div>
         <p id="done" class="result" hidden>公司创建完成。</p>
       </section>
     </main>
     <script>
+      const reviewDialog = document.getElementById("reviewDialog");
+      document.getElementById("reviewBtn").addEventListener("click", () => {
+        reviewDialog.showModal();
+      });
+      document.getElementById("closeReviewBtn").addEventListener("click", () => {
+        reviewDialog.close();
+      });
       document.getElementById("confirmBtn").addEventListener("click", () => {
+        document.getElementById("done").hidden = false;
+      });
+      document.getElementById("recentCompanyCell").addEventListener("click", () => {
+        document.getElementById("done").textContent = "已选中 Acme Singapore。";
+        document.getElementById("done").hidden = false;
+      });
+      document.getElementById("customAction").addEventListener("click", () => {
+        document.getElementById("done").textContent = "已打开审计记录。";
         document.getElementById("done").hidden = false;
       });
     </script>

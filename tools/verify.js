@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
@@ -21,6 +22,7 @@ runCheck("manifest.json 可解析且为 MV3", () => {
   "extension/viewer_artifacts.js",
   "extension/viewer.js",
   "tools/generate_artifacts.js",
+  "tools/generate_pdf.js",
   "tools/package_extension.js",
   "tools/render_video.js",
   "tools/validate_schema.js",
@@ -36,8 +38,29 @@ runCheck("离线生成器可生成文章、时间轴和视频分镜", () => {
   const result = spawnSync("node", ["tools/generate_artifacts.js"], { cwd: root, encoding: "utf8" });
   assert(result.status === 0, result.stderr || result.stdout || "generate_artifacts 执行失败");
   assertExists("dist/article.html");
+  assertExists("dist/article.md");
+  assertExists("dist/article.doc");
   assertExists("dist/video-timeline.json");
   assertExists("dist/video-storyboard.html");
+});
+
+runCheck("离线 PDF 导出可复用 SOP HTML", () => {
+  const packageJson = readJson("package.json");
+  const pdfTool = readText("tools/generate_pdf.js");
+  assert(packageJson.scripts["generate:pdf"] === "node tools/generate_pdf.js", "package.json 必须提供 generate:pdf 脚本");
+  assert(pdfTool.includes("dist\", \"article.html"), "PDF 导出必须默认读取 dist/article.html");
+  assert(pdfTool.includes("--print-to-pdf"), "PDF 导出必须通过 Chrome 打印生成 PDF");
+  assert(pdfTool.includes("findChromeExecutable"), "PDF 导出必须查找 Chrome 可执行文件");
+  assert(pdfTool.includes("pathToFileUrl"), "PDF 导出必须用 file URL 打开 SOP HTML");
+
+  const chrome = findChromeExecutable();
+  if (!chrome) return;
+
+  const result = spawnSync("node", ["tools/generate_pdf.js"], { cwd: root, encoding: "utf8" });
+  assert(result.status === 0, result.stderr || result.stdout || "generate_pdf 执行失败");
+  assertExists("dist/article.pdf");
+  const stat = fs.statSync(path.join(root, "dist/article.pdf"));
+  assert(stat.size > 1024, "article.pdf 必须是非空 PDF 文件");
 });
 
 runCheck("扩展可打包为 zip", () => {
@@ -52,6 +75,104 @@ runCheck("示例录制数据满足 schema 契约", () => {
   assert(result.status === 0, result.stderr || result.stdout || "validate_schema 执行失败");
 });
 
+runCheck("schema 会拒绝不安全 URL 和普通字符键", () => {
+  assertSchemaRejectsHref("https://mail.example.com/activate?token=abc", "不得包含 query 或 hash");
+  assertSchemaRejectsHref("https://mail.example.com/activate#step", "不得包含 query 或 hash");
+  assertSchemaRejectsHref("javascript:alert(1)", "只允许 http/https");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    fixture.nodes[0].beforeUrl = "https://biotimecloud.info/onboard/sign-in?session=abc";
+  }, "不得包含 query 或 hash");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    fixture.nodes[0].navigationTargetUrl = "https://biotimecloud.info/onboard/register#done";
+  }, "不得包含 query 或 hash");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    fixture.tabContexts["101"].currentUrl = "javascript:alert(1)";
+  }, "只允许 http/https");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    fixture.nodes[0].action = "key";
+    fixture.nodes[0].key = "a";
+  }, "只允许 Enter 或 Escape");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    delete fixture.session.startedAt;
+  }, "session.startedAt");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    fixture.session.status = "done";
+  }, "session.status");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    fixture.pendingTabOpens = {};
+  }, "root.pendingTabOpens");
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    fixture.status = "idle";
+  }, "root.status");
+});
+
+runCheck("schema 校验覆盖编辑和隐私扩展字段", () => {
+  const validator = readText("tools/validate_schema.js");
+  const background = readText("extension/background.js");
+  const sample = readJson("examples/sample-recording.json");
+  assert(validator.includes("function validateSession"), "validate_schema 必须校验录制会话字段");
+  assert(validator.includes("function validateRecordingRoot"), "validate_schema 必须校验录制 JSON 根结构");
+  assert(validator.includes("new Set([\"session\", \"tabContexts\", \"nodes\"])"), "validate_schema 根结构只能允许 session/tabContexts/nodes");
+  assert(background.includes("function buildRecordingExportPayload"), "background 必须集中构建录制 JSON 导出 payload");
+  assert(background.includes("const payload = buildRecordingExportPayload(fullState)"), "exportJson 必须通过录制导出 payload 函数输出契约字段");
+  assert(!background.includes("pendingTabOpens: fullState.pendingTabOpens"), "录制 JSON 导出不得包含 pendingTabOpens");
+  assert(!background.includes("pendingNavigations: fullState.pendingNavigations"), "录制 JSON 导出不得包含 pendingNavigations");
+  assert(!background.includes("activeTabId: fullState.activeTabId"), "录制 JSON 导出不得包含 activeTabId");
+  assert(validator.includes("session.startedAt"), "validate_schema 必须要求 session.startedAt");
+  assert(validator.includes("[\"recording\", \"paused\", \"completed\", \"idle\"].includes(session?.status)"), "validate_schema 必须限制 session.status 白名单");
+  assert(sample.session.status === "completed", "示例录制会话必须是 completed 状态");
+  assert(validator.includes("titleOverride"), "validate_schema 必须校验人工标题字段");
+  assert(validator.includes("descriptionOverride"), "validate_schema 必须校验人工说明字段");
+  assert(validator.includes("focusBoxOverride"), "validate_schema 必须校验人工高亮字段");
+  assert(validator.includes("durationOverrideSeconds"), "validate_schema 必须校验人工视频时长字段");
+  assert(validator.includes("voiceoverText"), "validate_schema 必须校验人工视频旁白字段");
+  assert(validator.includes("voiceoverTextOverridden"), "validate_schema 必须校验人工视频旁白覆盖标记");
+  assert(validator.includes("[\"Enter\", \"Escape\"].includes(node.key)"), "validate_schema 必须限制 key 节点键名白名单");
+  assert(validator.includes("validateKey(step.key"), "validate_schema 必须校验 ArticleStep key 字段");
+  assert(validator.includes("validateKey(segment.key"), "validate_schema 必须校验 VideoTimeline key 字段");
+  assert(validator.includes("maskedValue"), "validate_schema 必须校验 maskedValue 字段");
+  assert(validator.includes("rawValue 不允许持久化"), "validate_schema 必须禁止 rawValue 持久化");
+  assert(validator.includes("privacyMaskBoxes"), "validate_schema 必须校验打码区域");
+  assert(validator.includes("validateScreenshot"), "validate_schema 必须校验视频时间轴截图元数据");
+  assert(validator.includes("redactedForPrivacy"), "validate_schema 必须校验 JSON 导出截图隐私裁剪字段");
+  assert(validator.includes("validateArticleChapters"), "validate_schema 必须校验文章章节");
+  assert(validator.includes("mergedNodeIds"), "validate_schema 必须校验合并节点字段");
+  assert(validator.includes("validateFormTarget"), "validate_schema 必须校验表单目标元数据");
+  assert(validator.includes("validateFormMerge"), "validate_schema 必须校验同表单字段合并元数据");
+  assert(validator.includes("mergedEventCount"), "validate_schema 必须校验连续输入合并计数字段");
+  assert(validator.includes("mergedClickCount"), "validate_schema 必须校验重复点击合并计数字段");
+  assert(validator.includes("autoMaskApplied"), "validate_schema 必须校验自动打码标记");
+  const firstClickNode = sample.nodes.find((node) => node.id === "node_001");
+  assert(firstClickNode?.mergedClickCount === 2, "示例录制数据必须覆盖重复点击合并计数字段");
+  const emailNode = sample.nodes.find((node) => node.id === "node_003");
+  assert(emailNode?.titleOverride, "示例录制数据必须覆盖人工标题字段");
+  assert(emailNode?.privacy?.reasons?.includes("email"), "示例录制数据必须覆盖 PII 原因字段");
+  assert(emailNode?.privacyMaskBoxes?.length === 1, "示例录制数据必须覆盖打码区域字段");
+  assert(emailNode?.mergedEventCount === 2, "示例录制数据必须覆盖连续输入合并计数字段");
+  assert(emailNode?.voiceoverTextOverridden === true, "示例录制数据必须覆盖人工视频旁白字段");
+  assert(sample.nodes.some((node) => node.action === "navigation"), "示例录制数据必须覆盖页面跳转节点");
+  const uploadNode = sample.nodes.find((node) => node.action === "upload");
+  assert(uploadNode?.target?.type === "upload", "示例录制数据必须覆盖 upload 节点");
+  assert(uploadNode.maskedValue?.includes("***"), "upload 节点必须只保存脱敏文件名摘要");
+  assert(uploadNode.value === uploadNode.maskedValue, "upload 节点 value 必须与 maskedValue 兼容一致");
+  assert(!/fakepath|[A-Z]:\\\\|\/home\//i.test(uploadNode.maskedValue || ""), "upload 节点不能保存本地完整路径");
+  const nearbyNode = sample.nodes.find((node) => node.target?.nearbyText === "Support Contact");
+  assert(nearbyNode?.action === "input", "示例录制数据必须覆盖邻近文本目标识别");
+  const visibleNode = sample.nodes.find((node) => node.target?.visibility?.canHighlight);
+  assert(visibleNode, "示例录制数据必须覆盖目标可见性字段");
+  const idCardNode = sample.nodes.find((node) => node.privacy?.reasons?.includes("id_card"));
+  const bankCardNode = sample.nodes.find((node) => node.privacy?.reasons?.includes("bank_card"));
+  assert(idCardNode?.maskedValue === "31**************10", "示例录制数据必须覆盖身份证号脱敏");
+  assert(idCardNode?.value === idCardNode?.maskedValue, "身份证号节点 value 必须与 maskedValue 兼容一致");
+  assert(idCardNode?.privacyMaskBoxes?.length === 1, "身份证号节点必须覆盖自动打码区域");
+  assert(bankCardNode?.maskedValue === "**** **** **** 3456", "示例录制数据必须覆盖银行卡号脱敏");
+  assert(bankCardNode?.value === bankCardNode?.maskedValue, "银行卡号节点 value 必须与 maskedValue 兼容一致");
+  assert(bankCardNode?.privacyMaskBoxes?.length === 1, "银行卡号节点必须覆盖自动打码区域");
+  assert(!JSON.stringify(sample.nodes).includes("rawValue"), "示例录制数据不得包含 rawValue");
+  assert(idCardNode?.target?.form?.selector, "身份证号节点必须覆盖所属表单元数据");
+  assert(bankCardNode?.target?.form?.selector, "银行卡号节点必须覆盖所属表单元数据");
+});
+
 runCheck("视频时间轴包含正确 duration 和 tab_transition", () => {
   const timeline = readJson("dist/video-timeline.json");
   assert(Array.isArray(timeline.segments), "segments 必须是数组");
@@ -61,6 +182,15 @@ runCheck("视频时间轴包含正确 duration 和 tab_transition", () => {
   const tabSegments = timeline.segments.filter((segment) => segment.type === "tab_transition");
   assert(tabSegments.length >= 2, "必须包含至少 2 个标签页切换片段");
   assert(tabSegments.some((segment) => segment.fromTabAlias && segment.toTabAlias), "标签页切换片段必须包含 from/to 标签页");
+  const chapterSegments = timeline.segments.filter((segment) => segment.type === "chapter_intro");
+  assert(chapterSegments.length >= 2, "时间轴必须包含章节开场片段");
+  assert(chapterSegments[0].storyboardVisualType === "chapter_intro", "章节片段 storyboardVisualType 必须为 chapter_intro");
+  assert(chapterSegments[0].chapterId === "chapter_001", "章节片段必须关联 ArticleChapter");
+  const navigationSegments = timeline.segments.filter((segment) => segment.type === "navigation");
+  assert(navigationSegments.length >= 1, "时间轴缺少 navigation 页面跳转片段");
+  assert(navigationSegments[0].storyboardVisualType === "navigation", "navigation 片段 storyboardVisualType 必须为 navigation");
+  assert(navigationSegments[0].toUrl?.includes("/onboard/register"), "navigation 片段缺少目标页面 URL");
+  assert(navigationSegments[0].screenshot?.viewportWidth === 1440, "navigation 片段必须携带跳转后截图元数据");
 });
 
 runCheck("文章和视频分镜都标注标签页切换", () => {
@@ -68,17 +198,159 @@ runCheck("文章和视频分镜都标注标签页切换", () => {
   const storyboard = readText("dist/video-storyboard.html");
   assert(article.includes("标签页切换"), "article.html 缺少标签页切换标注");
   assert(storyboard.includes("标签页切换片段"), "video-storyboard.html 缺少标签页切换片段");
+  assert(storyboard.includes("章节片段"), "video-storyboard.html 缺少章节片段");
   assert(storyboard.includes("标签页 A：ZKBio TimeCloud 注册页 -> 标签页 B：邮箱收件箱"), "storyboard 缺少 A -> B 切换");
+  assert(article.includes("页面跳转"), "article.html 缺少页面跳转标注");
+  assert(storyboard.includes("页面跳转片段"), "video-storyboard.html 缺少页面跳转片段");
 });
 
 runCheck("视频帧生成器可输出 tab_transition SVG 帧", () => {
   const result = spawnSync("node", ["tools/render_video.js", "--frames-only"], { cwd: root, encoding: "utf8" });
   assert(result.status === 0, result.stderr || result.stdout || "render_video 执行失败");
-  assertExists("dist/video/frames/segment_003.svg");
-  const frame = readText("dist/video/frames/segment_003.svg");
-  assert(frame.includes("标签页切换"), "segment_003.svg 缺少标签页切换标题");
-  assert(frame.includes("标签页 A：ZKBio TimeCloud 注册页"), "segment_003.svg 缺少来源标签页");
-  assert(frame.includes("标签页 B：邮箱收件箱"), "segment_003.svg 缺少目标标签页");
+  const timeline = readJson("dist/video-timeline.json");
+  const tabSegment = timeline.segments.find((segment) => segment.type === "tab_transition");
+  assert(tabSegment, "示例时间轴缺少 tab_transition 片段");
+  const framePath = `dist/video/frames/${tabSegment.id}.svg`;
+  assertExists(framePath);
+  const frame = readText(framePath);
+  assert(frame.includes("标签页切换"), `${tabSegment.id}.svg 缺少标签页切换标题`);
+  assert(frame.includes("标签页 A：ZKBio TimeCloud 注册页"), `${tabSegment.id}.svg 缺少来源标签页`);
+  assert(frame.includes("标签页 B：邮箱收件箱"), `${tabSegment.id}.svg 缺少目标标签页`);
+});
+
+runCheck("视频帧生成器可输出 navigation 页面跳转 SVG 帧", () => {
+  const timeline = readJson("dist/video-timeline.json");
+  const navigationSegment = timeline.segments.find((segment) => segment.type === "navigation");
+  assert(navigationSegment, "示例时间轴缺少 navigation 片段");
+  const framePath = `dist/video/frames/${navigationSegment.id}.svg`;
+  assertExists(framePath);
+  const frame = readText(framePath);
+  assert(frame.includes("页面跳转"), `${navigationSegment.id}.svg 缺少页面跳转标题`);
+  assert(frame.includes("原页面"), `${navigationSegment.id}.svg 缺少原页面标注`);
+  assert(frame.includes("ZKBio TimeCloud 注册表单"), `${navigationSegment.id}.svg 缺少目标页面标题`);
+});
+
+runCheck("视频帧生成器可输出 chapter_intro 章节 SVG 帧", () => {
+  const timeline = readJson("dist/video-timeline.json");
+  const chapterSegment = timeline.segments.find((segment) => segment.type === "chapter_intro");
+  assert(chapterSegment, "示例时间轴缺少 chapter_intro 片段");
+  const framePath = `dist/video/frames/${chapterSegment.id}.svg`;
+  assertExists(framePath);
+  const frame = readText(framePath);
+  assert(frame.includes("章节"), `${chapterSegment.id}.svg 缺少章节标题`);
+  assert(frame.includes("章节 1"), `${chapterSegment.id}.svg 缺少章节序号`);
+  assert(frame.includes(chapterSegment.currentTabAlias || chapterSegment.pageTitle), `${chapterSegment.id}.svg 缺少章节上下文`);
+});
+
+runCheck("视频帧生成器会清理旧 segment SVG 帧", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sop-render-clean-"));
+  const frameDir = path.join(tmpDir, "frames");
+  fs.mkdirSync(frameDir, { recursive: true });
+  fs.writeFileSync(path.join(frameDir, "segment_stale.svg"), "<svg></svg>", "utf8");
+  fs.writeFileSync(path.join(frameDir, "chapter_intro_stale.svg"), "<svg></svg>", "utf8");
+  const timelinePath = path.join(tmpDir, "timeline.json");
+  fs.writeFileSync(timelinePath, JSON.stringify({
+    version: "0.1.0",
+    duration: 2,
+    segments: [
+      {
+        id: "segment_current",
+        stepId: "article_step_001",
+        type: "operation",
+        startTime: 0,
+        endTime: 2,
+        caption: "当前片段",
+        key: "Enter"
+      }
+    ]
+  }), "utf8");
+  const result = spawnSync("node", ["tools/render_video.js", "--frames-only", timelinePath, tmpDir], { cwd: root, encoding: "utf8" });
+  assert(result.status === 0, result.stderr || result.stdout || "render_video 清理旧帧验证失败");
+  assert(!fs.existsSync(path.join(frameDir, "segment_stale.svg")), "render_video 必须清理旧 segment SVG 帧");
+  assert(!fs.existsSync(path.join(frameDir, "chapter_intro_stale.svg")), "render_video 必须清理旧 chapter_intro SVG 帧");
+  assert(fs.existsSync(path.join(frameDir, "segment_current.svg")), "render_video 必须生成当前 segment SVG 帧");
+  const frame = fs.readFileSync(path.join(frameDir, "segment_current.svg"), "utf8");
+  assert(frame.includes("按键：Enter"), "render_video 生成的 SVG 帧必须显示 key 片段按键");
+});
+
+runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
+  const renderVideo = readText("tools/render_video.js");
+  assert(renderVideo.includes("renderScreenshotVisual"), "render_video.js 必须支持真实截图渲染");
+  assert(renderVideo.includes("<image href="), "render_video.js 必须把截图嵌入 SVG");
+  assert(renderVideo.includes("privacyMaskBoxes"), "render_video.js 必须渲染打码区域");
+  assert(renderVideo.includes("renderFocusZoom"), "render_video.js 必须基于高亮区域渲染局部放大预览");
+  assert(renderVideo.includes("已打码"), "render_video.js 必须在有打码区域时显示提示");
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sop-render-video-"));
+  const timelinePath = path.join(tmpDir, "timeline.json");
+  const outputDir = path.join(tmpDir, "video");
+  const timeline = {
+    version: "0.1.0",
+    duration: 3,
+    segments: [
+      {
+        id: "segment_realshot",
+        stepId: "article_step_001",
+        type: "operation",
+        startTime: 0,
+        endTime: 3,
+        caption: "真实截图片段",
+        visual: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Crect width='400' height='200' fill='white'/%3E%3C/svg%3E",
+        screenshot: { viewportWidth: 400, viewportHeight: 200, width: 400, height: 200 },
+        highlight: { x: 40, y: 50, width: 120, height: 40 },
+        privacyMaskBoxes: [{ x: 200, y: 60, width: 90, height: 30 }]
+      }
+    ]
+  };
+  fs.writeFileSync(timelinePath, JSON.stringify(timeline), "utf8");
+  const result = spawnSync("node", ["tools/render_video.js", "--frames-only", timelinePath, outputDir], { cwd: root, encoding: "utf8" });
+  assert(result.status === 0, result.stderr || result.stdout || "真实截图视频帧生成失败");
+  const frame = fs.readFileSync(path.join(outputDir, "frames", "segment_realshot.svg"), "utf8");
+  assert(frame.includes("<image href=\"data:image/svg+xml"), "真实截图帧必须包含 image");
+  assert(frame.includes("已打码"), "真实截图帧必须标注已打码");
+  assert(frame.includes("stroke=\"#f18a2a\""), "真实截图帧必须渲染高亮框");
+  assert(frame.includes("Focus zoom"), "真实截图帧必须渲染局部放大预览");
+  assert(frame.includes("clipPath"), "局部放大预览必须裁剪截图区域");
+  assert(frame.includes("fill=\"#111827\""), "真实截图帧必须渲染打码遮罩");
+});
+
+runCheck("视频生成器可通过 PNG 中间帧合成 MP4", () => {
+  const renderVideo = readText("tools/render_video.js");
+  assert(renderVideo.includes("renderPngFramesWithChrome"), "render_video.js 必须先用 Chrome 渲染 PNG 中间帧");
+  assert(renderVideo.includes("png-frames"), "render_video.js 必须输出 PNG 中间帧目录");
+  assert(renderVideo.includes("findChromeExecutable"), "render_video.js 必须查找 Chrome 可执行文件");
+  assert(renderVideo.includes("pathToFileUrl"), "render_video.js 必须用 file URL 打开 SVG 帧");
+  assert(renderVideo.includes("cleanGeneratedPngFrames"), "render_video.js 必须清理旧 PNG 中间帧");
+
+  const ffmpeg = spawnSync("ffmpeg", ["-version"], { cwd: root, encoding: "utf8" });
+  const chrome = findChromeExecutable();
+  if (ffmpeg.status !== 0 || !chrome) return;
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sop-render-mp4-"));
+  const timelinePath = path.join(tmpDir, "timeline.json");
+  const outputDir = path.join(tmpDir, "video");
+  fs.writeFileSync(timelinePath, JSON.stringify({
+    version: "0.1.0",
+    duration: 2,
+    segments: [
+      {
+        id: "segment_mp4",
+        stepId: "article_step_001",
+        type: "operation",
+        startTime: 0,
+        endTime: 2,
+        caption: "生成 MP4 验证片段",
+        currentTabAlias: "标签页 A：验证页"
+      }
+    ]
+  }), "utf8");
+  const result = spawnSync("node", ["tools/render_video.js", timelinePath, outputDir], { cwd: root, encoding: "utf8" });
+  assert(result.status === 0, result.stderr || result.stdout || "render_video MP4 生成失败");
+  const pngPath = path.join(outputDir, "png-frames", "segment_mp4.png");
+  const mp4Path = path.join(outputDir, "sop-video.mp4");
+  assert(fs.existsSync(pngPath), "render_video 必须生成 PNG 中间帧");
+  assert(fs.existsSync(mp4Path), "render_video 必须生成 MP4 文件");
+  assert(fs.statSync(mp4Path).size > 1024, "生成的 MP4 文件不应为空");
 });
 
 runCheck("测试页覆盖注册、邮箱、新建公司关键操作", () => {
@@ -89,16 +361,1225 @@ runCheck("测试页覆盖注册、邮箱、新建公司关键操作", () => {
   assert(index.includes("target=\"_blank\""), "注册页应新开邮箱标签页");
   assert(mail.includes("Activate Account"), "邮箱页缺少 Activate Account");
   assert(company.includes("Confirm"), "公司页缺少 Confirm");
+  assert(company.includes("type=\"file\""), "公司页缺少文件上传控件");
+  assert(company.includes("Business License"), "公司页缺少上传字段标签");
+  assert(company.includes("Support Contact"), "公司页缺少邻近文本测试控件");
+  assert(company.includes("Legal Representative ID"), "公司页缺少身份证号测试控件");
+  assert(company.includes("Billing Bank Card"), "公司页缺少银行卡号测试控件");
+});
+
+runCheck("内容脚本覆盖基础表单事件采集", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const index = readText("test-pages/index.html");
+  const company = readText("test-pages/company.html");
+
+  assert(content.includes("document.addEventListener(\"click\""), "content.js 必须监听点击事件");
+  assert(content.includes("document.addEventListener(\"input\""), "content.js 必须监听输入事件");
+  assert(content.includes("document.addEventListener(\"change\""), "content.js 必须监听 change 事件");
+  assert(content.includes("document.addEventListener(\"submit\""), "content.js 必须监听表单提交事件");
+  assert(content.includes("document.addEventListener(\"keydown\""), "content.js 必须监听键盘关键动作");
+  assert(content.includes("[\"Enter\", \"Escape\"].includes(event.key)"), "键盘采集只能记录 Enter/Escape");
+  assert(content.includes("event.repeat"), "键盘采集必须忽略长按重复键");
+  assert(content.includes("sendInputLikeEvent(target, \"select\")"), "content.js 必须发送 select 事件");
+  assert(content.includes("sendInputLikeEvent(target, \"check\")"), "content.js 必须发送 check 事件");
+  assert(content.includes("action: \"submit\""), "content.js 必须发送 submit 事件");
+  assert(background.includes("payload.action === \"submit\""), "background 必须生成 submit 默认说明");
+  assert(background.includes("payload.action === \"key\""), "background 必须生成 key 默认说明");
+  assert(background.includes("[\"click\", \"submit\", \"key\"].includes(last.action)"), "键盘关键动作必须能关联后续页面跳转");
+  assert(background.includes("function shouldSkipSubmitAfterEnterKey"), "background 必须去重 Enter 后立即触发的重复 submit");
+  assert(background.includes("redundant_submit_after_key"), "重复 submit 跳过响应必须标记原因");
+  assert(background.includes("last.action !== \"key\" || last.key !== \"Enter\""), "submit 去重必须只针对 Enter key");
+  assert(background.includes("payload.target.form.selector === last.target.form.selector"), "submit 去重必须支持同表单判断");
+  assert(background.includes("payload.action === \"select\""), "background 必须生成 select 默认说明");
+  assert(background.includes("payload.action === \"check\""), "background 必须生成 check 默认说明");
+  assert(shared.includes("node.action === \"submit\""), "共享 artifact 必须生成 submit 默认标题");
+  assert(shared.includes("node.action === \"key\""), "共享 artifact 必须生成 key 默认标题");
+  assert(shared.includes("key: normalizeKey(node.key)"), "共享 artifact 必须把节点 key 带入 ArticleStep");
+  assert(shared.includes("key: step.key || null"), "共享 artifact 必须把 ArticleStep key 带入 VideoTimeline");
+  assert(shared.includes("node.action === \"select\""), "共享 artifact 必须生成 select 默认标题");
+  assert(shared.includes("node.action === \"check\""), "共享 artifact 必须生成 check 默认标题");
+  const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const keySteps = buildArticleSteps([{
+    id: "node_key_enter",
+    sequence: 1,
+    action: "key",
+    key: "Enter",
+    tab: { tabId: 1, tabAlias: "标签页 A：查询页", domain: "example.com" },
+    target: { type: "input", labelText: "Search" },
+    generatedInstruction: "按下 Enter，操作 Search。",
+    status: "auto_generated"
+  }]);
+  const { buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const keyTimeline = buildVideoTimeline(keySteps);
+  assert(keySteps[0].title.includes("Enter"), "key 节点文章标题必须包含键名");
+  assert(keySteps[0].key === "Enter", "key 节点 ArticleStep 必须保留结构化键名");
+  assert(keyTimeline.segments[0].key === "Enter", "key 节点 VideoTimeline 必须保留结构化键名");
+  assert(index.includes("type=\"submit\""), "注册测试页必须覆盖表单提交控件");
+  assert(company.includes("<select"), "公司测试页必须覆盖下拉选择控件");
+  assert(company.includes("type=\"checkbox\""), "公司测试页必须覆盖勾选控件");
+});
+
+runCheck("项目文档覆盖当前编辑、隐私和视频能力", () => {
+  const readme = readText("README.md");
+  const dataModel = readText("DATA_MODEL.md");
+  const testing = readText("TESTING.md");
+  ["合并/拆分", "同一表单", "手动调整高亮", "恢复自动高亮", "Popup 和预览页导出前", "Markdown", "Word", "页面跳转", "弹窗", "上传文件", "视频时间轴", "清理已知旧截图", "等待节点", "生成章节", "视频旁白", "恢复自动文案", "scrollX/scrollY", "clickPoint", "target.attributes", "防抖", "局部放大", "章节列表"].forEach((text) => {
+    assert(readme.includes(text), `README.md 缺少 ${text}`);
+  });
+  ["titleOverride", "focusBoxOverride", "durationOverrideSeconds", "voiceoverText", "voiceoverTextOverridden", "privacyMaskBoxes", "maskedValue", "rawValue", "mergedNodeIds", "formMerge", "target.form", "target.attributes", "navigation", "modal_open", "modal_close", "upload", "waitDurationMs", "ArticleChapter", "nearbyText", "visibility", "screenshot", "screenshot.pruned", "screenshot.captureTiming", "redactedForPrivacy", "imageRedactedForPrivacy", "viewport.scrollX", "screenshot.scrollX", "clickPoint"].forEach((text) => {
+    assert(dataModel.includes(text), `DATA_MODEL.md 缺少 ${text}`);
+  });
+  assert(dataModel.includes("局部放大预览"), "DATA_MODEL.md 缺少局部放大预览说明");
+  ["真实截图", "删除/恢复", "隐私确认", "Markdown", "Word", "页面跳转", "modal_open", "文件上传", "maskedValue", "rawValue", "privacyMaskBoxes", "captureTiming", "同一表单", "旧步骤截图", "wait", "章节", "视频时长", "视频旁白", "恢复自动文案", "恢复自动高亮", "redactedForPrivacy", "原始截图 `dataUrl`", "scrollX/scrollY", "clickPoint", "target.attributes", "防抖", "局部放大预览", "章节列表"].forEach((text) => {
+    assert(testing.includes(text), `TESTING.md 缺少 ${text}`);
+  });
 });
 
 runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   const viewerHtml = readText("extension/viewer.html");
   const artifactsJs = readText("extension/viewer_artifacts.js");
   assert(viewerHtml.includes("articleBtn"), "viewer.html 缺少 SOP 文章导出按钮");
+  assert(viewerHtml.includes("markdownBtn"), "viewer.html 缺少 SOP Markdown 导出按钮");
+  assert(viewerHtml.includes("wordBtn"), "viewer.html 缺少 SOP Word 导出按钮");
   assert(viewerHtml.includes("timelineBtn"), "viewer.html 缺少视频时间轴导出按钮");
   assert(viewerHtml.indexOf("shared/artifacts.js") < viewerHtml.indexOf("viewer_artifacts.js"), "shared/artifacts.js 必须先于 viewer_artifacts.js 加载");
   assert(viewerHtml.indexOf("viewer_artifacts.js") < viewerHtml.indexOf("viewer.js"), "viewer_artifacts.js 必须先于 viewer.js 加载");
   assert(artifactsJs.includes("SopArtifactShared"), "viewer_artifacts.js 必须使用共享 artifact 库");
+  assert(artifactsJs.includes("buildArticleChapters"), "viewer_artifacts.js 必须使用共享章节构建");
+  assert(artifactsJs.includes("renderArticleChapter"), "viewer_artifacts.js 必须按章节渲染文章");
+  assert(artifactsJs.includes("renderArticleMarkdown"), "viewer_artifacts.js 必须支持 Markdown 渲染");
+  assert(artifactsJs.includes("renderArticleWordDocument"), "viewer_artifacts.js 必须支持 Word 兼容文档渲染");
+  assert(artifactsJs.includes("stepTypeText"), "viewer_artifacts.js 必须按步骤类型渲染导出标签");
+});
+
+runCheck("文章导出会按 ArticleChapter 组织步骤", () => {
+  const { buildArticleSteps, buildArticleChapters } = require(path.join(root, "extension/shared/artifacts.js"));
+  const shared = readText("extension/shared/artifacts.js");
+  const generator = readText("tools/generate_artifacts.js");
+  const article = readText("dist/article.html");
+  const markdown = readText("dist/article.md");
+  const word = readText("dist/article.doc");
+  assert(shared.includes("function buildArticleChapters"), "共享 artifact 必须提供 ArticleChapter 构建");
+  assert(shared.includes("chapterKey"), "ArticleChapter 必须有稳定分组 key");
+  assert(generator.includes("buildArticleChapters"), "离线文章导出必须使用共享章节构建");
+  assert(article.includes("章节 1"), "article.html 必须包含章节标题");
+  assert(markdown.includes("## 章节 1"), "article.md 必须包含章节标题");
+  assert(word.includes("章节 1"), "article.doc 必须包含章节标题");
+
+  const steps = buildArticleSteps([
+    {
+      id: "node_a",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：登录页", domain: "example.com" },
+      target: { type: "button", text: "登录" },
+      generatedInstruction: "点击登录。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_b",
+      sequence: 2,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：登录页", domain: "example.com" },
+      target: { type: "input", text: "邮箱" },
+      generatedInstruction: "填写邮箱。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_c",
+      sequence: 3,
+      action: "navigation",
+      fromTab: { tabId: 1, tabAlias: "标签页 A：登录页", url: "https://example.com/login" },
+      toTab: { tabId: 1, tabAlias: "标签页 A：首页", url: "https://example.com/home", title: "首页" },
+      pageTitle: "首页",
+      pageUrl: "https://example.com/home",
+      generatedInstruction: "跳转到首页。",
+      status: "auto_generated"
+    }
+  ]);
+  const chapters = buildArticleChapters(steps);
+  assert(chapters.length === 2, "页面上下文变化应生成新章节");
+  assert(chapters[0].steps.length === 2, "同一页面连续步骤应归入同一章节");
+  assert(chapters.flatMap((chapter) => chapter.steps).length === steps.length, "章节必须覆盖全部 ArticleStep");
+});
+
+runCheck("扩展预览页侧栏显示章节列表", () => {
+  const viewerHtml = readText("extension/viewer.html");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  assert(viewerHtml.includes("chapterList"), "viewer.html 必须提供章节列表容器");
+  assert(viewerHtml.includes("aria-label=\"章节列表\""), "章节列表必须提供可访问标签");
+  assert(viewerJs.includes("renderChapterList(steps)"), "viewer.js 必须在应用状态时渲染章节列表");
+  assert(viewerJs.includes("buildArticleChapters(steps)"), "章节列表必须复用共享 ArticleChapter 构建");
+  assert(viewerJs.includes("chapter.steps.map"), "章节列表必须渲染章节内步骤");
+  assert(viewerJs.includes("href=\"#${escapeHtml(step.nodeId)}\""), "章节内步骤必须链接到对应节点卡片");
+  assert(viewerJs.includes("id=\"${escapeHtml(node.id)}\""), "步骤卡片必须提供稳定锚点");
+  assert(viewerCss.includes(".chapter-nav"), "viewer.css 必须提供章节导航样式");
+  assert(viewerCss.includes("max-height: 32vh"), "章节列表必须限制高度避免挤压导出按钮");
+});
+
+runCheck("录制控制状态会保持 runtime 和 session 一致", () => {
+  const background = readText("extension/background.js");
+  const normalizedBackground = background.replace(/\r\n/g, "\n");
+  const popupJs = readText("extension/popup.js");
+  const popupCss = readText("extension/popup.css");
+  assert(background.includes("cleanupCurrentSessionScreenshots"), "background 必须集中清理当前录制截图");
+  assert(normalizedBackground.includes("await cleanupCurrentSessionScreenshots();\n  runtimeState = {"), "重新开始录制前必须清理上一段录制截图");
+  assert(normalizedBackground.includes("await cleanupCurrentSessionScreenshots();\n      runtimeState = structuredClone(initialState);"), "清空录制前必须清理当前截图");
+  assert(background.includes("const activeTabIsRecordable = Boolean(activeTab?.id && !isIgnoredTab(activeTab))"), "开始录制时必须先判断当前 tab 是否可记录");
+  assert(background.includes("activeTabId: activeTabIsRecordable ? activeTab.id : null"), "从内部页开始录制时 activeTabId 必须保持为空");
+  assert(background.includes("if (activeTabIsRecordable) await ensureTabContext(activeTab, activeTab.windowId)"), "开始录制时只能为可记录 tab 建立上下文");
+  assert(background.includes("deleteScreenshotRecords(runtimeState.nodes.map((node) => node.screenshot?.id))"), "截图清理必须删除当前节点引用的截图记录");
+  assert(background.includes("MAX_SCREENSHOT_RECORDS = 120"), "background 必须限制单次录制截图数量");
+  assert(background.includes("function pruneScreenshotCapacity"), "background 必须集中执行截图容量裁剪");
+  assert(background.includes("nodesWithScreenshots.slice(0, nodesWithScreenshots.length - MAX_SCREENSHOT_RECORDS)"), "截图容量裁剪必须优先淘汰最早截图");
+  assert(background.includes("pruneReason: \"capacity_limit\""), "被淘汰截图必须标记容量裁剪原因");
+  assert(background.includes("await pruneScreenshotCapacity();"), "新增或替换截图后必须执行容量裁剪");
+  assert(background.includes("!node.screenshot?.pruned"), "容量裁剪不能重复处理已淘汰截图");
+  assert(background.includes("function pauseRecording"), "background 必须集中处理暂停录制");
+  assert(background.includes("runtimeState.session.status = \"paused\""), "暂停时 session.status 必须同步为 paused");
+  assert(background.includes("function resumeRecording"), "background 必须集中处理继续录制");
+  assert(background.includes("runtimeState.session.status = \"recording\""), "继续时 session.status 必须同步为 recording");
+  assert(background.includes("function stopRecording"), "background 必须集中处理停止录制");
+  assert(background.includes("runtimeState.session.status = \"completed\""), "停止时 session.status 必须同步为 completed");
+  assert(background.includes("[\"recording\", \"paused\"].includes(runtimeState.status)"), "停止录制必须允许 recording 和 paused 两种状态");
+  assert(popupJs.includes("els.pauseBtn.disabled = !isRecording"), "popup 必须在非 recording 时禁用暂停");
+  assert(popupJs.includes("els.resumeBtn.disabled = !isPaused"), "popup 必须在非 paused 时禁用继续");
+  assert(popupJs.includes("els.stopBtn.disabled = !(isRecording || isPaused)"), "popup 必须只在录制或暂停时允许停止");
+  assert(popupCss.includes(".badge.paused"), "popup 必须提供暂停状态样式");
+  assert(popupCss.includes("button:disabled"), "popup 必须提供禁用按钮样式");
+});
+
+runCheck("页面跳转会等页面完成后再生成节点并截图", () => {
+  const background = readText("extension/background.js");
+  const validator = readText("tools/validate_schema.js");
+  const sample = readJson("examples/sample-recording.json");
+  const navigationNode = sample.nodes.find((node) => node.action === "navigation");
+  const triggerNode = sample.nodes.find((node) => node.triggeredNavigationNodeId === navigationNode?.id);
+  assert(background.includes("pendingNavigations"), "background 必须暂存 URL 变化中的页面跳转");
+  assert(background.includes("findRecentNavigationTriggerNode"), "background 必须识别最近触发跳转的操作节点");
+  assert(background.includes("function sanitizeRecordingUrl"), "background 必须统一脱敏持久化 URL");
+  assert(background.includes("beforeUrl: sanitizeRecordingUrl(payload.beforeUrl || context.currentUrl)"), "操作节点 beforeUrl 必须脱敏后持久化");
+  assert(background.includes("pageUrl: sanitizeRecordingUrl(details.pageUrl)"), "tab/navigation 节点 pageUrl 必须脱敏后持久化");
+  assert(background.includes("function sanitizeUrlProperty"), "background 输出脱敏必须保留可选 URL 字段形状");
+  assert(background.includes("Object.prototype.hasOwnProperty.call(target, key)"), "输出脱敏不得凭空补充缺失 URL 字段");
+  assert(background.includes("sanitizeTabContextsForOutput(runtimeState.tabContexts)"), "完整状态返回前必须脱敏 tabContexts URL");
+  assert(background.includes("sanitizeNodeUrlsForOutput(hydratedNode)"), "完整状态返回前必须脱敏节点 URL");
+  assert(background.includes("triggeredByNodeId: triggerNode?.id"), "pending navigation 必须记录触发操作节点 ID");
+  assert(background.includes("linkNavigationTrigger"), "background 必须把 navigation 节点回填到触发操作节点");
+  assert(background.includes("changeInfo.status === \"complete\""), "background 必须等待页面加载完成");
+  assert(background.includes("flushPendingNavigation"), "background 必须在页面完成后落 navigation 节点");
+  assert(background.includes("captureVisibleScreenshot(context.windowId || tab.windowId"), "navigation 节点必须在完成后截图");
+  assert(background.includes("runtimeState.pendingNavigations = {}"), "暂停或停止时必须清理未完成的页面跳转");
+  assert(validator.includes("triggeredByNodeId"), "schema 必须校验 navigation 触发来源字段");
+  assert(validator.includes("function validateRecordedUrl"), "schema 必须校验持久化 URL 安全格式");
+  assert(validator.includes("triggeredNavigationNodeId"), "schema 必须校验操作触发的 navigation 字段");
+  assert(validator.includes("navigationTargetUrl"), "schema 必须校验操作触发的目标 URL 字段");
+  assert(validator.includes("validateScreenshot(node.screenshot"), "schema 必须校验节点截图元数据");
+  assert(navigationNode?.screenshot?.viewportWidth === 1440, "示例 navigation 节点必须覆盖截图元数据");
+  assert(navigationNode?.triggeredByNodeId === "node_001", "示例 navigation 节点必须覆盖触发来源节点");
+  assert(triggerNode?.navigationTargetUrl?.includes("/onboard/register"), "示例触发节点必须覆盖跳转目标 URL");
+});
+
+runCheck("点击打开新标签页会关联触发操作节点", () => {
+  const background = readText("extension/background.js");
+  const validator = readText("tools/validate_schema.js");
+  const dataModel = readText("DATA_MODEL.md");
+  const testing = readText("TESTING.md");
+  const readme = readText("README.md");
+  assert(background.includes("findRecentTabOpenTriggerNode"), "background 必须识别最近触发新标签页的点击节点");
+  assert(background.includes("triggeredByNodeId: triggerNode?.id"), "tab_open 节点必须记录触发操作节点 ID");
+  assert(background.includes("linkTabOpenTrigger"), "background 必须把 tab_open 节点回填到触发操作节点");
+  assert(background.includes("triggerNode.triggeredTabNodeId = tabOpenNodeId"), "触发点击节点必须记录 triggeredTabNodeId");
+  assert(background.includes("triggerNode.tabTargetUrl = sanitizeRecordingUrl(targetUrl) || null"), "触发点击节点必须脱敏后记录 tabTargetUrl");
+  assert(validator.includes("triggeredTabNodeId"), "schema 必须校验 triggeredTabNodeId");
+  assert(validator.includes("tabTargetUrl"), "schema 必须校验 tabTargetUrl");
+  assert(dataModel.includes("triggeredTabNodeId") && dataModel.includes("tabTargetUrl"), "DATA_MODEL.md 必须说明新标签页触发关联字段");
+  assert(testing.includes("triggeredTabNodeId"), "TESTING.md 必须覆盖新标签页触发关联");
+  assert(readme.includes("tab_open"), "README.md 必须说明 tab_open 关联能力");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_open_mail",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：注册页", domain: "example.com" },
+      target: { type: "button", text: "打开邮箱" },
+      triggeredTabNodeId: "node_tab_open",
+      tabTargetUrl: "https://mail.example.com",
+      generatedInstruction: "点击打开邮箱。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_tab_open",
+      sequence: 2,
+      action: "tab_open",
+      fromTab: { tabId: 1, tabAlias: "标签页 A：注册页", url: "https://example.com/register" },
+      toTab: { tabId: 2, tabAlias: "标签页 B：邮箱收件箱", url: "https://mail.example.com" },
+      triggeredByNodeId: "node_open_mail",
+      generatedInstruction: "打开标签页 B：邮箱收件箱。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_mail_click",
+      sequence: 3,
+      action: "click",
+      tab: { tabId: 2, tabAlias: "标签页 B：邮箱收件箱", domain: "mail.example.com" },
+      target: { type: "link", text: "Activate Account" },
+      generatedInstruction: "点击激活链接。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps.some((step) => step.nodeId === "node_tab_open" && step.type === "tab_transition"), "tab_open 关联后仍必须生成标签页切换步骤");
+  assert(timeline.segments.some((segment) => segment.type === "tab_transition" && segment.fromTabAlias && segment.toTabAlias), "VideoTimeline 必须保留 tab_open 过渡片段");
+});
+
+runCheck("schema 支持截图容量裁剪元数据", () => {
+  const validator = readText("tools/validate_schema.js");
+  assert(validator.includes("screenshot.pruned"), "validate_schema 必须校验截图裁剪标记");
+  assert(validator.includes("screenshot.pruneReason"), "validate_schema 必须校验截图裁剪原因");
+  assert(validator.includes("screenshot.prunedAt"), "validate_schema 必须校验截图裁剪时间");
+});
+
+runCheck("耗时页面加载会生成去重后的 wait 节点", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const validator = readText("tools/validate_schema.js");
+  assert(content.includes("PAGE_LOAD_WAIT_THRESHOLD_MS"), "content.js 必须定义页面加载等待阈值");
+  assert(content.includes("reportPageLoadWait"), "content.js 必须上报页面加载等待事件");
+  assert(content.includes("getPageLoadDuration"), "content.js 必须读取页面加载耗时");
+  assert(content.includes("action: \"wait\""), "content.js 必须发送 wait 节点事件");
+  assert(content.includes("waitDurationMs"), "content.js 必须传递等待耗时");
+  assert(background.includes("shouldSkipWaitNode"), "background 必须对 wait 节点去重");
+  assert(background.includes("redundant_wait"), "重复等待节点必须被跳过");
+  assert(background.includes("last.action === \"navigation\""), "紧跟 navigation 的 wait 节点必须跳过");
+  assert(background.includes("formatDuration(payload.waitDurationMs)"), "wait 节点说明必须包含等待时长");
+  assert(background.includes("Number(payload.waitDurationMs) >= 1200"), "wait 节点必须有最小时长门槛");
+  assert(shared.includes("node.action === \"wait\""), "共享 artifact 必须支持 wait 默认标题");
+  assert(validator.includes("waitDurationMs"), "validate_schema 必须校验 waitDurationMs");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_wait",
+      sequence: 1,
+      action: "wait",
+      tab: { tabId: 1, tabAlias: "标签页 A：报表页", domain: "example.com" },
+      target: { type: "page", text: "报表页" },
+      waitDurationMs: 2600,
+      generatedInstruction: "等待2.6 秒，直到报表页加载完成。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].type === "operation", "wait 节点应作为普通操作步骤导出");
+  assert(steps[0].title === "等待 报表页 加载", "wait 节点必须生成可读标题");
+  assert(timeline.segments[0].caption === "等待2.6 秒，直到报表页加载完成。", "wait 视频字幕必须复用等待说明");
+});
+
+runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => {
+  const viewerJs = readText("extension/viewer.js");
+  const viewerArtifacts = readText("extension/viewer_artifacts.js");
+  const generator = readText("tools/generate_artifacts.js");
+  const markdown = readText("dist/article.md");
+  const word = readText("dist/article.doc");
+  assert(viewerJs.includes("const exportSteps = buildPrivacySafeArticleSteps(currentSteps)"), "viewer.js 必须从当前 ArticleStep 生成隐私安全 Markdown 步骤");
+  assert(viewerJs.includes("renderArticleMarkdown(currentState, currentTabs, exportSteps)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Markdown");
+  assert(viewerJs.includes("renderArticleWordDocument(currentState, currentTabs, exportSteps)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Word");
+  assert(viewerJs.includes("application/msword"), "viewer.js 必须以 Word 兼容 MIME 导出 .doc");
+  assert(viewerArtifacts.includes("privacyMaskBoxes"), "预览 Markdown/Word 必须包含打码区域信息");
+  assert(viewerArtifacts.includes("step.clickPoint"), "预览 Markdown/Word 必须包含点击坐标信息");
+  assert(viewerArtifacts.includes("step.key") && viewerArtifacts.includes("按键"), "预览 HTML/Markdown/Word 必须包含键盘按键信息");
+  assert(generator.includes("article.md"), "离线生成器必须输出 article.md");
+  assert(generator.includes("article.doc"), "离线生成器必须输出 article.doc");
+  assert(generator.includes("renderArticleMarkdown(recording, tabs, exportSteps)"), "离线 Markdown 必须复用隐私安全 ArticleStep");
+  assert(generator.includes("renderArticleWordDocument(recording, tabs, exportSteps)"), "离线 Word 必须复用隐私安全 ArticleStep");
+  assert(generator.includes("step.key") && generator.includes("segment.key") && generator.includes("按键"), "离线 HTML/Markdown/Word 和视频分镜必须包含键盘按键信息");
+  assert(readText("tools/render_video.js").includes("renderKeyBadge"), "SVG 视频帧必须支持显示键盘按键信息");
+  assert(markdown.includes("# rec_sample_zkbiotime"), "article.md 必须包含流程标题");
+  assert(markdown.includes("## 涉及标签页"), "article.md 必须包含标签页摘要");
+  assert(markdown.includes("点击坐标"), "article.md 必须包含点击坐标说明");
+  assert(markdown.includes("打码区域"), "article.md 必须包含打码区域说明");
+  assert(markdown.includes("页面跳转"), "article.md 必须包含页面跳转说明");
+  assert(markdown.includes("上传 Business License"), "article.md 必须包含文件上传步骤");
+  assert(markdown.includes("填写 Support Contact"), "article.md 必须包含邻近文本识别出的步骤标题");
+  assert(markdown.includes("填写 Legal Representative ID"), "article.md 必须包含身份证号步骤");
+  assert(markdown.includes("填写 Billing Bank Card"), "article.md 必须包含银行卡号步骤");
+  assert(word.includes("rec_sample_zkbiotime"), "article.doc 必须包含流程标题");
+  assert(word.includes("章节 1"), "article.doc 必须包含章节标题");
+  assert(word.includes("点击坐标"), "article.doc 必须包含点击坐标说明");
+  assert(word.includes("打码区域"), "article.doc 必须包含打码区域说明");
+  assert(word.includes("页面跳转"), "article.doc 必须包含页面跳转说明");
+  assert(word.includes("上传 Business License"), "article.doc 必须包含文件上传步骤");
+  assert(word.includes("填写 Support Contact"), "article.doc 必须包含邻近文本识别出的步骤标题");
+  assert(word.includes("填写 Legal Representative ID"), "article.doc 必须包含身份证号步骤");
+  assert(!word.includes("data:image"), "article.doc 不应携带敏感步骤原始截图 dataUrl");
+});
+
+runCheck("目标元素名称识别覆盖 title、id 和邻近文本", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const validator = readText("tools/validate_schema.js");
+  assert(content.includes("const title = element.getAttribute(\"title\")") && content.includes("title,"), "content.js 必须采集 title 属性");
+  assert(content.includes("nearbyText: findNearbyText(element)"), "content.js 必须采集邻近文本");
+  assert(content.includes("previousElementSibling"), "findNearbyText 必须检查前序邻近元素");
+  assert(content.includes("nextElementSibling"), "findNearbyText 必须检查后序邻近元素");
+  assert(content.includes("element.parentElement?.previousElementSibling"), "findNearbyText 必须检查父级邻近元素");
+  assert(background.includes("payload.target?.title"), "background 默认说明必须使用 title");
+  assert(background.includes("payload.target?.nearbyText"), "background 默认说明必须使用 nearbyText");
+  assert(shared.includes("target.title"), "共享 ArticleStep 标题必须使用 title");
+  assert(shared.includes("target.id"), "共享 ArticleStep 标题必须使用 id");
+  assert(shared.includes("target.nearbyText"), "共享 ArticleStep 标题必须使用 nearbyText");
+  assert(validator.includes("validateTarget"), "schema 必须校验 target 元数据");
+  assert(validator.includes("\"nearbyText\""), "schema 必须覆盖 nearbyText 字段");
+});
+
+runCheck("目标元素会保存安全 DOM 属性摘要", () => {
+  const content = readText("extension/content.js");
+  const validator = readText("tools/validate_schema.js");
+  const sample = readJson("examples/sample-recording.json");
+  const clickNode = sample.nodes.find((node) => node.id === "node_001");
+  const emailNode = sample.nodes.find((node) => node.id === "node_003");
+  const linkNode = sample.nodes.find((node) => node.id === "node_005");
+  const uploadNode = sample.nodes.find((node) => node.action === "upload");
+
+  assert(content.includes("attributes: getElementAttributes(element)"), "content.js 必须采集 target.attributes");
+  assert(content.includes("function getElementAttributes"), "content.js 必须实现安全属性摘要");
+  assert(content.includes("function sanitizeUrlAttribute"), "content.js 必须实现 href 属性脱敏");
+  assert(content.includes("sanitizeUrlAttribute(element.getAttribute(\"href\") || \"\")"), "target.attributes.href 必须写入脱敏后的 URL");
+  assert(!content.includes("attributes.href = element.getAttribute(\"href\") || \"\""), "target.attributes.href 不得保留原始 href");
+  assert(content.includes("inputType") && content.includes("required") && content.includes("disabled"), "target.attributes 必须覆盖输入类型和基础状态");
+  assert(!content.includes("attributes.value"), "target.attributes 不得采集输入 value");
+  assert(validator.includes("function validateTargetAttributes"), "validate_schema 必须校验 target.attributes");
+  assert(validator.includes("function validateSafeHref"), "validate_schema 必须校验 target.attributes.href 安全格式");
+  assert(validator.includes("不得包含 query 或 hash"), "validate_schema 必须拒绝 href query/hash");
+  assert(validator.includes("只允许 http/https"), "validate_schema 必须拒绝非 http/https href 协议");
+  assert(validator.includes("\"tagName\", \"role\", \"href\", \"target\", \"inputType\""), "validate_schema 必须限制字符串属性白名单");
+  assert(validator.includes("\"required\", \"disabled\", \"checked\", \"multiple\""), "validate_schema 必须限制布尔属性白名单");
+  assert(clickNode?.target?.attributes?.tagName === "button", "示例点击节点必须覆盖按钮 tagName");
+  assert(linkNode?.target?.attributes?.href === "https://mail.example.com/activate", "示例链接 href 必须去掉 query/hash");
+  assert(emailNode?.target?.attributes?.inputType === "email", "示例邮箱节点必须覆盖 inputType");
+  assert(emailNode?.target?.attributes?.required === true, "示例邮箱节点必须覆盖 required 状态");
+  assert(uploadNode?.target?.attributes?.inputType === "file", "示例上传节点必须覆盖 file inputType");
+  assert(!JSON.stringify(sample.nodes).includes("\"attributes\":{\"value\""), "示例 target.attributes 不得包含 value");
+});
+
+runCheck("输入防抖会在提交和离页前刷新", () => {
+  const content = readText("extension/content.js");
+  assert(content.includes("const pendingInputTargets = new Set()"), "content.js 必须维护待刷新输入集合");
+  assert(content.includes("function scheduleInputEvent"), "content.js 必须封装输入防抖调度");
+  assert(content.includes("function flushPendingInputs"), "content.js 必须提供批量刷新待发送输入");
+  assert(content.includes("function flushPendingInput"), "content.js 必须提供单个输入刷新逻辑");
+  const clickFlushIndex = content.indexOf("flushPendingInputs();");
+  const clickActionIndex = content.indexOf("action: \"click\"");
+  const submitActionIndex = content.indexOf("action: \"submit\"");
+  const submitFlushIndex = content.indexOf("flushPendingInputs();", clickFlushIndex + 1);
+  assert(clickFlushIndex !== -1 && clickActionIndex !== -1 && clickFlushIndex < clickActionIndex, "click 前必须刷新待发送输入");
+  assert(submitFlushIndex !== -1 && submitActionIndex !== -1 && submitFlushIndex < submitActionIndex, "submit 前必须刷新待发送输入");
+  assert(content.includes("pagehide") && content.includes("beforeunload"), "离页前必须刷新待发送输入");
+  assert(content.includes("document.visibilityState === \"hidden\""), "页面隐藏前必须刷新待发送输入");
+  assert(content.includes("inputTimers.delete(target)"), "刷新后必须清理输入防抖计时器");
+});
+
+runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元格", () => {
+  const content = readText("extension/content.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const dataModel = readText("DATA_MODEL.md");
+  const testing = readText("TESTING.md");
+  const readme = readText("README.md");
+  const company = readText("test-pages/company.html");
+  assert(content.includes("function resolveActionTarget"), "content.js 必须实现点击目标归一");
+  assert(content.includes("resolveActionTarget(event.target)"), "click 事件必须先归一目标元素");
+  assert(content.includes("ACTION_TARGET_SELECTOR"), "content.js 必须集中维护可操作点击目标选择器");
+  assert(content.includes("[onclick]"), "点击目标归一必须覆盖 onclick 自定义控件");
+  assert(content.includes("[tabindex]"), "点击目标归一必须覆盖 tabindex 自定义控件");
+  assert(content.includes("[role='menuitem']"), "点击目标归一必须覆盖菜单项");
+  assert(content.includes("td") && content.includes("th"), "点击目标归一必须覆盖表格单元格");
+  assert(content.includes("findPointerCursorTarget"), "点击目标归一必须覆盖 pointer 光标自定义控件");
+  assert(content.includes("return null;") && !content.includes(")) || target;"), "点击目标归一不能把空白区域 fallback 成普通容器");
+  assert(content.includes("role === \"cell\"") && content.includes("role === \"gridcell\""), "inferTargetType 必须识别 ARIA 表格单元格");
+  assert(content.includes("role === \"row\""), "inferTargetType 必须识别表格行");
+  assert(content.includes("if (type === \"radio\") return \"radio\""), "inferTargetType 必须识别单选按钮");
+  assert(shared.includes("target.type"), "共享标题生成必须能回退到 target.type");
+  assert(dataModel.includes("table_cell") && dataModel.includes("table_row") && dataModel.includes("radio"), "DATA_MODEL.md 必须说明表格和单选 target.type");
+  assert(dataModel.includes("可操作祖先元素"), "DATA_MODEL.md 必须说明点击目标归一");
+  assert(dataModel.includes("无业务意义点击不应生成节点"), "DATA_MODEL.md 必须说明空白区域点击过滤");
+  assert(testing.includes("target.type` 应为 `radio`"), "TESTING.md 必须覆盖单选按钮采集");
+  assert(testing.includes("target.type` 应为 `table_cell`"), "TESTING.md 必须覆盖表格单元格采集");
+  assert(testing.includes("空白区域点击是否被过滤"), "TESTING.md 必须覆盖空白区域点击过滤");
+  assert(readme.includes("表格单元格"), "README.md 必须说明表格单元格录制能力");
+  assert(readme.includes("空白区域"), "README.md 必须说明空白区域点击过滤");
+  assert(company.includes("type=\"radio\""), "公司测试页必须覆盖单选按钮");
+  assert(company.includes("<td id=\"recentCompanyCell\""), "公司测试页必须覆盖可点击表格单元格");
+  assert(company.includes("id=\"customAction\"") && company.includes("tabindex=\"0\""), "公司测试页必须覆盖自定义可点击控件");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_table_cell",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：公司页", domain: "example.com" },
+      target: {
+        type: "table_cell",
+        text: "Acme Singapore",
+        selector: "#recentCompanyCell",
+        boundingBox: { x: 80, y: 540, width: 220, height: 42, coordinateSpace: "viewport-css-pixel" }
+      },
+      generatedInstruction: "点击Acme Singapore。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_radio",
+      sequence: 2,
+      action: "check",
+      tab: { tabId: 1, tabAlias: "标签页 A：公司页", domain: "example.com" },
+      target: {
+        type: "radio",
+        labelText: "Branch Office",
+        selector: "input[name=companyType]",
+        boundingBox: { x: 80, y: 300, width: 18, height: 18, coordinateSpace: "viewport-css-pixel" }
+      },
+      generatedInstruction: "勾选Branch Office。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].title === "点击 Acme Singapore", "ArticleStep 必须为表格单元格生成可读标题");
+  assert(steps[0].focusBox.width === 220, "表格单元格高亮必须使用单元格 bounding box");
+  assert(steps[1].title === "勾选 Branch Office", "ArticleStep 必须为单选按钮生成可读标题");
+  assert(timeline.segments[0].highlight.width === 220, "VideoTimeline 必须保留表格单元格高亮区域");
+  assert(timeline.segments[1].caption === "勾选Branch Office。", "VideoTimeline 必须复用单选按钮说明");
+});
+
+runCheck("不可见目标不会生成坏步骤或坏高亮", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const validator = readText("tools/validate_schema.js");
+  assert(content.includes("getTargetVisibility"), "content.js 必须采集目标可见性");
+  assert(content.includes("canHighlight: visible"), "content.js 必须标记可高亮目标");
+  assert(content.includes("outside_viewport"), "content.js 必须标记视口外目标");
+  assert(background.includes("isVisibleTarget(payload)"), "background 必须过滤不可见目标");
+  assert(background.includes("payload.target.visibility.visible"), "background 必须使用 visibility.visible 判断");
+  assert(shared.includes("node.target?.visibility?.canHighlight === false"), "共享构建必须避免不可高亮目标生成 focusBox");
+  assert(viewerJs.includes("node.target?.visibility?.canHighlight === false"), "预览页必须避免不可高亮目标生成 focusBox");
+  assert(shared.includes("function normalizeBox"), "共享构建必须规范化 focusBox");
+  assert(validator.includes("validateVisibility"), "schema 必须校验 target.visibility");
+
+  const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_hidden",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：测试页", domain: "example.com" },
+      target: {
+        type: "button",
+        text: "隐藏按钮",
+        boundingBox: { x: 0, y: 0, width: 0, height: 0 },
+        visibility: { visible: false, inViewport: true, hasBox: false, canHighlight: false, reason: "empty_box" }
+      },
+      generatedInstruction: "点击隐藏按钮。",
+      status: "auto_generated"
+    }
+  ]);
+  assert(steps[0].focusBox === null, "不可高亮目标不应进入 ArticleStep focusBox");
+  assert(steps[0].focusMode === "none", "不可高亮目标 focusMode 必须为 none");
+});
+
+runCheck("操作节点会保存视口、滚动偏移和设备像素比", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const validator = readText("tools/validate_schema.js");
+  const sample = readJson("examples/sample-recording.json");
+  const clickNode = sample.nodes.find((node) => node.id === "node_001");
+  const navigationNode = sample.nodes.find((node) => node.action === "navigation");
+
+  assert(content.includes("scrollX: Math.round(window.scrollX"), "content.js 必须采集水平滚动偏移");
+  assert(content.includes("scrollY: Math.round(window.scrollY"), "content.js 必须采集垂直滚动偏移");
+  assert(content.includes("devicePixelRatio: window.devicePixelRatio || 1"), "content.js 必须采集 devicePixelRatio");
+  assert(content.includes("clickPoint:"), "content.js 必须采集点击坐标 clickPoint");
+  assert(background.includes("viewport: payload.viewport"), "background 必须把事件 viewport 保存到操作节点");
+  assert(background.includes("clickPoint: payload.clickPoint"), "background 必须把 clickPoint 保存到操作节点");
+  assert(background.includes("scrollX: viewport?.scrollX || 0"), "background 必须把 scrollX 写入截图元数据");
+  assert(background.includes("scrollY: viewport?.scrollY || 0"), "background 必须把 scrollY 写入截图元数据");
+  assert(validator.includes("function validateViewport"), "validate_schema 必须校验 viewport");
+  assert(validator.includes("function validatePoint"), "validate_schema 必须校验 clickPoint");
+  assert(validator.includes("\"devicePixelRatio\", \"scrollX\", \"scrollY\""), "validate_schema 必须校验滚动和设备像素比字段");
+  assert(clickNode?.viewport?.scrollY === 240, "示例点击节点必须覆盖非零 scrollY");
+  assert(clickNode?.viewport?.devicePixelRatio === 1, "示例点击节点必须覆盖 devicePixelRatio");
+  assert(clickNode?.clickPoint?.x === 940 && clickNode?.clickPoint?.y === 542, "示例点击节点必须覆盖点击坐标");
+  assert(clickNode?.clickPoint?.coordinateSpace === "viewport-css-pixel", "示例点击坐标必须使用 viewport-css-pixel");
+  assert(navigationNode?.screenshot?.scrollX === 0, "示例 navigation 截图必须覆盖 scrollX");
+  assert(navigationNode?.screenshot?.scrollY === 0, "示例 navigation 截图必须覆盖 scrollY");
+});
+
+runCheck("截图元数据会标记捕获时机", () => {
+  const background = readText("extension/background.js");
+  const validator = readText("tools/validate_schema.js");
+  const dataModel = readText("DATA_MODEL.md");
+  const readme = readText("README.md");
+  const testing = readText("TESTING.md");
+  const sample = readJson("examples/sample-recording.json");
+  const clickNode = sample.nodes.find((node) => node.action === "click" && node.screenshot);
+  const inputNode = sample.nodes.find((node) => node.action === "input" && node.screenshot);
+  const navigationNode = sample.nodes.find((node) => node.action === "navigation" && node.screenshot);
+  assert(background.includes("getScreenshotCaptureTiming(payload.action)"), "background 必须按动作决定截图捕获时机");
+  assert(background.includes("captureTiming,"), "background 必须把 captureTiming 写入截图记录和节点元数据");
+  assert(background.includes("before_action_preferred"), "background 必须支持点击前优先截图标记");
+  assert(background.includes("after_navigation"), "background 必须支持跳转后截图标记");
+  assert(validator.includes("screenshot.captureTiming"), "validate_schema 必须校验 screenshot.captureTiming");
+  assert(validator.includes("before_action_preferred") && validator.includes("after_wait"), "validate_schema 必须校验 captureTiming 枚举");
+  assert(dataModel.includes("screenshot.captureTiming"), "DATA_MODEL.md 必须说明截图捕获时机");
+  assert(readme.includes("captureTiming"), "README.md 必须说明截图捕获时机");
+  assert(testing.includes("captureTiming"), "TESTING.md 必须覆盖截图捕获时机");
+  assert(clickNode?.screenshot?.captureTiming === "before_action_preferred", "示例点击截图必须标记 before_action_preferred");
+  assert(inputNode?.screenshot?.captureTiming === "after_action", "示例输入截图必须标记 after_action");
+  assert(navigationNode?.screenshot?.captureTiming === "after_navigation", "示例跳转截图必须标记 after_navigation");
+});
+
+runCheck("页面跳转节点会进入文章步骤和视频时间轴", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_navigation",
+      sequence: 1,
+      action: "navigation",
+      fromTab: { tabId: 1, tabAlias: "标签页 A：登录页", url: "https://example.com/login" },
+      toTab: { tabId: 1, tabAlias: "标签页 A：注册页", url: "https://example.com/register", title: "注册页" },
+      pageUrl: "https://example.com/register",
+      pageTitle: "注册页",
+      generatedInstruction: "页面跳转到注册页。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].type === "navigation", "ArticleStep 必须保留 navigation 类型");
+  assert(steps[0].title === "跳转到注册页", "navigation 默认标题必须使用目标页面标题");
+  assert(steps[0].fromUrl === "https://example.com/login", "ArticleStep 必须保留跳转来源 URL");
+  assert(steps[0].toUrl === "https://example.com/register", "ArticleStep 必须保留跳转目标 URL");
+  assert(timeline.segments[0].type === "navigation", "VideoTimeline 必须保留 navigation 类型");
+  assert(timeline.segments[0].storyboardVisualType === "navigation", "VideoTimeline 必须标记 navigation 分镜类型");
+});
+
+runCheck("文件上传控件会生成 upload 节点并脱敏文件名", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  assert(content.includes("target.type === \"file\""), "content.js 必须监听 file input change");
+  assert(content.includes("sendInputLikeEvent(target, \"upload\")"), "content.js 必须发送 upload 事件");
+  assert(content.includes("getFileUploadSummary"), "content.js 必须生成上传文件摘要");
+  assert(content.includes("maskFileName"), "content.js 必须脱敏文件名");
+  assert(background.includes("payload.action === \"upload\""), "background 必须生成 upload 默认说明");
+  assert(shared.includes("node.action === \"upload\""), "共享 artifact 必须生成 upload 默认标题");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_upload",
+      sequence: 1,
+      action: "upload",
+      tab: { tabId: 1, tabAlias: "标签页 A：公司页", domain: "example.com" },
+      target: { type: "upload", labelText: "Business License", boundingBox: { x: 10, y: 20, width: 180, height: 36 } },
+      value: "已选择文件：b***.pdf",
+      generatedInstruction: "在 Business License 中上传文件。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].title === "上传 Business License", "ArticleStep 必须生成 upload 标题");
+  assert(timeline.segments[0].caption === "在 Business License 中上传文件。", "VideoTimeline 必须复用 upload 说明");
+});
+
+runCheck("页面弹窗出现和关闭会生成可导出的操作节点", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const company = readText("test-pages/company.html");
+  assert(content.includes("new MutationObserver"), "content.js 必须监听 DOM 变化识别弹窗");
+  assert(content.includes("getVisibleModalElements"), "content.js 必须筛选可见弹窗元素");
+  assert(content.includes("sendModalEvent(\"modal_open\""), "content.js 必须发送 modal_open 事件");
+  assert(content.includes("sendModalEvent(\"modal_close\""), "content.js 必须发送 modal_close 事件");
+  assert(content.includes("dialog[open]"), "content.js 必须支持原生 dialog");
+  assert(background.includes("\"modal_open\""), "background 必须放行 modal_open 事件");
+  assert(background.includes("\"modal_close\""), "background 必须放行 modal_close 事件");
+  assert(background.includes("页面出现弹窗"), "background 必须生成弹窗出现说明");
+  assert(background.includes("关闭弹窗"), "background 必须生成弹窗关闭说明");
+  assert(shared.includes("node.action === \"modal_open\""), "共享 artifact 必须生成弹窗出现标题");
+  assert(shared.includes("node.action === \"modal_close\""), "共享 artifact 必须生成弹窗关闭标题");
+  assert(viewerJs.includes("弹窗出现"), "viewer.js 必须显示可读弹窗步骤类型");
+  assert(company.includes("<dialog"), "公司测试页必须覆盖原生弹窗");
+  assert(company.includes("showModal()"), "公司测试页必须能打开弹窗");
+  assert(company.includes(".close()"), "公司测试页必须能关闭弹窗");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_modal_open",
+      sequence: 1,
+      action: "modal_open",
+      tab: { tabId: 1, tabAlias: "标签页 A：公司页", domain: "example.com" },
+      target: {
+        type: "dialog",
+        ariaLabel: "Company Review",
+        text: "Company Review Confirm the company profile before submitting.",
+        selector: "#reviewDialog",
+        boundingBox: { x: 420, y: 180, width: 420, height: 220, coordinateSpace: "viewport-css-pixel" }
+      },
+      generatedInstruction: "页面出现弹窗：Company Review。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_modal_close",
+      sequence: 2,
+      action: "modal_close",
+      tab: { tabId: 1, tabAlias: "标签页 A：公司页", domain: "example.com" },
+      target: {
+        type: "dialog",
+        ariaLabel: "Company Review",
+        text: "Company Review Confirm the company profile before submitting.",
+        selector: "#reviewDialog",
+        boundingBox: { x: 420, y: 180, width: 420, height: 220, coordinateSpace: "viewport-css-pixel" }
+      },
+      generatedInstruction: "关闭弹窗：Company Review。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].title === "弹窗出现：Company Review Confirm the company profile before submitting.", "ArticleStep 必须生成弹窗出现标题");
+  assert(steps[1].title === "关闭弹窗：Company Review Confirm the company profile before submitting.", "ArticleStep 必须生成弹窗关闭标题");
+  assert(steps[0].focusMode === "highlight", "弹窗出现步骤应可高亮弹窗区域");
+  assert(timeline.segments.length === 2, "VideoTimeline 必须包含弹窗开关片段");
+  assert(timeline.segments[0].caption === "页面出现弹窗：Company Review。", "VideoTimeline 必须复用弹窗出现说明");
+  assert(timeline.segments[1].caption === "关闭弹窗：Company Review。", "VideoTimeline 必须复用弹窗关闭说明");
+});
+
+runCheck("同一输入框连续输入会合并为一个节点", () => {
+  const background = readText("extension/background.js");
+  const dataModel = readText("DATA_MODEL.md");
+  const testing = readText("TESTING.md");
+  assert(background.includes("findMergeableInputNode"), "background 必须查找可合并的连续输入节点");
+  assert(background.includes("payload.action !== \"input\""), "连续输入合并只能作用于 input");
+  assert(background.includes("last.target?.selector !== selector"), "连续输入合并必须要求同一 selector");
+  assert(background.includes("last.tab?.tabId !== context.tabId"), "连续输入合并必须要求同一标签页");
+  assert(background.includes("> 5000"), "连续输入合并必须有时间窗口");
+  assert(background.includes("mergedEventCount"), "连续输入合并必须记录合并次数");
+  assert(background.includes("await deleteScreenshotRecords([previousScreenshotId])"), "连续输入合并必须清理旧截图");
+  assert(background.includes("return { ok: true, nodeId: mergeTarget.id, merged: true"), "连续输入合并响应必须标记 merged");
+  assert(dataModel.includes("mergedEventCount"), "DATA_MODEL.md 必须说明连续输入合并计数");
+  assert(testing.includes("连续输入"), "TESTING.md 必须覆盖连续输入合并");
+});
+
+runCheck("同一目标快速重复点击会合并为最后一次点击节点", () => {
+  const background = readText("extension/background.js");
+  const dataModel = readText("DATA_MODEL.md");
+  const testing = readText("TESTING.md");
+  assert(background.includes("findMergeableClickNode"), "background 必须查找可合并的重复点击节点");
+  assert(background.includes("payload.action !== \"click\""), "重复点击合并只能作用于 click");
+  assert(background.includes("last.target?.selector !== selector"), "重复点击合并必须要求同一 selector");
+  assert(background.includes("last.tab?.tabId !== context.tabId"), "重复点击合并必须要求同一标签页");
+  assert(background.includes("> 1000"), "重复点击合并必须有短时间窗口");
+  assert(background.includes("mergeOperationNode(duplicateClickTarget"), "重复点击必须复用节点合并更新逻辑");
+  assert(background.includes("mergedClickCount"), "重复点击合并必须记录合并次数");
+  assert(background.includes("deleteScreenshotRecords([previousScreenshotId])"), "重复点击合并必须清理旧截图");
+  assert(background.includes("duplicate: true"), "重复点击合并响应必须标记 duplicate");
+  assert(!background.includes("function isDuplicate"), "background 不应保留只跳过后续点击的旧 duplicate 逻辑");
+  assert(dataModel.includes("mergedClickCount"), "DATA_MODEL.md 必须说明重复点击合并计数");
+  assert(testing.includes("快速重复点击"), "TESTING.md 必须覆盖重复点击合并");
+});
+
+runCheck("扩展预览页支持删除和恢复步骤状态", () => {
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  assert(viewerJs.includes("recorder:set-node-status"), "viewer.js 必须调用节点状态更新接口");
+  assert(viewerJs.includes("isDiscarded ? \"auto_generated\" : \"discarded\""), "viewer.js 必须提供删除和恢复步骤入口");
+  assert(viewerJs.includes("data-node-status=\"reviewed\""), "viewer.js 必须提供确认步骤入口");
+  assert(viewerCss.includes(".step.discarded"), "viewer.css 必须提供已删除步骤样式");
+});
+
+runCheck("扩展预览页支持编辑步骤标题和说明", () => {
+  const background = readText("extension/background.js");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  assert(background.includes("recorder:update-node-text"), "background 必须提供节点文案更新接口");
+  assert(background.includes("titleOverride"), "background 必须持久化人工标题");
+  assert(background.includes("descriptionOverride"), "background 必须持久化人工说明");
+  assert(background.includes("delete node.titleOverride"), "background 必须支持恢复自动标题");
+  assert(background.includes("delete node.descriptionOverride"), "background 必须支持恢复自动说明");
+  assert(viewerJs.includes("data-node-title"), "viewer.js 必须渲染标题编辑控件");
+  assert(viewerJs.includes("data-node-description"), "viewer.js 必须渲染说明编辑控件");
+  assert(viewerJs.includes("data-node-action=\"save-text\""), "viewer.js 必须提供保存文案入口");
+  assert(viewerJs.includes("data-node-action=\"clear-text\""), "viewer.js 必须提供恢复自动文案入口");
+  assert(viewerJs.includes("!node.titleOverride && !node.descriptionOverride"), "viewer.js 必须只在存在人工文案时启用恢复自动");
+  assert(viewerCss.includes(".step-editor"), "viewer.css 必须提供步骤编辑区样式");
+  assert(viewerCss.includes("flex-wrap: wrap"), "viewer.css 必须允许文案编辑按钮换行");
+
+  const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_auto_text",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "提交" },
+      generatedInstruction: "点击提交按钮。",
+      status: "reviewed"
+    }
+  ]);
+  assert(steps[0].title === "点击 提交", "恢复自动后 ArticleStep 必须回到自动标题");
+  assert(steps[0].description === "点击提交按钮。", "恢复自动后 ArticleStep 必须回到自动说明");
+});
+
+runCheck("扩展预览页支持手动调整高亮区域", () => {
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  const artifactsJs = readText("extension/viewer_artifacts.js");
+  assert(background.includes("recorder:update-node-focus"), "background 必须提供焦点框更新接口");
+  assert(background.includes("focusBoxOverride"), "background 必须持久化人工高亮区域");
+  assert(background.includes("delete node.focusBoxOverride"), "background 必须支持恢复自动高亮区域");
+  assert(background.includes("normalizeFocusBox"), "background 必须校验焦点框数值");
+  assert(viewerJs.includes("data-node-action=\"save-focus\""), "viewer.js 必须提供保存高亮入口");
+  assert(viewerJs.includes("data-node-action=\"clear-focus\""), "viewer.js 必须提供恢复自动高亮入口");
+  assert(viewerJs.includes("!node.focusBoxOverride"), "viewer.js 必须只在存在人工高亮时启用恢复自动");
+  assert(viewerJs.includes("data-focus-x"), "viewer.js 必须渲染高亮区域编辑控件");
+  assert(viewerCss.includes(".focus-editor"), "viewer.css 必须提供高亮编辑区样式");
+  assert(artifactsJs.includes("renderFocusBox"), "viewer_artifacts.js 必须用可复用函数渲染导出高亮框");
+  assert(artifactsJs.includes("renderFocusZoom"), "viewer_artifacts.js 必须用 focusBox 渲染局部放大预览");
+  assert(artifactsJs.includes("focus-zoom"), "viewer_artifacts.js 必须提供局部放大预览样式");
+  assert(readText("tools/generate_artifacts.js").includes("renderFocusZoom"), "离线文章生成器必须渲染局部放大预览");
+  assert(artifactsJs.includes("/ viewportWidth * 100"), "导出文章高亮框必须随截图响应式缩放");
+
+  const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_focus_priority",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "按钮", boundingBox: { x: 1, y: 2, width: 30, height: 20 } },
+      focusBoxOverride: { x: 50, y: 60, width: 70, height: 40 },
+      generatedInstruction: "点击按钮。",
+      status: "reviewed"
+    }
+  ]);
+  assert(steps[0].focusBox.x === 50, "共享 artifact 必须优先使用人工高亮区域");
+
+  const automaticSteps = buildArticleSteps([
+    {
+      id: "node_focus_auto",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "按钮", boundingBox: { x: 1, y: 2, width: 30, height: 20 } },
+      generatedInstruction: "点击按钮。",
+      status: "reviewed"
+    }
+  ]);
+  assert(automaticSteps[0].focusBox.x === 1, "恢复自动后 ArticleStep 必须回到目标元素高亮 x");
+  assert(automaticSteps[0].focusBox.width === 30, "恢复自动后 ArticleStep 必须回到目标元素高亮 width");
+});
+
+runCheck("扩展预览页支持设置视频片段时长", () => {
+  const background = readText("extension/background.js");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  const validator = readText("tools/validate_schema.js");
+  assert(background.includes("recorder:update-node-duration"), "background 必须提供视频时长更新接口");
+  assert(background.includes("durationOverrideSeconds"), "background 必须持久化人工视频时长");
+  assert(background.includes("duration < 1 || duration > 120"), "background 必须限制视频时长范围");
+  assert(background.includes("delete node.durationOverrideSeconds"), "background 必须支持恢复自动视频时长");
+  assert(viewerJs.includes("data-node-duration"), "viewer.js 必须渲染视频时长输入");
+  assert(viewerJs.includes("data-node-action=\"save-duration\""), "viewer.js 必须提供保存视频时长入口");
+  assert(viewerJs.includes("data-node-action=\"clear-duration\""), "viewer.js 必须提供恢复自动视频时长入口");
+  assert(viewerCss.includes(".duration-editor"), "viewer.css 必须提供视频时长编辑区样式");
+  assert(viewerCss.includes(".inline-actions"), "viewer.css 必须支持时长编辑按钮换行");
+  assert(validator.includes("durationOverrideSeconds"), "validate_schema 必须校验视频时长覆盖字段");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_duration",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "button", text: "生成报表" },
+      durationOverrideSeconds: 7.5,
+      generatedInstruction: "点击生成报表。",
+      status: "reviewed"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].durationOverrideSeconds === 7.5, "ArticleStep 必须保留人工视频时长");
+  assert(timeline.segments[0].endTime - timeline.segments[0].startTime === 7.5, "VideoTimeline 必须优先使用人工视频时长");
+
+  const automaticSteps = buildArticleSteps([
+    {
+      id: "node_auto_duration",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "button", text: "生成报表" },
+      generatedInstruction: "点击生成报表。",
+      status: "reviewed"
+    }
+  ]);
+  const automaticTimeline = buildVideoTimeline(automaticSteps);
+  assert(automaticSteps[0].durationOverrideSeconds === null, "恢复自动后 ArticleStep 不应保留人工视频时长");
+  assert(automaticTimeline.segments[0].endTime - automaticTimeline.segments[0].startTime === 3, "恢复自动后 VideoTimeline 必须回到默认估算时长");
+});
+
+runCheck("扩展预览页支持设置视频旁白", () => {
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  const validator = readText("tools/validate_schema.js");
+  assert(background.includes("recorder:update-node-voiceover"), "background 必须提供视频旁白更新接口");
+  assert(background.includes("voiceoverTextOverridden = true"), "background 必须标记人工视频旁白覆盖");
+  assert(background.includes("voiceoverText.length > 500"), "background 必须限制视频旁白长度");
+  assert(background.includes("delete node.voiceoverText"), "background 必须支持恢复自动视频旁白");
+  assert(background.includes("delete node.voiceoverTextOverridden"), "background 必须清理视频旁白覆盖标记");
+  assert(shared.includes("voiceoverTextOverridden"), "共享 artifact 必须传递视频旁白覆盖标记");
+  assert(viewerJs.includes("data-node-voiceover"), "viewer.js 必须渲染视频旁白输入");
+  assert(viewerJs.includes("data-node-action=\"save-voiceover\""), "viewer.js 必须提供保存视频旁白入口");
+  assert(viewerJs.includes("data-node-action=\"clear-voiceover\""), "viewer.js 必须提供恢复自动视频旁白入口");
+  assert(viewerCss.includes(".voiceover-editor"), "viewer.css 必须提供视频旁白编辑区样式");
+  assert(validator.includes("voiceoverTextOverridden"), "validate_schema 必须校验视频旁白覆盖标记");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_voiceover",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "button", text: "生成报表" },
+      descriptionOverride: "点击生成报表按钮。",
+      voiceoverText: "Click generate report and wait for the dashboard to refresh.",
+      voiceoverTextOverridden: true,
+      generatedInstruction: "点击生成报表。",
+      status: "reviewed"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].description === "点击生成报表按钮。", "ArticleStep 文章说明不能被视频旁白改写");
+  assert(steps[0].voiceoverTextOverridden === true, "ArticleStep 必须保留人工视频旁白覆盖标记");
+  assert(timeline.segments[0].caption === "Click generate report and wait for the dashboard to refresh.", "VideoTimeline caption 必须优先使用人工视频旁白");
+  assert(timeline.segments[0].voiceoverTextOverridden === true, "VideoTimeline 必须保留人工视频旁白覆盖标记");
+
+  const automaticSteps = buildArticleSteps([
+    {
+      id: "node_auto_voiceover",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "button", text: "生成报表" },
+      descriptionOverride: "点击生成报表按钮。",
+      generatedInstruction: "点击生成报表。",
+      status: "reviewed"
+    }
+  ]);
+  const automaticTimeline = buildVideoTimeline(automaticSteps);
+  assert(automaticSteps[0].voiceoverText === "点击生成报表按钮。", "恢复自动后 ArticleStep 视频旁白应回到文章说明");
+  assert(automaticSteps[0].voiceoverTextOverridden === false, "恢复自动后 ArticleStep 不应保留旁白覆盖标记");
+  assert(automaticTimeline.segments[0].caption === "点击生成报表按钮。", "恢复自动后 VideoTimeline caption 必须回到文章说明");
+  assert(automaticTimeline.segments[0].voiceoverTextOverridden === false, "恢复自动后 VideoTimeline 不应保留旁白覆盖标记");
+});
+
+runCheck("扩展预览页支持截图手动打码", () => {
+  const background = readText("extension/background.js");
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  const artifactsJs = readText("extension/viewer_artifacts.js");
+  const generator = readText("tools/generate_artifacts.js");
+  assert(background.includes("recorder:update-node-mask"), "background 必须提供打码区域更新接口");
+  assert(background.includes("privacyMaskBoxes"), "background 必须持久化手动打码区域");
+  assert(background.includes("manualMaskApplied"), "background 必须标记已应用手动打码");
+  assert(shared.includes("privacyMaskBoxes"), "共享 artifact 必须传递手动打码区域");
+  assert(viewerJs.includes("data-node-action=\"save-mask\""), "viewer.js 必须提供保存打码入口");
+  assert(viewerJs.includes("data-node-action=\"clear-mask\""), "viewer.js 必须提供清除打码入口");
+  assert(viewerJs.includes("renderMaskBoxes"), "viewer.js 必须在预览截图上渲染打码区域");
+  assert(viewerCss.includes(".mask-box"), "viewer.css 必须提供预览打码层样式");
+  assert(artifactsJs.includes("class=\"mask\""), "viewer_artifacts.js 必须在导出文章中渲染打码层");
+  assert(generator.includes("renderMaskBoxes"), "离线文章生成器必须渲染打码层");
+});
+
+runCheck("敏感字段录制时会自动生成截图打码区域", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  assert(content.includes("containsSensitiveData: sensitive"), "content.js 必须识别敏感字段");
+  assert(content.includes("isEmailValue(value)"), "content.js 必须按输入值识别邮箱");
+  assert(content.includes("isPhoneValue(value)"), "content.js 必须按输入值识别手机号");
+  assert(content.includes("isIdCardValue(value)"), "content.js 必须按输入值识别身份证号");
+  assert(content.includes("isBankCardValue(value)"), "content.js 必须按输入值识别银行卡号");
+  assert(content.includes("\"email\""), "content.js 必须记录邮箱敏感原因");
+  assert(content.includes("\"phone\""), "content.js 必须记录手机号敏感原因");
+  assert(content.includes("\"id_card\""), "content.js 必须记录身份证号敏感原因");
+  assert(content.includes("\"bank_card\""), "content.js 必须记录银行卡号敏感原因");
+  assert(content.indexOf("if (isEmailValue(value)) return maskEmail(value)") < content.indexOf("if (sensitive) return \"***\""), "邮箱应保留部分脱敏展示，而不是直接全量 ***");
+  assert(content.indexOf("if (isIdCardValue(value)) return maskIdCard(value)") < content.indexOf("if (sensitive) return \"***\""), "身份证号应保留部分脱敏展示，而不是直接全量 ***");
+  assert(content.indexOf("if (isBankCardValue(value)) return maskBankCard(value)") < content.indexOf("if (sensitive) return \"***\""), "银行卡号应保留部分脱敏展示，而不是直接全量 ***");
+  assert(content.includes("maskIdCard"), "content.js 必须实现身份证号脱敏");
+  assert(content.includes("maskBankCard"), "content.js 必须实现银行卡号脱敏");
+  assert(background.includes("buildAutoMaskBoxes"), "background 必须根据敏感字段生成自动打码区域");
+  assert(background.includes("payload.privacy?.containsSensitiveData"), "自动打码必须基于隐私识别结果");
+  assert(background.includes("payload.target?.boundingBox"), "自动打码必须使用目标元素区域");
+  assert(background.includes("autoMaskApplied"), "节点隐私元数据必须标记自动打码");
+});
+
+runCheck("输入值只持久化 maskedValue 且不保存 rawValue", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const validator = readText("tools/validate_schema.js");
+  const dataModel = readText("DATA_MODEL.md");
+  const testing = readText("TESTING.md");
+  const readme = readText("README.md");
+  const sample = readJson("examples/sample-recording.json");
+  assert(content.includes("const maskedValue = getMaskedValue"), "content.js 必须先生成 maskedValue");
+  assert(content.includes("maskedValue,") && content.includes("value: maskedValue"), "content.js 必须发送 maskedValue 并兼容 value");
+  assert(!content.includes("rawValue"), "content.js 不应发送 rawValue");
+  assert(background.includes("const maskedValue = payload.maskedValue ?? payload.value ?? null"), "background 必须兼容读取 maskedValue");
+  assert(background.includes("maskedValue,") && background.includes("value: maskedValue"), "background 新节点必须持久化 maskedValue 并兼容 value");
+  assert(background.includes("node.maskedValue = payload.maskedValue ?? payload.value ?? null"), "background 合并节点必须更新 maskedValue");
+  assert(!background.includes("node.rawValue") && !background.includes("payload.rawValue"), "background 不应持久化 rawValue");
+  assert(validator.includes("rawValue 不允许持久化"), "validate_schema 必须禁止 rawValue");
+  assert(validator.includes("node.maskedValue === node.value"), "validate_schema 必须要求 value 与 maskedValue 一致");
+  assert(dataModel.includes("不得持久化 `rawValue`"), "DATA_MODEL.md 必须说明 rawValue 禁止持久化");
+  assert(testing.includes("不应出现 `rawValue`"), "TESTING.md 必须覆盖 rawValue 禁止持久化");
+  assert(readme.includes("不会保存 `rawValue`"), "README.md 必须说明不保存 rawValue");
+
+  const nodesWithMaskedValue = sample.nodes.filter((node) => node.maskedValue !== undefined);
+  assert(nodesWithMaskedValue.length >= 4, "示例录制数据必须覆盖多个 maskedValue 节点");
+  nodesWithMaskedValue.forEach((node) => {
+    assert(node.value === node.maskedValue, `${node.id} value 必须与 maskedValue 一致`);
+  });
+  assert(!JSON.stringify(sample).includes("rawValue"), "示例录制数据不得出现 rawValue");
+});
+
+runCheck("扩展预览页导出前会做隐私检查", () => {
+  const viewerHtml = readText("extension/viewer.html");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  const popupJs = readText("extension/popup.js");
+  const background = readText("extension/background.js");
+  assert(viewerHtml.includes("privacyAudit"), "viewer.html 必须提供隐私检查展示区");
+  assert(viewerJs.includes("renderPrivacyAudit"), "viewer.js 必须渲染隐私检查结果");
+  assert(viewerJs.includes("getPrivacyAudit"), "viewer.js 必须汇总敏感步骤和未打码步骤");
+  assert(viewerJs.includes("confirmPrivacyBeforeExport"), "viewer.js 必须在导出前确认隐私风险");
+  assert(viewerJs.includes("window.confirm(message)"), "viewer.js 必须用确认弹窗阻断意外导出");
+  assert(viewerJs.includes("unmaskedCount"), "viewer.js 必须识别尚未手动打码的敏感步骤");
+  assert(viewerCss.includes(".privacy-card.warn"), "viewer.css 必须提供隐私风险提示样式");
+  assert(background.includes("recorder:get-privacy-audit"), "background 必须提供轻量隐私审计接口给 Popup");
+  assert(background.includes("function privacyAuditState"), "background 必须实现隐私审计统计");
+  assert(background.includes("node.status !== \"discarded\""), "隐私审计必须排除已删除节点");
+  assert(popupJs.includes("exportJsonWithPrivacyConfirm"), "popup 必须使用带隐私确认的 JSON 导出流程");
+  assert(popupJs.includes("recorder:get-privacy-audit"), "popup 导出前必须先获取隐私审计");
+  assert(popupJs.includes("confirmPrivacyBeforeExport"), "popup 必须在导出前确认隐私风险");
+  assert(popupJs.includes("window.confirm(message)"), "popup 必须用确认弹窗阻断意外导出");
+  assert(!popupJs.includes("bind(\"exportBtn\", \"recorder:export-json\")"), "popup 不应直接绑定 JSON 导出绕过隐私确认");
+});
+
+runCheck("录制 JSON 导出不会携带敏感步骤原始截图", () => {
+  const background = readText("extension/background.js");
+  const validator = readText("tools/validate_schema.js");
+  assert(background.includes("sanitizeNodeForJsonExport"), "background 必须在导出 JSON 前清理节点副本");
+  assert(background.includes("sanitizeNodeUrlsForOutput(hydratedNode)"), "导出 JSON 使用的完整状态必须先脱敏节点 URL");
+  assert(background.includes("sanitizeTabContextsForOutput(runtimeState.tabContexts)"), "导出 JSON 使用的完整状态必须先脱敏标签页 URL");
+  assert(background.includes("nodes: fullState.nodes.map(sanitizeNodeForJsonExport)"), "exportJson 必须使用清理后的节点");
+  assert(background.includes("redactedForPrivacy: true"), "敏感截图导出时必须标记 redactedForPrivacy");
+  assert(background.includes("redactionReason"), "敏感截图导出时必须记录裁剪原因");
+  assert(background.includes("const { dataUrl, ...screenshot } = node.screenshot"), "敏感截图导出时必须移除 dataUrl");
+  assert(validator.includes("redactedForPrivacy"), "validate_schema 必须校验截图隐私裁剪字段");
+
+  const sensitiveNode = {
+    id: "node_sensitive_export",
+    action: "input",
+    tab: { tabAlias: "标签页 A" },
+    target: { type: "input", text: "Email" },
+    generatedInstruction: "填写 Email。",
+    privacy: { containsSensitiveData: true },
+    privacyMaskBoxes: [{ x: 1, y: 2, width: 3, height: 4 }],
+    screenshot: { id: "img_sensitive", dataUrl: "data:image/png;base64,SENSITIVE", viewportWidth: 100, viewportHeight: 80 }
+  };
+  const safeExportNode = {
+    ...sensitiveNode,
+    screenshot: {
+      id: sensitiveNode.screenshot.id,
+      viewportWidth: sensitiveNode.screenshot.viewportWidth,
+      viewportHeight: sensitiveNode.screenshot.viewportHeight,
+      redactedForPrivacy: true,
+      redactionReason: "contains_sensitive_data"
+    }
+  };
+  assert(!("dataUrl" in safeExportNode.screenshot), "敏感步骤导出 JSON 不应包含截图 dataUrl");
+  assert(safeExportNode.screenshot.redactedForPrivacy === true, "敏感步骤导出 JSON 必须保留隐私裁剪标记");
+});
+
+runCheck("文章和视频时间轴导出不会携带敏感步骤原始截图", () => {
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerArtifacts = readText("extension/viewer_artifacts.js");
+  const generator = readText("tools/generate_artifacts.js");
+  assert(shared.includes("buildPrivacySafeArticleSteps"), "共享 artifact 必须提供隐私安全导出步骤构建");
+  assert(shared.includes("imageRedactedForPrivacy"), "共享 artifact 必须标记文章截图隐私裁剪");
+  assert(viewerJs.includes("buildPrivacySafeArticleSteps(currentSteps)"), "预览页导出必须使用隐私安全步骤副本");
+  assert(viewerArtifacts.includes("截图已因隐私保护从导出文件中移除"), "预览文章/Markdown 必须显示截图隐私裁剪提示");
+  assert(generator.includes("buildPrivacySafeArticleSteps(steps)"), "离线导出必须使用隐私安全步骤副本");
+  assert(generator.includes("截图已因隐私保护从导出文件中移除"), "离线文章/分镜必须显示截图隐私裁剪提示");
+
+  const { buildArticleSteps, buildPrivacySafeArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const originalDataUrl = "data:image/png;base64,RAW_SENSITIVE_SCREENSHOT";
+  const steps = buildArticleSteps([
+    {
+      id: "node_sensitive_image",
+      sequence: 1,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：注册页", domain: "example.com" },
+      target: { type: "input", text: "Email", boundingBox: { x: 10, y: 20, width: 120, height: 32 } },
+      screenshot: {
+        id: "img_sensitive_image",
+        dataUrl: originalDataUrl,
+        viewportWidth: 400,
+        viewportHeight: 240,
+        width: 400,
+        height: 240
+      },
+      privacy: { containsSensitiveData: true, autoMaskApplied: true },
+      privacyMaskBoxes: [{ x: 10, y: 20, width: 120, height: 32, coordinateSpace: "viewport-css-pixel" }],
+      generatedInstruction: "在 Email 中输入内容。",
+      status: "auto_generated"
+    }
+  ]);
+  assert(steps[0].image === originalDataUrl, "普通 ArticleStep 应保留内部截图供预览使用");
+
+  const safeSteps = buildPrivacySafeArticleSteps(steps);
+  assert(safeSteps[0].image === null, "隐私安全导出步骤必须移除敏感截图 image");
+  assert(safeSteps[0].imageRedactedForPrivacy === true, "隐私安全导出步骤必须标记 imageRedactedForPrivacy");
+  assert(safeSteps[0].screenshot.redactedForPrivacy === true, "隐私安全导出步骤必须标记截图已裁剪");
+  assert(!("dataUrl" in safeSteps[0].screenshot), "隐私安全导出步骤 screenshot 不应包含 dataUrl");
+
+  const timeline = buildVideoTimeline(safeSteps);
+  assert(timeline.segments[0].visual === null, "隐私安全 VideoTimeline 不应携带敏感截图 visual");
+  assert(timeline.segments[0].screenshot.redactedForPrivacy === true, "隐私安全 VideoTimeline 必须保留截图裁剪元数据");
+  assert(JSON.stringify(timeline).includes(originalDataUrl) === false, "隐私安全 VideoTimeline JSON 不应包含原始截图 dataUrl");
+});
+
+runCheck("扩展预览页支持调整步骤顺序", () => {
+  const background = readText("extension/background.js");
+  const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
+  assert(background.includes("recorder:move-node"), "background 必须提供步骤排序接口");
+  assert(background.includes("runtimeState.nodes.splice"), "background 必须通过移动节点数组调整顺序");
+  assert(background.includes("resequenceNodes"), "background 必须在排序后重写 sequence");
+  assert(viewerJs.includes("data-node-action=\"move\""), "viewer.js 必须提供排序按钮");
+  assert(viewerJs.includes("data-move-direction=\"up\""), "viewer.js 必须提供上移入口");
+  assert(viewerJs.includes("data-move-direction=\"down\""), "viewer.js 必须提供下移入口");
+  assert(viewerCss.includes("flex-wrap: wrap"), "viewer.css 必须允许步骤操作按钮换行");
+});
+
+runCheck("扩展预览页支持合并相邻步骤", () => {
+  const background = readText("extension/background.js");
+  const viewerJs = readText("extension/viewer.js");
+  assert(background.includes("recorder:merge-node-next"), "background 必须提供合并下一步接口");
+  assert(background.includes("mergedNodeIds"), "background 必须记录被合并节点");
+  assert(background.includes("mergePrivacyFromNodes([current, next])"), "合并相邻步骤时必须聚合隐私元数据");
+  assert(background.includes("mergePrivacyMaskBoxesFromNodes([current, next])"), "合并相邻步骤时必须聚合打码区域");
+  assert(background.includes("discardReason = `merged_into:"), "background 必须把被合并节点标记为 merged_into");
+  assert(viewerJs.includes("data-node-action=\"merge-next\""), "viewer.js 必须提供合并下一步入口");
+  assert(viewerJs.includes("hasNextActive"), "viewer.js 必须在没有下一条有效步骤时禁用合并");
+});
+
+runCheck("扩展预览页支持合并同一表单字段", () => {
+  const content = readText("extension/content.js");
+  const background = readText("extension/background.js");
+  const viewerJs = readText("extension/viewer.js");
+  const validator = readText("tools/validate_schema.js");
+  const index = readText("test-pages/index.html");
+  const company = readText("test-pages/company.html");
+  const sample = readJson("examples/sample-recording.json");
+  assert(content.includes("form: getFormMetadata(element)"), "content.js 必须采集目标所属表单元数据");
+  assert(content.includes("function getFormMetadata"), "content.js 必须实现表单元数据提取");
+  assert(background.includes("recorder:merge-form-fields"), "background 必须提供同表单字段合并接口");
+  assert(background.includes("function mergeFormFields"), "background 必须实现同表单字段合并逻辑");
+  assert(background.includes("function isFormFieldNode"), "background 必须只允许表单字段参与表单合并");
+  assert(background.includes("formMerge"), "background 必须记录表单合并元数据");
+  assert(background.includes("mergedFieldCount"), "background 必须记录合并字段数量");
+  assert(background.includes("mergePrivacyFromNodes(mergedNodes)"), "同表单字段合并必须聚合隐私元数据");
+  assert(background.includes("mergePrivacyMaskBoxesFromNodes(mergedNodes)"), "同表单字段合并必须聚合打码区域");
+  assert(background.includes("delete node.formMerge"), "拆分合并步骤时必须清理 formMerge");
+  assert(viewerJs.includes("data-node-action=\"merge-form\""), "viewer.js 必须提供合并表单字段入口");
+  assert(viewerJs.includes("canMergeFormFields"), "viewer.js 必须只在后续同表单字段存在时启用按钮");
+  assert(validator.includes("validateFormTarget"), "validate_schema 必须校验 target.form");
+  assert(validator.includes("validateFormMerge"), "validate_schema 必须校验 formMerge");
+  assert(index.includes("<form id=\"signupForm\""), "注册测试页必须覆盖具名表单");
+  assert(company.includes("<form"), "公司测试页必须覆盖表单字段合并场景");
+  assert(sample.nodes.filter((node) => node.target?.form?.selector).length >= 4, "示例录制数据必须覆盖多个同表单字段");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_form",
+      sequence: 1,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：注册页", domain: "example.com" },
+      target: { type: "input", labelText: "邮箱", form: { selector: "#signupForm", text: "注册表单" } },
+      generatedInstruction: "填写邮箱。",
+      titleOverride: "填写 注册表单",
+      descriptionOverride: "填写邮箱。填写身份证号。",
+      mergedNodeIds: ["node_id_card"],
+      formMerge: { formSelector: "#signupForm", mergedFieldCount: 2, mergedAt: "2026-07-24T00:00:00+08:00" },
+      privacy: { containsSensitiveData: true, reasons: ["id_card"], maskedFields: ["#idCard"], autoMaskApplied: true },
+      privacyMaskBoxes: [{ x: 10, y: 20, width: 120, height: 32, coordinateSpace: "viewport-css-pixel" }],
+      status: "reviewed"
+    },
+    {
+      id: "node_id_card",
+      sequence: 2,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：注册页", domain: "example.com" },
+      target: { type: "input", labelText: "身份证号", form: { selector: "#signupForm", text: "注册表单" } },
+      generatedInstruction: "填写身份证号。",
+      status: "discarded",
+      discardReason: "merged_into:node_form"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps.length === 1, "同表单字段合并后文章步骤只应输出主节点");
+  assert(steps[0].title === "填写 注册表单", "表单合并主节点必须使用人工标题");
+  assert(steps[0].description.includes("填写身份证号"), "表单合并主节点必须保留子字段说明");
+  assert(steps[0].privacyWarnings.length === 1, "表单合并主节点必须保留子字段隐私提示");
+  assert(steps[0].privacyMaskBoxes.length === 1, "表单合并主节点必须保留子字段打码区域");
+  assert(timeline.segments[0].caption.includes("填写身份证号"), "表单合并后视频 caption 必须使用合并说明");
+  assert(timeline.segments[0].privacyMaskBoxes.length === 1, "表单合并后视频时间轴必须保留打码区域");
+});
+
+runCheck("扩展预览页支持拆分已合并步骤", () => {
+  const background = readText("extension/background.js");
+  const viewerJs = readText("extension/viewer.js");
+  assert(background.includes("recorder:split-merged-node"), "background 必须提供拆分合并接口");
+  assert(background.includes("splitMergedNode"), "background 必须实现拆分合并逻辑");
+  assert(background.includes("delete node.mergedNodeIds"), "background 拆分后必须清理 mergedNodeIds");
+  assert(background.includes("item.discardReason !== `merged_into:${node.id}`"), "background 只能恢复合并产生的 discarded 节点");
+  assert(viewerJs.includes("data-node-action=\"split-merged\""), "viewer.js 必须提供拆分合并入口");
+  assert(viewerJs.includes("isMerged"), "viewer.js 必须只对已合并步骤启用拆分");
+});
+
+runCheck("恢复被合并子步骤时会自动拆分主步骤", () => {
+  const background = readText("extension/background.js");
+  assert(background.includes("node.discardReason?.startsWith(\"merged_into:\")"), "setNodeStatus 必须识别被合并子步骤");
+  assert(background.includes("return splitMergedNode({ nodeId: parentId })"), "恢复被合并子步骤必须走拆分主步骤逻辑");
+  assert(background.includes("if (status === \"discarded\") delete node.discardReason"), "普通删除时必须清理过期 discardReason");
 });
 
 runCheck("离线工具和预览页复用同一份 artifact 构建逻辑", () => {
@@ -108,6 +1589,235 @@ runCheck("离线工具和预览页复用同一份 artifact 构建逻辑", () => 
   assert(shared.includes("buildArticleSteps"), "共享库缺少 ArticleStep 构建");
   assert(shared.includes("buildVideoTimeline"), "共享库缺少 VideoTimeline 构建");
   assert(shared.includes("tab_transition"), "共享库缺少 tab_transition 处理");
+  assert(shared.includes("navigation"), "共享库缺少 navigation 处理");
+});
+
+runCheck("已删除步骤不会进入文章步骤和视频时间轴", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_kept",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "保留" },
+      generatedInstruction: "点击保留按钮。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_discarded",
+      sequence: 2,
+      action: "click",
+      target: { type: "button", text: "删除" },
+      generatedInstruction: "点击删除按钮。",
+      status: "discarded"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps.length === 1, "ArticleStep 必须过滤 discarded 节点");
+  assert(steps[0].nodeId === "node_kept", "过滤后应保留未删除节点");
+  assert(timeline.segments.length === 1, "VideoTimeline 不应包含 deleted/discarded 步骤");
+});
+
+runCheck("人工编辑文案会同步进入文章步骤和视频字幕", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_edited",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "原始按钮" },
+      generatedInstruction: "点击原始按钮。",
+      titleOverride: "人工标题",
+      descriptionOverride: "人工说明会用于文章和视频。",
+      status: "reviewed"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].title === "人工标题", "ArticleStep 必须优先使用人工标题");
+  assert(steps[0].description === "人工说明会用于文章和视频。", "ArticleStep 必须优先使用人工说明");
+  assert(timeline.segments[0].caption === "人工说明会用于文章和视频。", "VideoTimeline 字幕必须复用人工说明");
+});
+
+runCheck("视频时间轴会携带截图元数据用于真实帧渲染", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_screenshot_meta",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "按钮", boundingBox: { x: 10, y: 20, width: 80, height: 32 } },
+      screenshot: {
+        dataUrl: "data:image/png;base64,AAA",
+        viewportWidth: 400,
+        viewportHeight: 240,
+        width: 400,
+        height: 240
+      },
+      generatedInstruction: "点击按钮。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(timeline.segments[0].visual === "data:image/png;base64,AAA", "VideoTimeline 必须携带截图 dataUrl");
+  assert(timeline.segments[0].screenshot.viewportWidth === 400, "VideoTimeline 必须携带截图视口宽度");
+});
+
+runCheck("人工调整高亮区域会同步进入文章步骤和视频时间轴", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_focus",
+      sequence: 1,
+      action: "click",
+      target: {
+        type: "button",
+        text: "自动区域",
+        boundingBox: { x: 10, y: 20, width: 30, height: 40 }
+      },
+      focusBoxOverride: { x: 100, y: 110, width: 120, height: 60, coordinateSpace: "viewport-css-pixel" },
+      generatedInstruction: "点击按钮。",
+      status: "reviewed"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].focusBox.x === 100, "ArticleStep 必须优先使用人工高亮 x");
+  assert(steps[0].focusBox.width === 120, "ArticleStep 必须优先使用人工高亮 width");
+  assert(timeline.segments[0].highlight.x === 100, "VideoTimeline highlight 必须复用人工高亮区域");
+});
+
+runCheck("手动打码区域会同步进入文章步骤和视频时间轴", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_mask",
+      sequence: 1,
+      action: "input",
+      target: {
+        type: "input",
+        text: "手机号",
+        boundingBox: { x: 10, y: 20, width: 120, height: 32 }
+      },
+      privacyMaskBoxes: [{ x: 12, y: 22, width: 118, height: 28, coordinateSpace: "viewport-css-pixel" }],
+      privacy: { containsSensitiveData: true, manualMaskApplied: true },
+      generatedInstruction: "填写手机号。",
+      status: "reviewed"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].privacyMaskBoxes.length === 1, "ArticleStep 必须保留手动打码区域");
+  assert(steps[0].privacyMaskBoxes[0].x === 12, "ArticleStep 打码区域坐标必须保持不变");
+  assert(steps[0].privacyWarnings.length === 1, "ArticleStep 必须保留隐私警告");
+  assert(timeline.segments[0].privacyMaskBoxes.length === 1, "VideoTimeline 必须携带手动打码区域");
+});
+
+runCheck("自动打码区域会同步进入文章步骤和视频时间轴", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_auto_mask",
+      sequence: 1,
+      action: "input",
+      target: {
+        type: "password",
+        text: "Password",
+        boundingBox: { x: 20, y: 30, width: 160, height: 36 }
+      },
+      privacyMaskBoxes: [{ x: 20, y: 30, width: 160, height: 36, coordinateSpace: "viewport-css-pixel" }],
+      privacy: { containsSensitiveData: true, autoMaskApplied: true, manualMaskApplied: false },
+      generatedInstruction: "在 Password 中输入内容。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].privacyMaskBoxes[0].width === 160, "ArticleStep 必须保留自动打码区域");
+  assert(steps[0].privacyWarnings.length === 1, "ArticleStep 必须保留自动打码隐私警告");
+  assert(timeline.segments[0].privacyMaskBoxes[0].height === 36, "VideoTimeline 必须携带自动打码区域");
+});
+
+runCheck("节点数组顺序会决定文章步骤和视频时间轴顺序", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_second",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "第二步" },
+      generatedInstruction: "移动后的第一段。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_first",
+      sequence: 2,
+      action: "click",
+      target: { type: "button", text: "第一步" },
+      generatedInstruction: "移动后的第二段。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].nodeId === "node_second", "ArticleStep 必须按当前节点数组顺序生成");
+  assert(steps[0].sequence === 1 && steps[1].sequence === 2, "ArticleStep 必须按导出顺序重新编号");
+  assert(timeline.segments[0].stepId === "article_step_001", "VideoTimeline 必须沿用文章步骤顺序");
+  assert(timeline.segments[0].caption === "移动后的第一段。", "VideoTimeline 第一段必须来自排序后的第一步");
+});
+
+runCheck("合并后的步骤会过滤被合并节点并复用合并说明", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_merged",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "第一步" },
+      generatedInstruction: "点击第一步。",
+      descriptionOverride: "点击第一步，然后填写第二步。",
+      mergedNodeIds: ["node_discarded_after_merge"],
+      status: "reviewed"
+    },
+    {
+      id: "node_discarded_after_merge",
+      sequence: 2,
+      action: "input",
+      target: { type: "input", text: "第二步" },
+      generatedInstruction: "填写第二步。",
+      discardReason: "merged_into:node_merged",
+      status: "discarded"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps.length === 1, "ArticleStep 必须过滤被合并的 discarded 节点");
+  assert(steps[0].nodeId === "node_merged", "ArticleStep 必须保留合并后的主节点");
+  assert(steps[0].description === "点击第一步，然后填写第二步。", "ArticleStep 必须使用合并后的说明");
+  assert(timeline.segments.length === 1, "VideoTimeline 必须只包含合并后的步骤");
+  assert(timeline.segments[0].caption === "点击第一步，然后填写第二步。", "VideoTimeline 字幕必须使用合并后的说明");
+});
+
+runCheck("拆分已合并步骤后会恢复多步骤导出", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_split_main",
+      sequence: 1,
+      action: "click",
+      target: { type: "button", text: "第一步" },
+      generatedInstruction: "点击第一步。",
+      descriptionOverride: "点击第一步。",
+      status: "reviewed"
+    },
+    {
+      id: "node_split_restored",
+      sequence: 2,
+      action: "input",
+      target: { type: "input", text: "第二步" },
+      generatedInstruction: "填写第二步。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps.length === 2, "拆分后 ArticleStep 必须恢复为多个步骤");
+  assert(steps[0].nodeId === "node_split_main", "拆分后第一步应保留主节点");
+  assert(steps[1].nodeId === "node_split_restored", "拆分后第二步应恢复原节点");
+  assert(timeline.segments.length === 2, "拆分后 VideoTimeline 必须恢复多个片段");
 });
 
 runCheck("tab_open 后的即时 tab_switch 会被去重", () => {
@@ -115,6 +1825,138 @@ runCheck("tab_open 后的即时 tab_switch 会被去重", () => {
   assert(background.includes("shouldSkipTabSwitch"), "background 缺少 tab switch 去重函数");
   assert(background.includes("last.action !== \"tab_open\""), "去重函数必须检查上一节点是否 tab_open");
   assert(background.includes("last.toTab?.tabId === toContext.tabId"), "去重函数必须检查 tab_open 目标与 tab_switch 目标一致");
+});
+
+runCheck("没有后续有效操作的标签页切换不会进入最终产物", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const shared = readText("extension/shared/artifacts.js");
+  assert(shared.includes("filterMeaningfulTransitionNodes"), "共享 artifact 必须过滤无后续操作的 tab 切换");
+  assert(shared.includes("hasLaterOperationInTab"), "共享 artifact 必须按目标 tab 检查后续有效操作");
+
+  const steps = buildArticleSteps([
+    {
+      id: "node_a_click",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "button", text: "打开帮助" },
+      generatedInstruction: "点击打开帮助。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_switch_unused",
+      sequence: 2,
+      action: "tab_switch",
+      fromTab: { tabId: 1, tabAlias: "标签页 A：业务页", url: "https://example.com" },
+      toTab: { tabId: 2, tabAlias: "标签页 B：无操作页", url: "https://help.example.com" },
+      generatedInstruction: "切换到标签页 B：无操作页。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_a_input",
+      sequence: 3,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "input", labelText: "名称" },
+      generatedInstruction: "在名称中输入内容。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(!steps.some((step) => step.nodeId === "node_switch_unused"), "无后续操作的 tab_switch 不应进入 ArticleStep");
+  assert(!timeline.segments.some((segment) => segment.type === "tab_transition"), "无后续操作的 tab_switch 不应进入视频时间轴");
+  assert(steps.length === 2, "过滤后应只保留两个有效操作步骤");
+});
+
+runCheck("短暂往返标签页切换不会污染最终产物", () => {
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const shared = readText("extension/shared/artifacts.js");
+  assert(shared.includes("findNextOperation"), "共享 artifact 必须按下一次真实操作判断 tab 切换是否有意义");
+  assert(shared.includes("currentMeaningfulTabId"), "共享 artifact 必须跟踪当前有意义标签页，避免保留切回原页的无效步骤");
+
+  const steps = buildArticleSteps([
+    {
+      id: "node_a_click",
+      sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "button", text: "打开帮助" },
+      generatedInstruction: "点击打开帮助。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_switch_to_b",
+      sequence: 2,
+      action: "tab_switch",
+      fromTab: { tabId: 1, tabAlias: "标签页 A：业务页", url: "https://example.com" },
+      toTab: { tabId: 2, tabAlias: "标签页 B：临时页", url: "https://help.example.com" },
+      generatedInstruction: "切换到标签页 B：临时页。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_switch_back_a",
+      sequence: 3,
+      action: "tab_switch",
+      fromTab: { tabId: 2, tabAlias: "标签页 B：临时页", url: "https://help.example.com" },
+      toTab: { tabId: 1, tabAlias: "标签页 A：业务页", url: "https://example.com" },
+      generatedInstruction: "切换到标签页 A：业务页。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_a_input",
+      sequence: 4,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "标签页 A：业务页", domain: "example.com" },
+      target: { type: "input", labelText: "名称" },
+      generatedInstruction: "在名称中输入内容。",
+      status: "auto_generated"
+    }
+  ]);
+  const timeline = buildVideoTimeline(steps);
+  assert(!steps.some((step) => step.nodeId === "node_switch_to_b"), "没有真实操作的临时目标标签页不应进入 ArticleStep");
+  assert(!steps.some((step) => step.nodeId === "node_switch_back_a"), "切回原有意义标签页不应进入 ArticleStep");
+  assert(!timeline.segments.some((segment) => segment.type === "tab_transition"), "短暂往返标签页切换不应进入视频时间轴");
+  assert(steps.map((step) => step.nodeId).join(",") === "node_a_click,node_a_input", "过滤后只应保留真实操作步骤");
+});
+
+runCheck("浏览器内部页和扩展页不会进入录制上下文", () => {
+  const background = readText("extension/background.js");
+  const readme = readText("README.md");
+  const testing = readText("TESTING.md");
+  assert(background.includes("function isIgnoredTab"), "background 必须用原始 tab URL 判断是否忽略内部页");
+  assert(background.includes("if (isIgnoredTab(tab))"), "tab 激活、创建或更新入口必须跳过内部页");
+  assert(background.includes("delete runtimeState.pendingNavigations[tabId]"), "tab 更新到内部页时必须清理 pending navigation");
+  assert(background.includes("delete runtimeState.tabContexts[tabId]"), "tab 更新到内部页时必须清理 tab context");
+  assert(!background.includes("if (isIgnoredTab(tab)) {\n    runtimeState.activeTabId = null"), "激活内部页时不应清空最近业务 tab，避免之后切到业务页时丢失来源上下文");
+  assert(background.includes("if (runtimeState.activeTabId === tabId) runtimeState.activeTabId = null"), "同一 tab 更新到内部页时仍必须清空当前业务 tab");
+  assert(background.includes("chrome-untrusted://"), "内部页过滤必须覆盖 chrome-untrusted 页面");
+  assert(background.includes("devtools://"), "内部页过滤必须覆盖 DevTools 页面");
+  assert(background.includes("isIgnoredUrl(sender.tab.url)"), "content script 上报仍必须按原始 sender.tab.url 跳过内部页");
+  assert(readme.includes("浏览器内部页、扩展页和 DevTools 页面不会进入录制上下文"), "README.md 必须说明内部页过滤");
+  assert(testing.includes("浏览器内部页、扩展页和 DevTools 页面不应进入录制上下文"), "TESTING.md 必须覆盖内部页过滤");
+});
+
+runCheck("初始 about:blank 的新标签页会在真实 URL 出现后补记 tab_open", () => {
+  const background = readText("extension/background.js");
+  const readme = readText("README.md");
+  const testing = readText("TESTING.md");
+  assert(background.includes("pendingTabOpens"), "background 必须暂存初始不可记录的新标签页");
+  assert(background.includes("function isInitialBlankTab"), "background 必须区分初始空白页和真实内部页");
+  assert(background.includes("if (isInitialBlankTab(tab)) rememberPendingTabOpen(tab)"), "onCreated 只能为 about:blank 等初始空白页暂存 tab_open");
+  assert(background.includes("if (!isInitialBlankTab(tab)) delete runtimeState.pendingTabOpens?.[tabId]"), "onUpdated 的 about:blank 更新不能清掉 pending tab_open");
+  assert(background.includes("function rememberPendingTabOpen"), "background 必须实现 pending tab_open 暂存");
+  assert(background.includes("triggerNodeId: triggerNode?.id || null"), "pending tab_open 必须立即保存触发点击节点 ID");
+  assert(background.includes("function createTabOpenNodeForTab"), "background 必须在真实 URL 出现后补写 tab_open");
+  assert(background.includes("runtimeState.pendingTabOpens?.[tabId]"), "onUpdated 只能为暂存过的新标签页补写 tab_open");
+  assert(background.includes("await createTabOpenNodeForTab(tab, tab.windowId, context)"), "onUpdated 首次得到真实 URL 时必须补写 tab_open");
+  assert(background.includes("function findTabOpenTriggerNode"), "延迟 tab_open 必须支持按暂存 triggerNodeId 找回触发节点");
+  assert(background.includes("runtimeState.nodes.find((node) => node.id === triggerNodeId)"), "延迟 tab_open 必须按 triggerNodeId 回找触发节点");
+  assert(background.includes("const openerTabId = tab.openerTabId || pending?.openerTabId || null"), "延迟 tab_open 必须保留 openerTabId");
+  assert(background.includes("delete runtimeState.pendingTabOpens[tab.id]"), "补写 tab_open 后必须清理 pendingTabOpens");
+  assert(background.includes("if (!runtimeState.pendingTabOpens) runtimeState.pendingTabOpens = {}"), "hydrateState 必须兼容旧状态里的 pendingTabOpens 缺失");
+  assert(background.includes("activeTab?.id && !isIgnoredTab(activeTab)"), "从内部页开始录制时不应创建空 tab context");
+  assert(readme.includes("初始 about:blank 的新标签页会在真实 URL 出现后补记 tab_open"), "README.md 必须说明延迟 tab_open");
+  assert(testing.includes("初始 about:blank 的新标签页应在真实 URL 出现后补记 tab_open"), "TESTING.md 必须覆盖延迟 tab_open");
 });
 
 for (const check of checks) {
@@ -146,6 +1988,41 @@ function readText(relativePath) {
 
 function assertExists(relativePath) {
   assert(fs.existsSync(path.join(root, relativePath)), `${relativePath} 不存在`);
+}
+
+function assertSchemaRejectsHref(href, expectedMessage) {
+  assertSchemaRejectsRecordingUrl((fixture) => {
+    const linkNode = fixture.nodes.find((node) => node.id === "node_005");
+    assert(linkNode?.target?.attributes, "示例必须包含可修改的链接 target.attributes");
+    linkNode.target.attributes.href = href;
+  }, expectedMessage);
+}
+
+function assertSchemaRejectsRecordingUrl(mutator, expectedMessage) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sop-schema-href-"));
+  try {
+    const fixture = readJson("examples/sample-recording.json");
+    mutator(fixture);
+    const fixturePath = path.join(tmpDir, "recording.json");
+    fs.writeFileSync(fixturePath, JSON.stringify(fixture), "utf8");
+
+    const result = spawnSync("node", ["tools/validate_schema.js", fixturePath], { cwd: root, encoding: "utf8" });
+    assert(result.status !== 0, "validate_schema 应拒绝不安全 URL");
+    assert(`${result.stderr}\n${result.stdout}`.includes(expectedMessage), `validate_schema 错误信息应包含：${expectedMessage}`);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+function findChromeExecutable() {
+  const candidates = [
+    process.env.CHROME_PATH,
+    process.env.GOOGLE_CHROME_SHIM,
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    path.join(process.env.LOCALAPPDATA || "", "Google", "Chrome", "Application", "chrome.exe")
+  ].filter(Boolean);
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 }
 
 function assert(condition, message) {

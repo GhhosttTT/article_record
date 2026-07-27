@@ -100,6 +100,18 @@ label {
   font-weight: 700;
 }
 
+fieldset {
+  border: 1px solid #cbd8e2;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+legend {
+  padding: 0 6px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
 input,
 select {
   height: 44px;
@@ -135,6 +147,60 @@ button,
   font: inherit;
   font-weight: 800;
   text-decoration: none;
+  cursor: pointer;
+}
+
+dialog {
+  width: min(420px, calc(100vw - 40px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px;
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 24px 70px rgba(22, 33, 43, .28);
+}
+
+dialog::backdrop {
+  background: rgba(22, 33, 43, .42);
+}
+
+dialog h2 {
+  margin: 0 0 8px;
+}
+
+dialog p {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+
+.records {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.records th,
+.records td {
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.records td {
+  cursor: pointer;
+}
+
+.custom-action {
+  margin-top: 16px;
+  display: inline-grid;
+  min-height: 42px;
+  align-items: center;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 14px;
+  color: var(--accent-dark);
+  font-weight: 800;
   cursor: pointer;
 }
 

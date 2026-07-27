@@ -1,7 +1,8 @@
-const { buildArticleSteps, buildVideoTimeline } = SopArtifactShared;
+const { buildArticleSteps, buildArticleChapters, buildPrivacySafeArticleSteps, buildVideoTimeline } = SopArtifactShared;
 
 function renderArticleHtml(state, tabs, steps) {
   const title = state.session?.id || "SOP 操作手册";
+  const chapters = buildArticleChapters(steps);
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -17,52 +18,278 @@ function renderArticleHtml(state, tabs, steps) {
     .meta { color:var(--muted); }
     .tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 24px; }
     .tab-pill { border:1px solid #e6c4aa; border-radius:999px; padding:7px 11px; background:#fff7ef; color:#854513; font-weight:700; font-size:13px; }
+    .chapter { margin:28px 0 0; }
+    .chapter-head { margin:0 0 14px; padding:0 0 12px; border-bottom:2px solid var(--line); }
+    .chapter-head h2 { margin:0 0 6px; font-size:26px; }
+    .chapter-head p { margin:0; color:var(--muted); }
     .step { border:1px solid var(--line); border-radius:8px; background:var(--paper); margin-bottom:18px; overflow:hidden; }
     .step-header { display:flex; justify-content:space-between; align-items:start; gap:20px; padding:18px; border-bottom:1px solid var(--line); }
     .step h2 { margin:0 0 8px; font-size:22px; }
     .step p { margin:0; color:var(--muted); line-height:1.55; }
     .kind { flex:0 0 auto; border-radius:999px; padding:6px 10px; background:#e8f2fa; color:#145985; font-size:12px; font-weight:800; }
     .kind.tab { background:#fff1e4; color:var(--tab); }
+    .tabswitch { margin:0 18px 18px; border:1px dashed #dca977; border-radius:8px; padding:14px 16px; background:#fff8f0; color:#854513; font-weight:800; }
     .shot { position:relative; margin:18px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#f7f9fb; }
     .shot img { display:block; width:100%; }
     .focus { position:absolute; border:3px solid #f18a2a; border-radius:8px; box-shadow:0 0 0 9999px rgb(0 0 0 / 32%); pointer-events:none; }
+    .focus-zoom { position:absolute; right:16px; bottom:16px; width:min(260px, 34%); aspect-ratio:16/10; border:3px solid #f18a2a; border-radius:8px; background-repeat:no-repeat; box-shadow:0 12px 28px rgb(0 0 0 / 28%); pointer-events:none; }
+    .focus-zoom::before { content:"Focus zoom"; position:absolute; left:8px; top:8px; padding:3px 7px; border-radius:999px; background:rgb(24 33 43 / 82%); color:#fff; font-size:11px; font-weight:800; }
+    .mask { position:absolute; border-radius:6px; background:#111827; box-shadow:inset 0 0 0 2px rgb(255 255 255 / 45%); pointer-events:none; }
   </style>
 </head>
 <body>
   <main>
     <h1>${escapeHtml(title)}</h1>
-    <div class="meta">共 ${steps.length} 个步骤，其中 ${steps.filter((step) => step.type === "tab_transition").length} 个标签页切换步骤。</div>
+    <div class="meta">${renderStepSummary(steps, chapters)}</div>
     <div class="tabs">${tabs.map((tab) => `<span class="tab-pill">${escapeHtml(tab.tabAlias)} · ${escapeHtml(tab.domain || "")}</span>`).join("")}</div>
-    ${steps.map(renderArticleStep).join("\n")}
+    ${chapters.map(renderArticleChapter).join("\n")}
   </main>
 </body>
 </html>`;
 }
 
+function renderArticleMarkdown(state, tabs, steps) {
+  const title = state.session?.id || "SOP 操作手册";
+  const chapters = buildArticleChapters(steps);
+  const lines = [
+    `# ${escapeMarkdown(title)}`,
+    "",
+    renderStepSummary(steps, chapters),
+    "",
+    "## 涉及标签页",
+    ""
+  ];
+
+  if (tabs.length) {
+    tabs.forEach((tab) => lines.push(`- ${escapeMarkdown(tab.tabAlias)}${tab.domain ? ` · ${escapeMarkdown(tab.domain)}` : ""}`));
+  } else {
+    lines.push("- 暂无标签页");
+  }
+
+  lines.push("");
+  chapters.forEach((chapter) => {
+    lines.push(`## 章节 ${chapter.sequence}：${escapeMarkdown(chapter.title)}`);
+    if (chapter.tabAlias) lines.push(`当前标签页：${escapeMarkdown(chapter.tabAlias)}`);
+    if (chapter.pageUrl) lines.push(`页面地址：${escapeMarkdown(chapter.pageUrl)}`);
+    lines.push("");
+
+    chapter.steps.forEach((step) => {
+    lines.push(`### ${step.sequence}. ${escapeMarkdown(step.title)}`);
+    lines.push("");
+    lines.push(`**类型**：${stepTypeText(step.type)}`);
+    if (step.tabAlias) lines.push(`**当前标签页**：${escapeMarkdown(step.tabAlias)}`);
+    if (step.fromTabAlias || step.toTabAlias) lines.push(`**标签页变化**：${escapeMarkdown(step.fromTabAlias || "当前标签页")} -> ${escapeMarkdown(step.toTabAlias || "目标标签页")}`);
+    if (step.type === "navigation") lines.push(`**页面变化**：${escapeMarkdown(step.fromUrl || "当前页面")} -> ${escapeMarkdown(step.toUrl || step.pageUrl || "目标页面")}`);
+    lines.push("");
+    lines.push(escapeMarkdown(step.description));
+    if (step.privacyWarnings?.length) {
+      lines.push("");
+      step.privacyWarnings.forEach((warning) => lines.push(`> ${escapeMarkdown(warning)}`));
+    }
+    if (step.image) {
+      lines.push("");
+      lines.push(`![步骤截图](${step.image})`);
+    } else if (step.imageRedactedForPrivacy) {
+      lines.push("");
+      lines.push("> 截图已因隐私保护从导出文件中移除，仅保留截图元数据。");
+    }
+    if (step.focusBox) {
+      lines.push("");
+      lines.push(`高亮区域：x=${step.focusBox.x}, y=${step.focusBox.y}, width=${step.focusBox.width}, height=${step.focusBox.height}`);
+    }
+    if (step.clickPoint) {
+      lines.push("");
+      lines.push(`点击坐标：x=${step.clickPoint.x}, y=${step.clickPoint.y}`);
+    }
+    if (step.key) {
+      lines.push("");
+      lines.push(`按键：${escapeMarkdown(step.key)}`);
+    }
+    if (step.privacyMaskBoxes?.length) {
+      lines.push("");
+      lines.push(`打码区域：${step.privacyMaskBoxes.map((box) => `x=${box.x}, y=${box.y}, width=${box.width}, height=${box.height}`).join("; ")}`);
+    }
+    lines.push("");
+    });
+  });
+
+  return `${lines.join("\n").trim()}\n`;
+}
+
+function renderArticleWordDocument(state, tabs, steps) {
+  const title = state.session?.id || "SOP 操作手册";
+  const chapters = buildArticleChapters(steps);
+  return `<!doctype html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { margin: 2cm; }
+    body { color:#18212b; font-family:"Microsoft YaHei","Segoe UI",sans-serif; line-height:1.55; }
+    h1 { font-size:26pt; margin:0 0 8pt; }
+    h2 { font-size:18pt; margin:22pt 0 8pt; border-bottom:1pt solid #dce3ea; padding-bottom:6pt; }
+    h3 { font-size:14pt; margin:14pt 0 6pt; }
+    p { margin:0 0 8pt; }
+    .meta { color:#66717d; margin-bottom:14pt; }
+    .tabs { margin:10pt 0 18pt; }
+    .tab { display:inline-block; border:1pt solid #e6c4aa; padding:4pt 7pt; margin:0 5pt 5pt 0; color:#854513; background:#fff7ef; }
+    .step { border:1pt solid #dce3ea; padding:12pt; margin:0 0 12pt; page-break-inside:avoid; }
+    .kind { color:#145985; font-weight:bold; }
+    .switch { color:#854513; background:#fff8f0; border:1pt dashed #dca977; padding:8pt; margin:8pt 0; }
+    .warning { color:#9a3f00; font-weight:bold; }
+    .shot img { max-width:100%; height:auto; border:1pt solid #dce3ea; }
+    .redacted { color:#66717d; font-weight:bold; border:1pt dashed #dce3ea; padding:10pt; }
+    .coords { color:#66717d; font-size:9pt; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <p class="meta">${renderStepSummary(steps, chapters)}</p>
+  <div class="tabs">${tabs.map((tab) => `<span class="tab">${escapeHtml(tab.tabAlias)}${tab.domain ? ` · ${escapeHtml(tab.domain)}` : ""}</span>`).join("")}</div>
+  ${chapters.map(renderWordChapter).join("\n")}
+</body>
+</html>`;
+}
+
+function renderArticleChapter(chapter) {
+  return `<section class="chapter">
+  <header class="chapter-head">
+    <h2>章节 ${chapter.sequence}：${escapeHtml(chapter.title)}</h2>
+    <p>${escapeHtml([chapter.tabAlias, chapter.pageUrl].filter(Boolean).join(" · "))}</p>
+  </header>
+  ${chapter.steps.map(renderArticleStep).join("\n")}
+</section>`;
+}
+
+function renderWordChapter(chapter) {
+  return `<section>
+  <h2>章节 ${chapter.sequence}：${escapeHtml(chapter.title)}</h2>
+  ${chapter.tabAlias || chapter.pageUrl ? `<p class="meta">${escapeHtml([chapter.tabAlias, chapter.pageUrl].filter(Boolean).join(" · "))}</p>` : ""}
+  ${chapter.steps.map(renderWordStep).join("\n")}
+</section>`;
+}
+
+function renderWordStep(step) {
+  const transition = step.fromTabAlias || step.toTabAlias
+    ? `<div class="switch">${escapeHtml(step.fromTabAlias || "当前标签页")} -> ${escapeHtml(step.toTabAlias || "目标标签页")}</div>`
+    : "";
+  const navigation = step.type === "navigation"
+    ? `<div class="switch">${escapeHtml(step.fromUrl || "当前页面")} -> ${escapeHtml(step.toUrl || step.pageUrl || "目标页面")}</div>`
+    : "";
+  const warnings = step.privacyWarnings?.map((warning) => `<p class="warning">${escapeHtml(warning)}</p>`).join("") || "";
+  const image = step.image
+    ? `<div class="shot"><img src="${step.image}" alt="步骤截图"></div>`
+    : step.imageRedactedForPrivacy ? `<p class="redacted">截图已因隐私保护从导出文件中移除，仅保留截图元数据。</p>` : "";
+  const focus = step.focusBox
+    ? `<p class="coords">高亮区域：x=${escapeHtml(step.focusBox.x)}, y=${escapeHtml(step.focusBox.y)}, width=${escapeHtml(step.focusBox.width)}, height=${escapeHtml(step.focusBox.height)}</p>`
+    : "";
+  const click = step.clickPoint
+    ? `<p class="coords">点击坐标：x=${escapeHtml(step.clickPoint.x)}, y=${escapeHtml(step.clickPoint.y)}</p>`
+    : "";
+  const key = step.key
+    ? `<p class="coords">按键：${escapeHtml(step.key)}</p>`
+    : "";
+  const masks = step.privacyMaskBoxes?.length
+    ? `<p class="coords">打码区域：${escapeHtml(step.privacyMaskBoxes.map((box) => `x=${box.x}, y=${box.y}, width=${box.width}, height=${box.height}`).join("; "))}</p>`
+    : "";
+  return `<article class="step">
+  <h3>${step.sequence}. ${escapeHtml(step.title)}</h3>
+  <p><span class="kind">${stepTypeText(step.type)}</span>${step.tabAlias ? ` · ${escapeHtml(step.tabAlias)}` : ""}</p>
+  ${transition}
+  ${navigation}
+  <p>${escapeHtml(step.description)}</p>
+  ${warnings}
+  ${image}
+  ${focus}
+  ${click}
+  ${key}
+  ${masks}
+</article>`;
+}
+
 function renderArticleStep(step) {
-  const isTab = step.type === "tab_transition";
+  const isTransition = step.type === "tab_transition" || step.type === "navigation";
   return `<article class="step">
   <div class="step-header">
     <div>
       <h2>${step.sequence}. ${escapeHtml(step.title)}</h2>
       <p>${escapeHtml(step.description)}</p>
       ${step.tabAlias ? `<p>${escapeHtml(step.tabAlias)}</p>` : ""}
+      ${step.key ? `<p>按键：${escapeHtml(step.key)}</p>` : ""}
     </div>
-    <span class="kind ${isTab ? "tab" : ""}">${isTab ? "标签页切换" : "操作步骤"}</span>
+    <span class="kind ${isTransition ? "tab" : ""}">${stepTypeText(step.type)}</span>
   </div>
-  ${step.image ? renderArticleImage(step) : ""}
+  ${step.type === "navigation" ? `<div class="tabswitch">${escapeHtml(step.fromUrl || "当前页面")} -> ${escapeHtml(step.toUrl || step.pageUrl || "目标页面")}</div>` : ""}
+  ${step.image ? renderArticleImage(step) : step.imageRedactedForPrivacy ? renderRedactedImageNotice() : ""}
 </article>`;
+}
+
+function renderStepSummary(steps, chapters = []) {
+  const tabCount = steps.filter((step) => step.type === "tab_transition").length;
+  const navigationCount = steps.filter((step) => step.type === "navigation").length;
+  return `共 ${steps.length} 个步骤，分为 ${chapters.length} 个章节，其中 ${tabCount} 个标签页切换步骤、${navigationCount} 个页面跳转步骤。`;
+}
+
+function stepTypeText(type) {
+  if (type === "chapter_intro") return "章节";
+  if (type === "tab_transition") return "标签页切换";
+  if (type === "navigation") return "页面跳转";
+  return "操作步骤";
 }
 
 function renderArticleImage(step) {
   const box = step.focusBox;
-  const focus = box
-    ? `<div class="focus" style="left:${Math.max(0, box.x - 12)}px;top:${Math.max(0, box.y - 12)}px;width:${Math.max(48, box.width + 24)}px;height:${Math.max(32, box.height + 24)}px"></div>`
-    : "";
-  return `<div class="shot"><img src="${step.image}" alt="步骤截图">${focus}</div>`;
+  const shot = step.screenshot || {};
+  const viewportWidth = shot.viewportWidth || shot.width;
+  const viewportHeight = shot.viewportHeight || shot.height;
+  const focus = box && viewportWidth && viewportHeight ? renderFocusBox(box, viewportWidth, viewportHeight) : "";
+  const zoom = box && viewportWidth && viewportHeight ? renderFocusZoom(step.image, box, viewportWidth, viewportHeight) : "";
+  const masks = viewportWidth && viewportHeight ? renderMaskBoxes(step.privacyMaskBoxes || [], viewportWidth, viewportHeight) : "";
+  return `<div class="shot"><img src="${step.image}" alt="步骤截图">${focus}${masks}${zoom}</div>`;
+}
+
+function renderRedactedImageNotice() {
+  return `<div class="shot" style="padding:22px;color:#66717d;font-weight:700">截图已因隐私保护从导出文件中移除，仅保留截图元数据。</div>`;
+}
+
+function renderFocusBox(box, viewportWidth, viewportHeight) {
+  const focus = {
+    left: `${Math.max(0, (box.x - 12) / viewportWidth * 100)}%`,
+    top: `${Math.max(0, (box.y - 12) / viewportHeight * 100)}%`,
+    width: `${Math.max(48, box.width + 24) / viewportWidth * 100}%`,
+    height: `${Math.max(32, box.height + 24) / viewportHeight * 100}%`
+  };
+  return `<div class="focus" style="left:${focus.left};top:${focus.top};width:${focus.width};height:${focus.height}"></div>`;
+}
+
+function renderFocusZoom(image, box, viewportWidth, viewportHeight) {
+  const centerX = Math.max(0, Math.min(100, (box.x + box.width / 2) / viewportWidth * 100));
+  const centerY = Math.max(0, Math.min(100, (box.y + box.height / 2) / viewportHeight * 100));
+  return `<div class="focus-zoom" style="background-image:url('${escapeCssUrl(image)}');background-size:320% auto;background-position:${centerX}% ${centerY}%"></div>`;
+}
+
+function renderMaskBoxes(boxes, viewportWidth, viewportHeight) {
+  return boxes.map((box) => {
+    const mask = {
+      left: `${Math.max(0, box.x / viewportWidth * 100)}%`,
+      top: `${Math.max(0, box.y / viewportHeight * 100)}%`,
+      width: `${Math.max(1, box.width) / viewportWidth * 100}%`,
+      height: `${Math.max(1, box.height) / viewportHeight * 100}%`
+    };
+    return `<div class="mask" style="left:${mask.left};top:${mask.top};width:${mask.width};height:${mask.height}"></div>`;
+  }).join("");
 }
 
 function downloadTextFile(filename, mimeType, content) {
   const url = `data:${mimeType};charset=utf-8,${encodeURIComponent(content)}`;
   return chrome.downloads.download({ url, filename, saveAs: true });
+}
+
+function escapeMarkdown(value) {
+  return String(value ?? "").replace(/[\\`*{}[\]()#+\-.!|>]/g, "\\$&");
+}
+
+function escapeCssUrl(value) {
+  return String(value ?? "").replace(/['\\]/g, "\\$&");
 }
