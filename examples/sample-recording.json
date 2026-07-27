@@ -1,416 +1,484 @@
 {
-    "session":  {
-                    "id":  "rec_sample_zkbiotime",
-                    "browser":  "Chrome",
-                    "startedAt":  "2026-07-22T10:00:00+08:00",
-                    "endedAt":  "2026-07-22T10:03:00+08:00",
-                    "status":  "completed"
-                },
-    "tabContexts":  {
-                        "101":  {
-                                    "tabId":  101,
-                                    "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                    "windowId":  1,
-                                    "firstUrl":  "https://biotimecloud.info/onboard/sign-in",
-                                    "currentUrl":  "https://biotimecloud.info/onboard/sign-in",
-                                    "title":  "ZKBio TimeCloud",
-                                    "domain":  "biotimecloud.info"
-                                },
-                        "102":  {
-                                    "tabId":  102,
-                                    "tabAlias":  "标签页 B：邮箱收件箱",
-                                    "windowId":  1,
-                                    "firstUrl":  "https://mail.example.com",
-                                    "currentUrl":  "https://mail.example.com",
-                                    "title":  "邮箱收件箱",
-                                    "domain":  "mail.example.com"
-                                }
-                    },
-    "nodes":  [
-                  {
-                      "id":  "node_001",
-                      "sequence":  1,
-                      "action":  "click",
-                      "tab":  {
-                                  "tabId":  101,
-                                  "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                  "domain":  "biotimecloud.info"
-                              },
-                      "target":  {
-                                     "type":  "button",
-                                     "text":  "SIGN UP",
-                                     "attributes":  {
-                                                        "tagName":  "button",
-                                                        "disabled":  false
-                                                    },
-                                     "boundingBox":  {
-                                                         "x":  860,
-                                                         "y":  520,
-                                                         "width":  160,
-                                                         "height":  44
-                                                     },
-                                     "visibility":  {
-                                                        "visible":  true,
-                                                        "inViewport":  true,
-                                                        "hasBox":  true,
-                                                        "canHighlight":  true,
-                                                        "reason":  "visible"
-                                                    }
-                                 },
-                      "clickPoint":  {
-                                         "x":  940,
-                                         "y":  542,
-                                         "coordinateSpace":  "viewport-css-pixel"
-                                     },
-                      "viewport":  {
-                                       "width":  1440,
-                                       "height":  900,
-                                       "devicePixelRatio":  1,
-                                       "scrollX":  0,
-                                       "scrollY":  240
-                                   },
-                      "generatedInstruction":  "在登录页点击 SIGN UP，进入新用户注册流程。",
-                      "mergedClickCount":  2,
-                      "triggeredNavigationNodeId":  "node_002",
-                      "navigationTargetUrl":  "https://biotimecloud.info/onboard/register",
-                      "status":  "auto_generated",
-                      "screenshot":  {
-                                         "id":  "img_click_001",
-                                         "width":  1440,
-                                         "height":  900,
-                                         "viewportWidth":  1440,
-                                         "viewportHeight":  900,
-                                         "devicePixelRatio":  1,
-                                         "scrollX":  0,
-                                         "scrollY":  240,
-                                         "captureTiming":  "before_action_preferred",
-                                         "capturedAt":  "2026-07-22T10:00:10+08:00"
-                                     }
-                  },
-                  {
-                      "id":  "node_002",
-                      "sequence":  2,
-                      "action":  "navigation",
-                      "fromTab":  {
-                                      "tabId":  101,
-                                      "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                      "url":  "https://biotimecloud.info/onboard/sign-in"
-                                  },
-                      "toTab":  {
-                                    "tabId":  101,
-                                    "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                    "url":  "https://biotimecloud.info/onboard/register"
-                                },
-                      "triggeredByNodeId":  "node_001",
-                      "reason":  "system_detected",
-                      "pageUrl":  "https://biotimecloud.info/onboard/register",
-                      "pageTitle":  "ZKBio TimeCloud 注册表单",
-                      "screenshot":  {
-                                         "id":  "img_navigation_002",
-                                         "width":  1440,
-                                         "height":  900,
-                                         "viewportWidth":  1440,
-                                         "viewportHeight":  900,
-                                         "devicePixelRatio":  1,
-                                         "scrollX":  0,
-                                         "scrollY":  0,
-                                         "capturedAt":  "2026-07-22T10:00:18+08:00",
-                                         "captureTiming":  "after_navigation"
-                                     },
-                      "generatedInstruction":  "页面跳转到注册表单，继续填写新用户信息。",
-                      "status":  "auto_generated"
-                  },
-                  {
-                      "id":  "node_003",
-                      "sequence":  3,
-                      "action":  "input",
-                      "tab":  {
-                                  "tabId":  101,
-                                  "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                  "domain":  "biotimecloud.info"
-                              },
-                      "target":  {
-                                     "type":  "input",
-                                     "placeholder":  "Email",
-                                     "attributes":  {
-                                                        "tagName":  "input",
-                                                        "inputType":  "email",
-                                                        "required":  true,
-                                                        "disabled":  false
-                                                    },
-                                     "boundingBox":  {
-                                                         "x":  780,
-                                                         "y":  430,
-                                                         "width":  320,
-                                                         "height":  42
-                                                     }
-                                 },
-                      "value":  "m***@example.com",
-                      "privacy":  {
-                                      "containsSensitiveData":  true,
-                                      "autoMaskApplied":  true,
-                                      "manualMaskApplied":  false,
-                                      "reasons":  [
-                                                      "email"
-                                                  ],
-                                      "maskedFields":  [
-                                                           "input[name=email]"
-                                                       ]
-                                  },
-                      "privacyMaskBoxes":  [
-                                               {
-                                                   "x":  780,
-                                                   "y":  430,
-                                                   "width":  320,
-                                                   "height":  42,
-                                                   "coordinateSpace":  "viewport-css-pixel"
-                                               }
-                                           ],
-                      "titleOverride":  "填写注册邮箱",
-                      "descriptionOverride":  "在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。",
-                      "generatedInstruction":  "在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。",
-                      "mergedEventCount":  2,
-                      "voiceoverText":  "Enter the registration email, then wait for the activation message.",
-                      "voiceoverTextOverridden":  true,
-                      "status":  "auto_generated",
-                      "maskedValue":  "m***@example.com",
-                      "screenshot":  {
-                                         "id":  "img_input_003",
-                                         "width":  1440,
-                                         "height":  900,
-                                         "viewportWidth":  1440,
-                                         "viewportHeight":  900,
-                                         "devicePixelRatio":  1,
-                                         "scrollX":  0,
-                                         "scrollY":  240,
-                                         "captureTiming":  "after_action",
-                                         "capturedAt":  "2026-07-22T10:00:22+08:00"
-                                     }
-                  },
-                  {
-                      "id":  "node_004",
-                      "sequence":  4,
-                      "action":  "tab_open",
-                      "fromTab":  {
-                                      "tabId":  101,
-                                      "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                      "url":  "https://biotimecloud.info/onboard/sign-in"
-                                  },
-                      "toTab":  {
-                                    "tabId":  102,
-                                    "tabAlias":  "标签页 B：邮箱收件箱",
-                                    "url":  "https://mail.example.com"
-                                },
-                      "reason":  "user_switch",
-                      "generatedInstruction":  "打开标签页 B：邮箱收件箱，查收账号激活邮件。",
-                      "status":  "auto_generated"
-                  },
-                  {
-                      "id":  "node_005",
-                      "sequence":  5,
-                      "action":  "click",
-                      "tab":  {
-                                  "tabId":  102,
-                                  "tabAlias":  "标签页 B：邮箱收件箱",
-                                  "domain":  "mail.example.com"
-                              },
-                      "target":  {
-                                     "type":  "link",
-                                     "text":  "Activate Account",
-                                     "attributes":  {
-                                                        "tagName":  "a",
-                                                        "href":  "https://mail.example.com/activate",
-                                                        "target":  "_blank"
-                                                    },
-                                     "boundingBox":  {
-                                                         "x":  420,
-                                                         "y":  360,
-                                                         "width":  190,
-                                                         "height":  38
-                                                     }
-                                 },
-                      "generatedInstruction":  "在邮箱中点击 Activate Account，激活刚注册的账号。",
-                      "status":  "auto_generated"
-                  },
-                  {
-                      "id":  "node_006",
-                      "sequence":  6,
-                      "action":  "tab_switch",
-                      "fromTab":  {
-                                      "tabId":  102,
-                                      "tabAlias":  "标签页 B：邮箱收件箱",
-                                      "url":  "https://mail.example.com"
-                                  },
-                      "toTab":  {
-                                    "tabId":  101,
-                                    "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                    "url":  "https://biotimecloud.info/onboard/sign-in"
-                                },
-                      "reason":  "user_switch",
-                      "generatedInstruction":  "完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。",
-                      "status":  "auto_generated"
-                  },
-                  {
-                      "id":  "node_007",
-                      "sequence":  7,
-                      "action":  "upload",
-                      "tab":  {
-                                  "tabId":  101,
-                                  "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                  "domain":  "biotimecloud.info"
-                              },
-                      "target":  {
-                                     "type":  "upload",
-                                     "labelText":  "Business License",
-                                     "name":  "businessLicense",
-                                     "attributes":  {
-                                                        "tagName":  "input",
-                                                        "inputType":  "file",
-                                                        "required":  true,
-                                                        "disabled":  false
-                                                    },
-                                     "form":  {
-                                                  "selector":  "form",
-                                                  "text":  "Create a Company"
-                                              },
-                                     "boundingBox":  {
-                                                         "x":  760,
-                                                         "y":  610,
-                                                         "width":  320,
-                                                         "height":  42
-                                                     }
-                                 },
-                      "value":  "已选择文件：b***.pdf",
-                      "generatedInstruction":  "在 Business License 中上传文件。",
-                      "status":  "auto_generated",
-                      "maskedValue":  "已选择文件：b***.pdf"
-                  },
-                  {
-                      "id":  "node_008",
-                      "sequence":  8,
-                      "action":  "input",
-                      "tab":  {
-                                  "tabId":  101,
-                                  "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                  "domain":  "biotimecloud.info"
-                              },
-                      "target":  {
-                                     "type":  "input",
-                                     "name":  "supportContact",
-                                     "nearbyText":  "Support Contact",
-                                     "form":  {
-                                                  "selector":  "form",
-                                                  "text":  "Create a Company"
-                                              },
-                                     "boundingBox":  {
-                                                         "x":  760,
-                                                         "y":  670,
-                                                         "width":  320,
-                                                         "height":  42
-                                                     }
-                                 },
-                      "value":  "已输入内容",
-                      "generatedInstruction":  "在 Support Contact 中输入内容。",
-                      "status":  "auto_generated",
-                      "maskedValue":  "已输入内容"
-                  },
-                  {
-                      "id":  "node_009",
-                      "sequence":  9,
-                      "action":  "input",
-                      "tab":  {
-                                  "tabId":  101,
-                                  "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                  "domain":  "biotimecloud.info"
-                              },
-                      "target":  {
-                                     "type":  "input",
-                                     "placeholder":  "Legal Representative ID",
-                                     "name":  "legalIdCard",
-                                     "form":  {
-                                                  "selector":  "form",
-                                                  "text":  "Create a Company"
-                                              },
-                                     "boundingBox":  {
-                                                         "x":  760,
-                                                         "y":  730,
-                                                         "width":  320,
-                                                         "height":  42
-                                                     }
-                                 },
-                      "value":  "31**************10",
-                      "privacy":  {
-                                      "containsSensitiveData":  true,
-                                      "autoMaskApplied":  true,
-                                      "manualMaskApplied":  false,
-                                      "reasons":  [
-                                                      "id_card"
-                                                  ],
-                                      "maskedFields":  [
-                                                           "input[name=legalIdCard]"
-                                                       ]
-                                  },
-                      "privacyMaskBoxes":  [
-                                               {
-                                                   "x":  760,
-                                                   "y":  730,
-                                                   "width":  320,
-                                                   "height":  42,
-                                                   "coordinateSpace":  "viewport-css-pixel"
-                                               }
-                                           ],
-                      "generatedInstruction":  "在 Legal Representative ID 中输入内容。",
-                      "status":  "auto_generated",
-                      "maskedValue":  "31**************10"
-                  },
-                  {
-                      "id":  "node_010",
-                      "sequence":  10,
-                      "action":  "input",
-                      "tab":  {
-                                  "tabId":  101,
-                                  "tabAlias":  "标签页 A：ZKBio TimeCloud 注册页",
-                                  "domain":  "biotimecloud.info"
-                              },
-                      "target":  {
-                                     "type":  "input",
-                                     "placeholder":  "Billing Bank Card",
-                                     "name":  "billingBankCard",
-                                     "form":  {
-                                                  "selector":  "form",
-                                                  "text":  "Create a Company"
-                                              },
-                                     "boundingBox":  {
-                                                         "x":  760,
-                                                         "y":  790,
-                                                         "width":  320,
-                                                         "height":  42
-                                                     }
-                                 },
-                      "value":  "**** **** **** 3456",
-                      "privacy":  {
-                                      "containsSensitiveData":  true,
-                                      "autoMaskApplied":  true,
-                                      "manualMaskApplied":  false,
-                                      "reasons":  [
-                                                      "bank_card"
-                                                  ],
-                                      "maskedFields":  [
-                                                           "input[name=billingBankCard]"
-                                                       ]
-                                  },
-                      "privacyMaskBoxes":  [
-                                               {
-                                                   "x":  760,
-                                                   "y":  790,
-                                                   "width":  320,
-                                                   "height":  42,
-                                                   "coordinateSpace":  "viewport-css-pixel"
-                                               }
-                                           ],
-                      "generatedInstruction":  "在 Billing Bank Card 中输入内容。",
-                      "status":  "auto_generated",
-                      "maskedValue":  "**** **** **** 3456"
-                  }
-              ]
+  "session": {
+    "id": "rec_sample_zkbiotime",
+    "browser": "Chrome",
+    "startedAt": "2026-07-22T10:00:00+08:00",
+    "endedAt": "2026-07-22T10:03:00+08:00",
+    "status": "completed"
+  },
+  "tabContexts": {
+    "101": {
+      "tabId": 101,
+      "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+      "windowId": 1,
+      "firstUrl": "https://biotimecloud.info/onboard/sign-in",
+      "currentUrl": "https://biotimecloud.info/onboard/sign-in",
+      "title": "ZKBio TimeCloud",
+      "domain": "biotimecloud.info"
+    },
+    "102": {
+      "tabId": 102,
+      "tabAlias": "标签页 B：邮箱收件箱",
+      "windowId": 1,
+      "firstUrl": "https://mail.example.com",
+      "currentUrl": "https://mail.example.com",
+      "title": "邮箱收件箱",
+      "domain": "mail.example.com"
+    }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "sequence": 1,
+      "action": "click",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "button",
+        "text": "SIGN UP",
+        "attributes": {
+          "tagName": "button",
+          "disabled": false
+        },
+        "boundingBox": {
+          "x": 860,
+          "y": 520,
+          "width": 160,
+          "height": 44
+        },
+        "visibility": {
+          "visible": true,
+          "inViewport": true,
+          "hasBox": true,
+          "canHighlight": true,
+          "reason": "visible"
+        }
+      },
+      "clickPoint": {
+        "x": 940,
+        "y": 542,
+        "coordinateSpace": "viewport-css-pixel"
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 240
+      },
+      "generatedInstruction": "在登录页点击 SIGN UP，进入新用户注册流程。",
+      "mergedClickCount": 2,
+      "triggeredNavigationNodeId": "node_002",
+      "navigationTargetUrl": "https://biotimecloud.info/onboard/register",
+      "status": "auto_generated",
+      "screenshot": {
+        "id": "img_click_001",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 240,
+        "captureTiming": "before_action_preferred",
+        "capturedAt": "2026-07-22T10:00:10+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22258%22%20y%3D%22180%22%20width%3D%221024%22%20height%3D%22540%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22390%22%20y%3D%22285%22%20font-size%3D%2238%22%20font-weight%3D%22800%22%20fill%3D%22%231769aa%22%3EZKBio%20TimeCloud%3C%2Ftext%3E%3Ctext%20x%3D%22390%22%20y%3D%22350%22%20font-size%3D%2228%22%20fill%3D%22%2318212b%22%3ESign%20in%20to%20your%20company%3C%2Ftext%3E%3Crect%20x%3D%22860%22%20y%3D%22520%22%20width%3D%22160%22%20height%3D%2244%22%20rx%3D%228%22%20fill%3D%22%231769aa%22%2F%3E%3Ctext%20x%3D%22940%22%20y%3D%22550%22%20text-anchor%3D%22middle%22%20font-size%3D%2220%22%20font-weight%3D%22800%22%20fill%3D%22%23fff%22%3ESIGN%20UP%3C%2Ftext%3E%3Crect%20x%3D%22848%22%20y%3D%22508%22%20width%3D%22184%22%20height%3D%2268%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23f18a2a%22%20stroke-width%3D%225%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3ESIGN%20UP%3C%2Ftext%3E%3C%2Fsvg%3E"
+      }
+    },
+    {
+      "id": "node_002",
+      "sequence": 2,
+      "action": "navigation",
+      "fromTab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "url": "https://biotimecloud.info/onboard/sign-in"
+      },
+      "toTab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "url": "https://biotimecloud.info/onboard/register"
+      },
+      "triggeredByNodeId": "node_001",
+      "reason": "system_detected",
+      "pageUrl": "https://biotimecloud.info/onboard/register",
+      "pageTitle": "ZKBio TimeCloud 注册表单",
+      "screenshot": {
+        "id": "img_navigation_002",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 0,
+        "captureTiming": "after_navigation",
+        "capturedAt": "2026-07-22T10:00:18+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22250%22%20y%3D%2290%22%20width%3D%22940%22%20height%3D%22760%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22360%22%20y%3D%22170%22%20font-size%3D%2236%22%20font-weight%3D%22800%22%20fill%3D%22%231769aa%22%3EZKBio%20TimeCloud%3C%2Ftext%3E%3Ctext%20x%3D%22360%22%20y%3D%22230%22%20font-size%3D%2228%22%20fill%3D%22%2318212b%22%3ECreate%20your%20account%3C%2Ftext%3E%3Ctext%20x%3D%22780%22%20y%3D%22414%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EEmail%3C%2Ftext%3E%3Crect%20x%3D%22780%22%20y%3D%22430%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22780%22%20y%3D%22500%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22860%22%20y%3D%22620%22%20width%3D%22160%22%20height%3D%2244%22%20rx%3D%228%22%20fill%3D%22%231769aa%22%2F%3E%3Ctext%20x%3D%22940%22%20y%3D%22650%22%20text-anchor%3D%22middle%22%20font-size%3D%2220%22%20font-weight%3D%22800%22%20fill%3D%22%23fff%22%3ESIGN%20UP%3C%2Ftext%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3EZKBio%20TimeCloud%20%E6%B3%A8%E5%86%8C%E8%A1%A8%E5%8D%95%3C%2Ftext%3E%3C%2Fsvg%3E"
+      },
+      "generatedInstruction": "页面跳转到注册表单，继续填写新用户信息。",
+      "status": "auto_generated"
+    },
+    {
+      "id": "node_003",
+      "sequence": 3,
+      "action": "input",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "input",
+        "placeholder": "Email",
+        "attributes": {
+          "tagName": "input",
+          "inputType": "email",
+          "required": true,
+          "disabled": false
+        },
+        "boundingBox": {
+          "x": 780,
+          "y": 430,
+          "width": 320,
+          "height": 42
+        }
+      },
+      "value": "m***@example.com",
+      "privacy": {
+        "containsSensitiveData": true,
+        "autoMaskApplied": true,
+        "manualMaskApplied": false,
+        "reasons": [
+          "email"
+        ],
+        "maskedFields": [
+          "input[name=email]"
+        ]
+      },
+      "privacyMaskBoxes": [
+        {
+          "x": 780,
+          "y": 430,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        }
+      ],
+      "titleOverride": "填写注册邮箱",
+      "descriptionOverride": "在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。",
+      "generatedInstruction": "在 Email 输入框中填写注册邮箱，系统会通过该邮箱发送激活邮件。",
+      "mergedEventCount": 2,
+      "voiceoverText": "Enter the registration email, then wait for the activation message.",
+      "voiceoverTextOverridden": true,
+      "status": "auto_generated",
+      "maskedValue": "m***@example.com",
+      "screenshot": {
+        "id": "img_input_003",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 240,
+        "captureTiming": "after_action",
+        "capturedAt": "2026-07-22T10:00:22+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22250%22%20y%3D%2290%22%20width%3D%22940%22%20height%3D%22760%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22360%22%20y%3D%22170%22%20font-size%3D%2236%22%20font-weight%3D%22800%22%20fill%3D%22%231769aa%22%3EZKBio%20TimeCloud%3C%2Ftext%3E%3Ctext%20x%3D%22360%22%20y%3D%22230%22%20font-size%3D%2228%22%20fill%3D%22%2318212b%22%3ECreate%20your%20account%3C%2Ftext%3E%3Ctext%20x%3D%22780%22%20y%3D%22414%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EEmail%3C%2Ftext%3E%3Crect%20x%3D%22780%22%20y%3D%22430%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22780%22%20y%3D%22500%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22860%22%20y%3D%22620%22%20width%3D%22160%22%20height%3D%2244%22%20rx%3D%228%22%20fill%3D%22%231769aa%22%2F%3E%3Ctext%20x%3D%22940%22%20y%3D%22650%22%20text-anchor%3D%22middle%22%20font-size%3D%2220%22%20font-weight%3D%22800%22%20fill%3D%22%23fff%22%3ESIGN%20UP%3C%2Ftext%3E%3Crect%20x%3D%22768%22%20y%3D%22418%22%20width%3D%22344%22%20height%3D%2266%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23f18a2a%22%20stroke-width%3D%225%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3EEmail%3C%2Ftext%3E%3C%2Fsvg%3E"
+      }
+    },
+    {
+      "id": "node_004",
+      "sequence": 4,
+      "action": "tab_open",
+      "fromTab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "url": "https://biotimecloud.info/onboard/sign-in"
+      },
+      "toTab": {
+        "tabId": 102,
+        "tabAlias": "标签页 B：邮箱收件箱",
+        "url": "https://mail.example.com"
+      },
+      "reason": "user_switch",
+      "generatedInstruction": "打开标签页 B：邮箱收件箱，查收账号激活邮件。",
+      "status": "auto_generated"
+    },
+    {
+      "id": "node_005",
+      "sequence": 5,
+      "action": "click",
+      "tab": {
+        "tabId": 102,
+        "tabAlias": "标签页 B：邮箱收件箱",
+        "domain": "mail.example.com"
+      },
+      "target": {
+        "type": "link",
+        "text": "Activate Account",
+        "attributes": {
+          "tagName": "a",
+          "href": "https://mail.example.com/activate",
+          "target": "_blank"
+        },
+        "boundingBox": {
+          "x": 420,
+          "y": 360,
+          "width": 190,
+          "height": 38
+        }
+      },
+      "generatedInstruction": "在邮箱中点击 Activate Account，激活刚注册的账号。",
+      "status": "auto_generated",
+      "screenshot": {
+        "id": "img_node_005",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 0,
+        "captureTiming": "after_action",
+        "capturedAt": "2026-07-22T10:00:30+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%22110%22%20width%3D%221200%22%20height%3D%22690%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Crect%20x%3D%22120%22%20y%3D%22110%22%20width%3D%221200%22%20height%3D%2272%22%20rx%3D%2218%22%20fill%3D%22%231769aa%22%2F%3E%3Ctext%20x%3D%22160%22%20y%3D%22156%22%20font-size%3D%2228%22%20font-weight%3D%22800%22%20fill%3D%22%23fff%22%3EMail%20Inbox%3C%2Ftext%3E%3Crect%20x%3D%22180%22%20y%3D%22260%22%20width%3D%221040%22%20height%3D%2292%22%20rx%3D%2210%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22220%22%20y%3D%22316%22%20font-size%3D%2228%22%20fill%3D%22%2318212b%22%3EZKBio%20TimeCloud%20activation%20email%3C%2Ftext%3E%3Crect%20x%3D%22420%22%20y%3D%22360%22%20width%3D%22190%22%20height%3D%2238%22%20rx%3D%228%22%20fill%3D%22%231769aa%22%2F%3E%3Ctext%20x%3D%22515%22%20y%3D%22386%22%20text-anchor%3D%22middle%22%20font-size%3D%2218%22%20font-weight%3D%22800%22%20fill%3D%22%23fff%22%3EActivate%20Account%3C%2Ftext%3E%3Crect%20x%3D%22408%22%20y%3D%22348%22%20width%3D%22214%22%20height%3D%2262%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23f18a2a%22%20stroke-width%3D%225%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3EActivate%20Account%3C%2Ftext%3E%3C%2Fsvg%3E"
+      }
+    },
+    {
+      "id": "node_006",
+      "sequence": 6,
+      "action": "tab_switch",
+      "fromTab": {
+        "tabId": 102,
+        "tabAlias": "标签页 B：邮箱收件箱",
+        "url": "https://mail.example.com"
+      },
+      "toTab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "url": "https://biotimecloud.info/onboard/sign-in"
+      },
+      "reason": "user_switch",
+      "generatedInstruction": "完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。",
+      "status": "auto_generated"
+    },
+    {
+      "id": "node_007",
+      "sequence": 7,
+      "action": "upload",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "upload",
+        "labelText": "Business License",
+        "name": "businessLicense",
+        "attributes": {
+          "tagName": "input",
+          "inputType": "file",
+          "required": true,
+          "disabled": false
+        },
+        "form": {
+          "selector": "form",
+          "text": "Create a Company"
+        },
+        "boundingBox": {
+          "x": 760,
+          "y": 610,
+          "width": 320,
+          "height": 42
+        }
+      },
+      "value": "已选择文件：b***.pdf",
+      "generatedInstruction": "在 Business License 中上传文件。",
+      "status": "auto_generated",
+      "maskedValue": "已选择文件：b***.pdf",
+      "screenshot": {
+        "id": "img_node_007",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 0,
+        "captureTiming": "after_action",
+        "capturedAt": "2026-07-22T10:00:30+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22260%22%20y%3D%2280%22%20width%3D%22920%22%20height%3D%22780%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22330%22%20y%3D%22150%22%20font-size%3D%2234%22%20font-weight%3D%22800%22%20fill%3D%22%231769aa%22%3ECreate%20a%20Company%3C%2Ftext%3E%3Ctext%20x%3D%22760%22%20y%3D%22594%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBusiness%20License%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22610%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22654%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ESupport%20Contact%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22670%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22714%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ELegal%20Representative%20ID%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22730%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22774%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBilling%20Bank%20Card%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22790%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22748%22%20y%3D%22598%22%20width%3D%22344%22%20height%3D%2266%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23f18a2a%22%20stroke-width%3D%225%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3EBusiness%20License%3C%2Ftext%3E%3C%2Fsvg%3E"
+      }
+    },
+    {
+      "id": "node_008",
+      "sequence": 8,
+      "action": "input",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "input",
+        "name": "supportContact",
+        "nearbyText": "Support Contact",
+        "form": {
+          "selector": "form",
+          "text": "Create a Company"
+        },
+        "boundingBox": {
+          "x": 760,
+          "y": 670,
+          "width": 320,
+          "height": 42
+        }
+      },
+      "value": "已输入内容",
+      "generatedInstruction": "在 Support Contact 中输入内容。",
+      "status": "auto_generated",
+      "maskedValue": "已输入内容",
+      "screenshot": {
+        "id": "img_node_008",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 0,
+        "captureTiming": "after_action",
+        "capturedAt": "2026-07-22T10:00:30+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22260%22%20y%3D%2280%22%20width%3D%22920%22%20height%3D%22780%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22330%22%20y%3D%22150%22%20font-size%3D%2234%22%20font-weight%3D%22800%22%20fill%3D%22%231769aa%22%3ECreate%20a%20Company%3C%2Ftext%3E%3Ctext%20x%3D%22760%22%20y%3D%22594%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBusiness%20License%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22610%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22654%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ESupport%20Contact%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22670%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22714%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ELegal%20Representative%20ID%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22730%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22774%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBilling%20Bank%20Card%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22790%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22748%22%20y%3D%22658%22%20width%3D%22344%22%20height%3D%2266%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23f18a2a%22%20stroke-width%3D%225%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3ESupport%20Contact%3C%2Ftext%3E%3C%2Fsvg%3E"
+      }
+    },
+    {
+      "id": "node_009",
+      "sequence": 9,
+      "action": "input",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "input",
+        "placeholder": "Legal Representative ID",
+        "name": "legalIdCard",
+        "form": {
+          "selector": "form",
+          "text": "Create a Company"
+        },
+        "boundingBox": {
+          "x": 760,
+          "y": 730,
+          "width": 320,
+          "height": 42
+        }
+      },
+      "value": "31**************10",
+      "privacy": {
+        "containsSensitiveData": true,
+        "autoMaskApplied": true,
+        "manualMaskApplied": false,
+        "reasons": [
+          "id_card"
+        ],
+        "maskedFields": [
+          "input[name=legalIdCard]"
+        ]
+      },
+      "privacyMaskBoxes": [
+        {
+          "x": 760,
+          "y": 730,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        }
+      ],
+      "generatedInstruction": "在 Legal Representative ID 中输入内容。",
+      "status": "auto_generated",
+      "maskedValue": "31**************10",
+      "screenshot": {
+        "id": "img_node_009",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 0,
+        "captureTiming": "after_action",
+        "capturedAt": "2026-07-22T10:00:30+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22260%22%20y%3D%2280%22%20width%3D%22920%22%20height%3D%22780%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22330%22%20y%3D%22150%22%20font-size%3D%2234%22%20font-weight%3D%22800%22%20fill%3D%22%231769aa%22%3ECreate%20a%20Company%3C%2Ftext%3E%3Ctext%20x%3D%22760%22%20y%3D%22594%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBusiness%20License%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22610%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22654%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ESupport%20Contact%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22670%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22714%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ELegal%20Representative%20ID%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22730%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22774%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBilling%20Bank%20Card%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22790%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22748%22%20y%3D%22718%22%20width%3D%22344%22%20height%3D%2266%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23f18a2a%22%20stroke-width%3D%225%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3ELegal%20Representative%20ID%3C%2Ftext%3E%3C%2Fsvg%3E"
+      }
+    },
+    {
+      "id": "node_010",
+      "sequence": 10,
+      "action": "input",
+      "tab": {
+        "tabId": 101,
+        "tabAlias": "标签页 A：ZKBio TimeCloud 注册页",
+        "domain": "biotimecloud.info"
+      },
+      "target": {
+        "type": "input",
+        "placeholder": "Billing Bank Card",
+        "name": "billingBankCard",
+        "form": {
+          "selector": "form",
+          "text": "Create a Company"
+        },
+        "boundingBox": {
+          "x": 760,
+          "y": 790,
+          "width": 320,
+          "height": 42
+        }
+      },
+      "value": "**** **** **** 3456",
+      "privacy": {
+        "containsSensitiveData": true,
+        "autoMaskApplied": true,
+        "manualMaskApplied": false,
+        "reasons": [
+          "bank_card"
+        ],
+        "maskedFields": [
+          "input[name=billingBankCard]"
+        ]
+      },
+      "privacyMaskBoxes": [
+        {
+          "x": 760,
+          "y": 790,
+          "width": 320,
+          "height": 42,
+          "coordinateSpace": "viewport-css-pixel"
+        }
+      ],
+      "generatedInstruction": "在 Billing Bank Card 中输入内容。",
+      "status": "auto_generated",
+      "maskedValue": "**** **** **** 3456",
+      "screenshot": {
+        "id": "img_node_010",
+        "width": 1440,
+        "height": 900,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "devicePixelRatio": 1,
+        "scrollX": 0,
+        "scrollY": 0,
+        "captureTiming": "after_action",
+        "capturedAt": "2026-07-22T10:00:30+08:00",
+        "dataUrl": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221440%22%20height%3D%22900%22%20viewBox%3D%220%200%201440%20900%22%3E%3Crect%20width%3D%221440%22%20height%3D%22900%22%20fill%3D%22%23eef3f8%22%2F%3E%3Crect%20x%3D%22260%22%20y%3D%2280%22%20width%3D%22920%22%20height%3D%22780%22%20rx%3D%2218%22%20fill%3D%22%23fff%22%20stroke%3D%22%23d5dde7%22%2F%3E%3Ctext%20x%3D%22330%22%20y%3D%22150%22%20font-size%3D%2234%22%20font-weight%3D%22800%22%20fill%3D%22%231769aa%22%3ECreate%20a%20Company%3C%2Ftext%3E%3Ctext%20x%3D%22760%22%20y%3D%22594%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBusiness%20License%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22610%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22654%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ESupport%20Contact%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22670%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22714%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3ELegal%20Representative%20ID%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22730%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Ctext%20x%3D%22760%22%20y%3D%22774%22%20font-size%3D%2220%22%20fill%3D%22%23475569%22%3EBilling%20Bank%20Card%3C%2Ftext%3E%3Crect%20x%3D%22760%22%20y%3D%22790%22%20width%3D%22320%22%20height%3D%2242%22%20rx%3D%226%22%20fill%3D%22%23f8fafc%22%20stroke%3D%22%23cbd5e1%22%2F%3E%3Crect%20x%3D%22748%22%20y%3D%22778%22%20width%3D%22344%22%20height%3D%2266%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23f18a2a%22%20stroke-width%3D%225%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%2232%22%20width%3D%22300%22%20height%3D%2244%22%20rx%3D%2222%22%20fill%3D%22%23ffffff%22%20opacity%3D%220.92%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2262%22%20font-size%3D%2222%22%20font-weight%3D%22800%22%20fill%3D%22%23145985%22%3EBilling%20Bank%20Card%3C%2Ftext%3E%3C%2Fsvg%3E"
+      }
+    }
+  ]
 }

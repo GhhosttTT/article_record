@@ -10,6 +10,7 @@ const outputDir = positionalArgs[1] || path.join(__dirname, "..", "dist", "video
 const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf8"));
 const frameDir = path.join(outputDir, "frames");
 const pngFrameDir = path.join(outputDir, "png-frames");
+validateTimelineVisuals(timeline);
 fs.mkdirSync(frameDir, { recursive: true });
 fs.mkdirSync(pngFrameDir, { recursive: true });
 cleanGeneratedFrames(frameDir);
@@ -129,7 +130,7 @@ function renderSegmentVisual(segment, isTab, isNavigation, isChapter) {
   if (isChapter) return renderChapterVisual(segment);
   if (isTab) return renderTabTransitionVisual(segment);
   if (isNavigation) return renderNavigationVisual(segment);
-  return renderPlaceholderVisual(segment);
+  throw new Error(`Operation segment ${segment.id || "(unknown)"} is missing visual screenshot data.`);
 }
 
 function renderChapterVisual(segment) {
@@ -175,18 +176,6 @@ function renderNavigationVisual(segment) {
   <text x="1001" y="464" text-anchor="middle" font-size="24" font-weight="900" fill="#bbf7d0" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(toLabel)}</text>`;
 }
 
-function renderPlaceholderVisual(segment) {
-  const showHighlight = segment.highlight && Number.isFinite(segment.highlight.x);
-  return `
-  <rect x="42" y="52" width="1196" height="500" rx="18" fill="#f8fafc"/>
-  <rect x="82" y="96" width="1116" height="52" rx="14" fill="#e2e8f0"/>
-  <rect x="82" y="188" width="720" height="42" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
-  <rect x="82" y="260" width="620" height="42" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
-  <rect x="82" y="340" width="290" height="54" rx="10" fill="#1769aa"/>
-  <text x="227" y="375" text-anchor="middle" font-size="22" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">目标操作区域</text>
-  ${showHighlight ? `<rect x="68" y="324" width="330" height="90" rx="12" fill="none" stroke="#f18a2a" stroke-width="8"/>` : ""}`;
-}
-
 function renderScreenshotVisual(segment) {
   const frame = fitRect(
     segment.screenshot?.viewportWidth || segment.screenshot?.width || 1280,
@@ -210,6 +199,18 @@ function renderScreenshotVisual(segment) {
   ${masks}
   ${zoom}
   ${maskLabel}`;
+}
+
+function validateTimelineVisuals(timeline) {
+  const missing = (timeline.segments || []).filter((segment) => {
+    const needsScreenshot = !["tab_transition", "navigation", "chapter_intro"].includes(segment.type);
+    return needsScreenshot && !segment.visual;
+  });
+  if (!missing.length) return;
+  const ids = missing.map((segment) => segment.id || segment.stepId || "(unknown)").join(", ");
+  console.error(`Cannot render teaching video: operation segments are missing screenshot visuals: ${ids}`);
+  console.error("Export the video timeline from the preview page before exporting a privacy-stripped recording JSON. The video timeline must carry the same screenshots used by the article.");
+  process.exit(3);
 }
 
 function renderFocusZoom(segment, frame) {
