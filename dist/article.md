@@ -1,36 +1,25 @@
 # rec_sample_zkbiotime
 
-共 10 个步骤，分为 6 个章节，其中 2 个标签页切换步骤、1 个页面跳转步骤。
+共 9 个操作步骤，其中 2 个标签页切换。
 
 ## 涉及标签页
 
 - 标签页 A：ZKBio TimeCloud 注册页 · biotimecloud\.info
 - 标签页 B：邮箱收件箱 · mail\.example\.com
 
-## 章节 1：标签页 A：ZKBio TimeCloud 注册页
-当前标签页：标签页 A：ZKBio TimeCloud 注册页
+## 操作步骤
 
-### 1. 点击 SIGN UP
+### 1. 点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面
 
 **类型**：操作步骤
 
-在登录页点击 SIGN UP，进入新用户注册流程。
+点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面。
 
 高亮区域：x=860, y=520, width=160, height=44
 
 点击坐标：x=940, y=542
 
-## 章节 2：ZKBio TimeCloud 注册表单
-当前标签页：标签页 A：ZKBio TimeCloud 注册页 · 访问路径：/onboard/register · 完整地址：https://biotimecloud\.info/onboard/register
-
-### 2. 跳转到ZKBio TimeCloud 注册表单
-
-**类型**：页面跳转
-**页面变化**：https://biotimecloud\.info/onboard/sign\-in -> https://biotimecloud\.info/onboard/register
-
-页面跳转到注册表单，继续填写新用户信息。
-
-### 3. 填写注册邮箱
+### 2. 填写注册邮箱
 
 **类型**：操作步骤
 
@@ -42,20 +31,14 @@
 
 打码区域：x=780, y=430, width=320, height=42
 
-## 章节 3：切换到标签页 B：邮箱收件箱
-当前标签页：标签页 B：邮箱收件箱 · 访问路径：/ · 完整地址：https://mail\.example\.com
-
-### 4. 打开标签页 B：邮箱收件箱
+### 3. 打开标签页 B：邮箱收件箱
 
 **类型**：标签页切换
 **标签页变化**：标签页 A：ZKBio TimeCloud 注册页 -> 标签页 B：邮箱收件箱
 
 打开标签页 B：邮箱收件箱，查收账号激活邮件。
 
-## 章节 4：标签页 B：邮箱收件箱
-当前标签页：标签页 B：邮箱收件箱 · 访问路径：/ · 完整地址：https://mail\.example\.com
-
-### 5. 点击 Activate Account
+### 4. 点击 Activate Account
 
 **类型**：操作步骤
 
@@ -63,20 +46,14 @@
 
 高亮区域：x=420, y=360, width=190, height=38
 
-## 章节 5：切换到标签页 A：ZKBio TimeCloud 注册页
-当前标签页：标签页 A：ZKBio TimeCloud 注册页 · 访问路径：/onboard/sign\-in · 完整地址：https://biotimecloud\.info/onboard/sign\-in
-
-### 6. 切换到标签页 A：ZKBio TimeCloud 注册页
+### 5. 切换到标签页 A：ZKBio TimeCloud 注册页
 
 **类型**：标签页切换
 **标签页变化**：标签页 B：邮箱收件箱 -> 标签页 A：ZKBio TimeCloud 注册页
 
 完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。
 
-## 章节 6：标签页 A：ZKBio TimeCloud 注册页
-当前标签页：标签页 A：ZKBio TimeCloud 注册页 · 访问路径：/onboard/sign\-in · 完整地址：https://biotimecloud\.info/onboard/sign\-in
-
-### 7. 上传 Business License
+### 6. 上传 Business License
 
 **类型**：操作步骤
 
@@ -86,7 +63,7 @@
 
 打码区域：x=780, y=430, width=320, height=42
 
-### 8. 填写 Support Contact
+### 7. 填写 Support Contact
 
 **类型**：操作步骤
 
@@ -96,7 +73,7 @@
 
 打码区域：x=780, y=430, width=320, height=42
 
-### 9. 填写 Legal Representative ID
+### 8. 填写 Legal Representative ID
 
 **类型**：操作步骤
 
@@ -108,7 +85,7 @@
 
 打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42
 
-### 10. 填写 Billing Bank Card
+### 9. 填写 Billing Bank Card
 
 **类型**：操作步骤
 

@@ -2,18 +2,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
   <rect width="1280" height="720" fill="#111827"/>
   
-  <rect x="42" y="52" width="1196" height="500" rx="18" fill="#f8fafc"/>
-  <rect x="82" y="96" width="1116" height="52" rx="14" fill="#e2e8f0"/>
-  <rect x="82" y="188" width="720" height="42" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
-  <rect x="82" y="260" width="620" height="42" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
-  <rect x="82" y="340" width="290" height="54" rx="10" fill="#1769aa"/>
-  <text x="227" y="375" text-anchor="middle" font-size="22" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">目标操作区域</text>
-  <rect x="68" y="324" width="330" height="90" rx="12" fill="none" stroke="#f18a2a" stroke-width="8"/>
-  <rect x="34" y="28" width="134" height="42" rx="21" fill="#e8f2fa" opacity="0.96"/>
-  <text x="101" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#145985" font-family="Microsoft YaHei, Segoe UI, sans-serif">操作步骤</text>
+  <rect x="78" y="196" width="500" height="176" rx="18" fill="#f8fafc"/>
+  <rect x="110" y="226" width="438" height="36" rx="18" fill="#dbeafe"/>
+  <rect x="110" y="292" width="360" height="30" rx="8" fill="#cbd5e1"/>
+  <text x="328" y="424" text-anchor="middle" font-size="26" font-weight="900" fill="#e2e8f0" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页 A：ZKBio TimeCloud 注册页</text>
+  <path d="M620 304 H740" stroke="#f97316" stroke-width="10" stroke-linecap="round"/>
+  <path d="M740 304 l-30 -24 M740 304 l-30 24" stroke="#f97316" stroke-width="10" stroke-linecap="round"/>
+  <rect x="792" y="176" width="410" height="216" rx="18" fill="#fff7ed" stroke="#fed7aa" stroke-width="4"/>
+  <rect x="824" y="208" width="346" height="42" rx="21" fill="#fdba74"/>
+  <rect x="824" y="284" width="286" height="30" rx="8" fill="#fed7aa"/>
+  <text x="997" y="444" text-anchor="middle" font-size="28" font-weight="900" fill="#fed7aa" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页 B：邮箱收件箱</text>
+  <rect x="34" y="28" width="158" height="42" rx="21" fill="#fff1e4" opacity="0.96"/>
+  <text x="113" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#a65016" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页切换</text>
   
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
-  <text x="640" y="626" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">Enter the registration email, then wait for the</text>
-  <text x="640" y="664" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">activation message.</text>
-  
+  <text x="640" y="648" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">打开标签页 B：邮箱收件箱，查收账号激活邮件。</text>
+  <text x="640" y="704" text-anchor="middle" font-size="20" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页 A：ZKBio TimeCloud 注册页 -&gt; 标签页 B：邮箱收件箱</text>
 </svg>

@@ -2,7 +2,6 @@ const { buildArticleSteps, buildArticleChapters, buildPrivacySafeArticleSteps, b
 
 function renderArticleHtml(state, tabs, steps) {
   const title = state.session?.id || "SOP 操作手册";
-  const chapters = buildArticleChapters(steps);
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -41,9 +40,14 @@ function renderArticleHtml(state, tabs, steps) {
 <body>
   <main>
     <h1>${escapeHtml(title)}</h1>
-    <div class="meta">${renderStepSummary(steps, chapters)}</div>
+    <div class="meta">${renderStepSummary(steps)}</div>
     <div class="tabs">${tabs.map((tab) => `<span class="tab-pill">${escapeHtml(tab.tabAlias)} · ${escapeHtml(tab.domain || "")}</span>`).join("")}</div>
-    ${chapters.map(renderArticleChapter).join("\n")}
+    <section class="chapter">
+      <header class="chapter-head">
+        <h2>操作步骤</h2>
+      </header>
+      ${steps.map(renderArticleStep).join("\n")}
+    </section>
   </main>
 </body>
 </html>`;
@@ -51,11 +55,10 @@ function renderArticleHtml(state, tabs, steps) {
 
 function renderArticleMarkdown(state, tabs, steps) {
   const title = state.session?.id || "SOP 操作手册";
-  const chapters = buildArticleChapters(steps);
   const lines = [
     `# ${escapeMarkdown(title)}`,
     "",
-    renderStepSummary(steps, chapters),
+    renderStepSummary(steps),
     "",
     "## 涉及标签页",
     ""
@@ -68,13 +71,9 @@ function renderArticleMarkdown(state, tabs, steps) {
   }
 
   lines.push("");
-  chapters.forEach((chapter) => {
-    lines.push(`## 章节 ${chapter.sequence}：${escapeMarkdown(chapter.title)}`);
-    const chapterContext = renderChapterContext(chapter);
-    if (chapterContext) lines.push(escapeMarkdown(chapterContext));
-    lines.push("");
-
-    chapter.steps.forEach((step) => {
+  lines.push("## 操作步骤");
+  lines.push("");
+  steps.forEach((step) => {
     lines.push(`### ${step.sequence}. ${escapeMarkdown(step.title)}`);
     lines.push("");
     lines.push(`**类型**：${stepTypeText(step.type)}`);
@@ -110,7 +109,6 @@ function renderArticleMarkdown(state, tabs, steps) {
       lines.push(`打码区域：${step.privacyMaskBoxes.map((box) => `x=${box.x}, y=${box.y}, width=${box.width}, height=${box.height}`).join("; ")}`);
     }
     lines.push("");
-    });
   });
 
   return `${lines.join("\n").trim()}\n`;
@@ -118,7 +116,6 @@ function renderArticleMarkdown(state, tabs, steps) {
 
 function renderArticleWordDocument(state, tabs, steps) {
   const title = state.session?.id || "SOP 操作手册";
-  const chapters = buildArticleChapters(steps);
   return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN">
 <head>
@@ -149,29 +146,12 @@ function renderArticleWordDocument(state, tabs, steps) {
 </head>
 <body>
   <h1>${escapeHtml(title)}</h1>
-  <p class="meta">${renderStepSummary(steps, chapters)}</p>
+  <p class="meta">${renderStepSummary(steps)}</p>
   <div class="tabs">${tabs.map((tab) => `<span class="tab">${escapeHtml(tab.tabAlias)}${tab.domain ? ` · ${escapeHtml(tab.domain)}` : ""}</span>`).join("")}</div>
-  ${chapters.map(renderWordChapter).join("\n")}
+  <h2>操作步骤</h2>
+  ${steps.map(renderWordStep).join("\n")}
 </body>
 </html>`;
-}
-
-function renderArticleChapter(chapter) {
-  return `<section class="chapter">
-  <header class="chapter-head">
-    <h2>章节 ${chapter.sequence}：${escapeHtml(chapter.title)}</h2>
-    <p>${escapeHtml(renderChapterContext(chapter))}</p>
-  </header>
-  ${chapter.steps.map(renderArticleStep).join("\n")}
-</section>`;
-}
-
-function renderWordChapter(chapter) {
-  return `<section>
-  <h2>章节 ${chapter.sequence}：${escapeHtml(chapter.title)}</h2>
-  ${chapter.tabAlias || chapter.pageUrl ? `<p class="meta">${escapeHtml(renderChapterContext(chapter))}</p>` : ""}
-  ${chapter.steps.map(renderWordStep).join("\n")}
-</section>`;
 }
 
 function renderWordStep(step) {
@@ -228,34 +208,19 @@ function renderArticleStep(step) {
 </article>`;
 }
 
-function renderChapterContext(chapter) {
-  const parts = [];
-  if (chapter.tabAlias) parts.push(`当前标签页：${chapter.tabAlias}`);
-  const path = pagePath(chapter.pageUrl);
-  if (path) parts.push(`访问路径：${path}`);
-  if (chapter.pageUrl) parts.push(`完整地址：${chapter.pageUrl}`);
-  return parts.join(" · ");
-}
-
-function pagePath(url) {
-  if (!url) return "";
-  try {
-    return new URL(url).pathname || "/";
-  } catch {
-    return "";
-  }
-}
-
-function renderStepSummary(steps, chapters = []) {
+function renderStepSummary(steps) {
   const tabCount = steps.filter((step) => step.type === "tab_transition").length;
   const navigationCount = steps.filter((step) => step.type === "navigation").length;
-  return `共 ${steps.length} 个步骤，分为 ${chapters.length} 个章节，其中 ${tabCount} 个标签页切换步骤、${navigationCount} 个页面跳转步骤。`;
+  const extras = [];
+  if (tabCount) extras.push(`${tabCount} 个标签页切换`);
+  if (navigationCount) extras.push(`${navigationCount} 个跨域页面变化`);
+  return `共 ${steps.length} 个操作步骤${extras.length ? `，其中 ${extras.join("、")}` : ""}。`;
 }
 
 function stepTypeText(type) {
   if (type === "chapter_intro") return "章节";
   if (type === "tab_transition") return "标签页切换";
-  if (type === "navigation") return "页面跳转";
+  if (type === "navigation") return "跨域页面变化";
   return "操作步骤";
 }
 

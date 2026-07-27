@@ -183,14 +183,8 @@ runCheck("视频时间轴包含正确 duration 和 tab_transition", () => {
   assert(tabSegments.length >= 2, "必须包含至少 2 个标签页切换片段");
   assert(tabSegments.some((segment) => segment.fromTabAlias && segment.toTabAlias), "标签页切换片段必须包含 from/to 标签页");
   const chapterSegments = timeline.segments.filter((segment) => segment.type === "chapter_intro");
-  assert(chapterSegments.length >= 2, "时间轴必须包含章节开场片段");
-  assert(chapterSegments[0].storyboardVisualType === "chapter_intro", "章节片段 storyboardVisualType 必须为 chapter_intro");
-  assert(chapterSegments[0].chapterId === "chapter_001", "章节片段必须关联 ArticleChapter");
-  const navigationSegments = timeline.segments.filter((segment) => segment.type === "navigation");
-  assert(navigationSegments.length >= 1, "时间轴缺少 navigation 页面跳转片段");
-  assert(navigationSegments[0].storyboardVisualType === "navigation", "navigation 片段 storyboardVisualType 必须为 navigation");
-  assert(navigationSegments[0].toUrl?.includes("/onboard/register"), "navigation 片段缺少目标页面 URL");
-  assert(navigationSegments[0].screenshot?.viewportWidth === 1440, "navigation 片段必须携带跳转后截图元数据");
+  assert(chapterSegments.length === 0, "默认视频时间轴不应插入章节开场片段");
+  assert(!timeline.segments.some((segment) => segment.caption?.includes("跳转到")), "默认时间轴不应输出“跳转到”式页面日志");
 });
 
 runCheck("文章和视频分镜都标注标签页切换", () => {
@@ -198,10 +192,9 @@ runCheck("文章和视频分镜都标注标签页切换", () => {
   const storyboard = readText("dist/video-storyboard.html");
   assert(article.includes("标签页切换"), "article.html 缺少标签页切换标注");
   assert(storyboard.includes("标签页切换片段"), "video-storyboard.html 缺少标签页切换片段");
-  assert(storyboard.includes("章节片段"), "video-storyboard.html 缺少章节片段");
+  assert(!storyboard.includes("章节片段"), "video-storyboard.html 不应输出章节片段");
   assert(storyboard.includes("标签页 A：ZKBio TimeCloud 注册页 -> 标签页 B：邮箱收件箱"), "storyboard 缺少 A -> B 切换");
-  assert(article.includes("页面跳转"), "article.html 缺少页面跳转标注");
-  assert(storyboard.includes("页面跳转片段"), "video-storyboard.html 缺少页面跳转片段");
+  assert(article.includes("操作步骤"), "article.html 必须按操作步骤组织");
 });
 
 runCheck("视频帧生成器可输出 tab_transition SVG 帧", () => {
@@ -219,28 +212,40 @@ runCheck("视频帧生成器可输出 tab_transition SVG 帧", () => {
 });
 
 runCheck("视频帧生成器可输出 navigation 页面跳转 SVG 帧", () => {
-  const timeline = readJson("dist/video-timeline.json");
-  const navigationSegment = timeline.segments.find((segment) => segment.type === "navigation");
-  assert(navigationSegment, "示例时间轴缺少 navigation 片段");
-  const framePath = `dist/video/frames/${navigationSegment.id}.svg`;
-  assertExists(framePath);
-  const frame = readText(framePath);
-  assert(frame.includes("页面跳转"), `${navigationSegment.id}.svg 缺少页面跳转标题`);
-  assert(frame.includes("y=\"586\" width=\"1280\" height=\"134\""), `${navigationSegment.id}.svg 必须使用底部字幕条`);
-  assert(!/\d+(?:\.\d+)?s\s*-\s*\d+(?:\.\d+)?s/.test(frame), `${navigationSegment.id}.svg 不应显示时间范围`);
-  assert(frame.includes("<image href=") || frame.includes(navigationSegment.toUrl || navigationSegment.pageUrl), `${navigationSegment.id}.svg 必须展示目标页面截图或目标地址上下文`);
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sop-render-nav-"));
+  const timelinePath = path.join(tmpDir, "timeline.json");
+  fs.writeFileSync(timelinePath, JSON.stringify({
+    version: "0.1.0",
+    duration: 2,
+    segments: [
+      {
+        id: "segment_navigation",
+        type: "navigation",
+        startTime: 0,
+        endTime: 2,
+        caption: "进入支付页。",
+        fromUrl: "https://example.com/register",
+        toUrl: "https://pay.example.net/checkout",
+        pageUrl: "https://pay.example.net/checkout",
+        storyboardVisualType: "navigation"
+      }
+    ]
+  }), "utf8");
+  const result = spawnSync("node", ["tools/render_video.js", "--frames-only", timelinePath, tmpDir], { cwd: root, encoding: "utf8" });
+  assert(result.status === 0, result.stderr || result.stdout || "navigation 视频帧生成失败");
+  const frame = fs.readFileSync(path.join(tmpDir, "frames", "segment_navigation.svg"), "utf8");
+  assert(frame.includes("页面跳转"), "navigation SVG 缺少页面跳转标题");
+  assert(frame.includes("y=\"586\" width=\"1280\" height=\"134\""), "navigation SVG 必须使用底部字幕条");
+  assert(!/\d+(?:\.\d+)?s\s*-\s*\d+(?:\.\d+)?s/.test(frame), "navigation SVG 不应显示时间范围");
+  assert(frame.includes("pay.example.net"), "navigation SVG 必须展示目标地址上下文");
 });
 
-runCheck("视频帧生成器可输出 chapter_intro 章节 SVG 帧", () => {
+runCheck("默认视频帧不输出 chapter_intro 章节 SVG 帧", () => {
   const timeline = readJson("dist/video-timeline.json");
-  const chapterSegment = timeline.segments.find((segment) => segment.type === "chapter_intro");
-  assert(chapterSegment, "示例时间轴缺少 chapter_intro 片段");
-  const framePath = `dist/video/frames/${chapterSegment.id}.svg`;
-  assertExists(framePath);
-  const frame = readText(framePath);
-  assert(frame.includes("章节"), `${chapterSegment.id}.svg 缺少章节标题`);
-  assert(frame.includes("章节 1"), `${chapterSegment.id}.svg 缺少章节序号`);
-  assert(frame.includes(chapterSegment.currentTabAlias || chapterSegment.pageTitle), `${chapterSegment.id}.svg 缺少章节上下文`);
+  assert(!timeline.segments.some((segment) => segment.type === "chapter_intro"), "默认时间轴不应包含 chapter_intro");
+  const frameDir = path.join(root, "dist/video/frames");
+  const chapterFrames = fs.readdirSync(frameDir).filter((name) => /^chapter_intro_.+\.svg$/.test(name));
+  assert(chapterFrames.length === 0, "默认视频帧目录不应包含 chapter_intro 帧");
 });
 
 runCheck("视频帧生成器会清理旧 segment SVG 帧", () => {
@@ -434,14 +439,14 @@ runCheck("项目文档覆盖当前编辑、隐私和视频能力", () => {
   const readme = readText("README.md");
   const dataModel = readText("DATA_MODEL.md");
   const testing = readText("TESTING.md");
-  ["合并/拆分", "同一表单", "手动调整高亮", "恢复自动高亮", "Popup 和预览页导出前", "Markdown", "Word", "页面跳转", "弹窗", "上传文件", "视频时间轴", "清理已知旧截图", "等待节点", "生成章节", "视频旁白", "恢复自动文案", "scrollX/scrollY", "clickPoint", "target.attributes", "防抖", "局部放大", "章节列表"].forEach((text) => {
+  ["合并/拆分", "同一表单", "手动调整高亮", "恢复自动高亮", "Popup 和预览页导出前", "Markdown", "Word", "页面变化", "弹窗", "上传文件", "视频时间轴", "清理已知旧截图", "等待节点", "步骤分组", "视频旁白", "恢复自动文案", "scrollX/scrollY", "clickPoint", "target.attributes", "防抖", "局部放大"].forEach((text) => {
     assert(readme.includes(text), `README.md 缺少 ${text}`);
   });
   ["titleOverride", "focusBoxOverride", "durationOverrideSeconds", "voiceoverText", "voiceoverTextOverridden", "privacyMaskBoxes", "maskedValue", "rawValue", "mergedNodeIds", "formMerge", "target.form", "target.attributes", "navigation", "modal_open", "modal_close", "upload", "waitDurationMs", "ArticleChapter", "nearbyText", "visibility", "screenshot", "screenshot.pruned", "screenshot.captureTiming", "redactedForPrivacy", "imageRedactedForPrivacy", "viewport.scrollX", "screenshot.scrollX", "clickPoint"].forEach((text) => {
     assert(dataModel.includes(text), `DATA_MODEL.md 缺少 ${text}`);
   });
   assert(dataModel.includes("局部放大预览"), "DATA_MODEL.md 缺少局部放大预览说明");
-  ["真实截图", "删除/恢复", "隐私确认", "Markdown", "Word", "页面跳转", "modal_open", "文件上传", "maskedValue", "rawValue", "privacyMaskBoxes", "captureTiming", "同一表单", "旧步骤截图", "wait", "章节", "视频时长", "视频旁白", "恢复自动文案", "恢复自动高亮", "redactedForPrivacy", "原始截图 `dataUrl`", "scrollX/scrollY", "clickPoint", "target.attributes", "防抖", "局部放大预览", "章节列表"].forEach((text) => {
+  ["真实截图", "删除/恢复", "隐私确认", "Markdown", "Word", "页面变化", "modal_open", "文件上传", "maskedValue", "rawValue", "privacyMaskBoxes", "captureTiming", "同一表单", "旧步骤截图", "wait", "操作步骤", "视频时长", "视频旁白", "恢复自动文案", "恢复自动高亮", "redactedForPrivacy", "原始截图 `dataUrl`", "scrollX/scrollY", "clickPoint", "target.attributes", "防抖", "局部放大预览", "步骤分组"].forEach((text) => {
     assert(testing.includes(text), `TESTING.md 缺少 ${text}`);
   });
 });
@@ -456,39 +461,41 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerHtml.indexOf("shared/artifacts.js") < viewerHtml.indexOf("viewer_artifacts.js"), "shared/artifacts.js 必须先于 viewer_artifacts.js 加载");
   assert(viewerHtml.indexOf("viewer_artifacts.js") < viewerHtml.indexOf("viewer.js"), "viewer_artifacts.js 必须先于 viewer.js 加载");
   assert(artifactsJs.includes("SopArtifactShared"), "viewer_artifacts.js 必须使用共享 artifact 库");
-  assert(artifactsJs.includes("buildArticleChapters"), "viewer_artifacts.js 必须使用共享章节构建");
-  assert(artifactsJs.includes("renderArticleChapter"), "viewer_artifacts.js 必须按章节渲染文章");
+  assert(artifactsJs.includes("操作步骤"), "viewer_artifacts.js 必须按步骤教学渲染文章");
   assert(artifactsJs.includes("renderArticleMarkdown"), "viewer_artifacts.js 必须支持 Markdown 渲染");
   assert(artifactsJs.includes("renderArticleWordDocument"), "viewer_artifacts.js 必须支持 Word 兼容文档渲染");
   assert(artifactsJs.includes("stepTypeText"), "viewer_artifacts.js 必须按步骤类型渲染导出标签");
 });
 
-runCheck("文章导出只在章节处说明访问路径", () => {
+runCheck("文章导出不在每个步骤重复访问路径", () => {
   const viewerArtifacts = readText("extension/viewer_artifacts.js");
   const generator = readText("tools/generate_artifacts.js");
-  assert(viewerArtifacts.includes("function renderChapterContext"), "预览页文章导出必须格式化章节访问路径");
-  assert(generator.includes("function renderChapterContext"), "离线文章导出必须格式化章节访问路径");
-  assert(viewerArtifacts.includes("访问路径："), "章节上下文必须明确标注访问路径");
-  assert(generator.includes("访问路径："), "离线章节上下文必须明确标注访问路径");
+  const article = readText("dist/article.html");
+  const markdown = readText("dist/article.md");
+  const word = readText("dist/article.doc");
+  assert(!article.includes("访问路径："), "article.html 不应重复输出访问路径");
+  assert(!article.includes("完整地址："), "article.html 不应重复输出完整地址");
+  assert(!markdown.includes("访问路径："), "article.md 不应重复输出访问路径");
+  assert(!word.includes("完整地址："), "article.doc 不应重复输出完整地址");
   assert(!viewerArtifacts.includes("step.tabAlias ? `<p>${escapeHtml(step.tabAlias)}</p>`"), "HTML 步骤不应重复显示标签页");
   assert(!generator.includes("step.tabAlias ? `<p>${escapeHtml(step.tabAlias)}</p>`"), "离线 HTML 步骤不应重复显示标签页");
   assert(!viewerArtifacts.includes("**当前标签页**"), "Markdown 步骤不应重复显示当前标签页");
   assert(!generator.includes("**当前标签页**"), "离线 Markdown 步骤不应重复显示当前标签页");
 });
 
-runCheck("文章导出会按 ArticleChapter 组织步骤", () => {
+runCheck("文章导出按操作步骤组织，内部仍可构建分组", () => {
   const { buildArticleSteps, buildArticleChapters } = require(path.join(root, "extension/shared/artifacts.js"));
   const shared = readText("extension/shared/artifacts.js");
-  const generator = readText("tools/generate_artifacts.js");
   const article = readText("dist/article.html");
   const markdown = readText("dist/article.md");
   const word = readText("dist/article.doc");
   assert(shared.includes("function buildArticleChapters"), "共享 artifact 必须提供 ArticleChapter 构建");
   assert(shared.includes("chapterKey"), "ArticleChapter 必须有稳定分组 key");
-  assert(generator.includes("buildArticleChapters"), "离线文章导出必须使用共享章节构建");
-  assert(article.includes("章节 1"), "article.html 必须包含章节标题");
-  assert(markdown.includes("## 章节 1"), "article.md 必须包含章节标题");
-  assert(word.includes("章节 1"), "article.doc 必须包含章节标题");
+  assert(article.includes("操作步骤"), "article.html 必须包含操作步骤标题");
+  assert(markdown.includes("## 操作步骤"), "article.md 必须包含操作步骤标题");
+  assert(word.includes("操作步骤"), "article.doc 必须包含操作步骤标题");
+  assert(!article.includes("章节 1"), "article.html 不应按章节教学导出");
+  assert(!markdown.includes("## 章节 1"), "article.md 不应按章节教学导出");
 
   const steps = buildArticleSteps([
     {
@@ -515,6 +522,7 @@ runCheck("文章导出会按 ArticleChapter 组织步骤", () => {
       action: "navigation",
       fromTab: { tabId: 1, tabAlias: "标签页 A：登录页", url: "https://example.com/login" },
       toTab: { tabId: 1, tabAlias: "标签页 A：首页", url: "https://example.com/home", title: "首页" },
+      triggeredByNodeId: "node_a",
       pageTitle: "首页",
       pageUrl: "https://example.com/home",
       generatedInstruction: "跳转到首页。",
@@ -522,8 +530,9 @@ runCheck("文章导出会按 ArticleChapter 组织步骤", () => {
     }
   ]);
   const chapters = buildArticleChapters(steps);
-  assert(chapters.length === 2, "页面上下文变化应生成新章节");
-  assert(chapters[0].steps.length === 2, "同一页面连续步骤应归入同一章节");
+  assert(steps.length === 2, "同域同标签页 navigation 应折叠进触发操作，不应成为独立步骤");
+  assert(steps[0].title.includes("进入首页页面"), "触发操作标题应说明进入目标页面");
+  assert(chapters.length >= 1, "内部仍可为侧栏构建步骤分组");
   assert(chapters.flatMap((chapter) => chapter.steps).length === steps.length, "章节必须覆盖全部 ArticleStep");
 });
 
@@ -728,16 +737,16 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   assert(markdown.includes("## 涉及标签页"), "article.md 必须包含标签页摘要");
   assert(markdown.includes("点击坐标"), "article.md 必须包含点击坐标说明");
   assert(markdown.includes("打码区域"), "article.md 必须包含打码区域说明");
-  assert(markdown.includes("页面跳转"), "article.md 必须包含页面跳转说明");
+  assert(markdown.includes("操作步骤"), "article.md 必须按操作步骤导出");
   assert(markdown.includes("上传 Business License"), "article.md 必须包含文件上传步骤");
   assert(markdown.includes("填写 Support Contact"), "article.md 必须包含邻近文本识别出的步骤标题");
   assert(markdown.includes("填写 Legal Representative ID"), "article.md 必须包含身份证号步骤");
   assert(markdown.includes("填写 Billing Bank Card"), "article.md 必须包含银行卡号步骤");
   assert(word.includes("rec_sample_zkbiotime"), "article.doc 必须包含流程标题");
-  assert(word.includes("章节 1"), "article.doc 必须包含章节标题");
+  assert(word.includes("操作步骤"), "article.doc 必须包含操作步骤标题");
   assert(word.includes("点击坐标"), "article.doc 必须包含点击坐标说明");
   assert(word.includes("打码区域"), "article.doc 必须包含打码区域说明");
-  assert(word.includes("页面跳转"), "article.doc 必须包含页面跳转说明");
+  assert(!word.includes("完整地址："), "article.doc 不应重复输出完整地址");
   assert(word.includes("上传 Business License"), "article.doc 必须包含文件上传步骤");
   assert(word.includes("填写 Support Contact"), "article.doc 必须包含邻近文本识别出的步骤标题");
   assert(word.includes("填写 Legal Representative ID"), "article.doc 必须包含身份证号步骤");
@@ -970,28 +979,50 @@ runCheck("截图元数据会标记捕获时机", () => {
   assert(navigationNode?.screenshot?.captureTiming === "after_navigation", "示例跳转截图必须标记 after_navigation");
 });
 
-runCheck("页面跳转节点会进入文章步骤和视频时间轴", () => {
+runCheck("同域页面变化会合并进触发操作，跨域变化才保留独立步骤", () => {
   const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
   const steps = buildArticleSteps([
     {
-      id: "node_navigation",
+      id: "node_click_same_origin",
       sequence: 1,
+      action: "click",
+      tab: { tabId: 1, tabAlias: "标签页 A：登录页", url: "https://example.com/login" },
+      target: { type: "button", text: "注册" },
+      generatedInstruction: "点击注册。",
+      status: "auto_generated"
+    },
+    {
+      id: "node_navigation_same_origin",
+      sequence: 2,
       action: "navigation",
       fromTab: { tabId: 1, tabAlias: "标签页 A：登录页", url: "https://example.com/login" },
       toTab: { tabId: 1, tabAlias: "标签页 A：注册页", url: "https://example.com/register", title: "注册页" },
+      triggeredByNodeId: "node_click_same_origin",
       pageUrl: "https://example.com/register",
       pageTitle: "注册页",
       generatedInstruction: "页面跳转到注册页。",
       status: "auto_generated"
+    },
+    {
+      id: "node_navigation_cross_origin",
+      sequence: 3,
+      action: "navigation",
+      fromTab: { tabId: 1, tabAlias: "标签页 A：注册页", url: "https://example.com/register" },
+      toTab: { tabId: 1, tabAlias: "标签页 A：支付页", url: "https://pay.example.net/checkout", title: "支付页" },
+      triggeredByNodeId: "node_click_same_origin",
+      pageUrl: "https://pay.example.net/checkout",
+      pageTitle: "支付页",
+      generatedInstruction: "页面跳转到支付页。",
+      status: "auto_generated"
     }
   ]);
   const timeline = buildVideoTimeline(steps);
-  assert(steps[0].type === "navigation", "ArticleStep 必须保留 navigation 类型");
-  assert(steps[0].title === "跳转到注册页", "navigation 默认标题必须使用目标页面标题");
-  assert(steps[0].fromUrl === "https://example.com/login", "ArticleStep 必须保留跳转来源 URL");
-  assert(steps[0].toUrl === "https://example.com/register", "ArticleStep 必须保留跳转目标 URL");
-  assert(timeline.segments[0].type === "navigation", "VideoTimeline 必须保留 navigation 类型");
-  assert(timeline.segments[0].storyboardVisualType === "navigation", "VideoTimeline 必须标记 navigation 分镜类型");
+  assert(steps.length === 2, "同域 navigation 不应成为独立 ArticleStep，跨域 navigation 应保留");
+  assert(steps[0].type === "operation", "触发点击应保留为操作步骤");
+  assert(steps[0].title.includes("进入注册页页面"), "触发点击标题必须说明进入目标页面");
+  assert(steps[1].type === "navigation", "跨域 navigation 必须保留为独立步骤");
+  assert(steps[1].title === "进入支付页", "navigation 默认标题必须使用进入目标页面文案");
+  assert(timeline.segments.some((segment) => segment.type === "navigation"), "VideoTimeline 必须保留跨域 navigation 类型");
 });
 
 runCheck("文件上传控件会生成 upload 节点并脱敏文件名", () => {

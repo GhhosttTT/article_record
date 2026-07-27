@@ -25,6 +25,10 @@ const inputTimers = new WeakMap();
 const pendingInputTargets = new Set();
 const activeModalTargets = new Map();
 let modalScanTimer = null;
+const EVENT_QUEUE_KEY = "sopRecorderPendingEvents";
+const MAX_QUEUED_EVENTS = 80;
+
+drainQueuedRecorderEvents();
 
 if (document.readyState === "complete") {
   window.setTimeout(reportPageLoadWait, 0);
@@ -258,7 +262,52 @@ function getPageTarget() {
 }
 
 function sendRecorderEvent(payload) {
-  chrome.runtime.sendMessage({ type: "recorder:event", payload }).catch(() => {});
+  const event = {
+    id: `event_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    payload,
+    queuedAt: Date.now()
+  };
+  queueRecorderEvent(event);
+  deliverRecorderEvent(event, 0);
+}
+
+function drainQueuedRecorderEvents() {
+  readQueuedRecorderEvents().forEach((event) => deliverRecorderEvent(event, 0));
+}
+
+function deliverRecorderEvent(event, attempt) {
+  chrome.runtime.sendMessage({ type: "recorder:event", eventId: event.id, payload: event.payload })
+    .then(() => removeQueuedRecorderEvent(event.id))
+    .catch(() => {
+      if (attempt >= 2) return;
+      window.setTimeout(() => deliverRecorderEvent(event, attempt + 1), 180 * (attempt + 1));
+    });
+}
+
+function queueRecorderEvent(event) {
+  const events = readQueuedRecorderEvents().filter((item) => item.id !== event.id);
+  events.push(event);
+  writeQueuedRecorderEvents(events.slice(-MAX_QUEUED_EVENTS));
+}
+
+function removeQueuedRecorderEvent(eventId) {
+  writeQueuedRecorderEvents(readQueuedRecorderEvents().filter((event) => event.id !== eventId));
+}
+
+function readQueuedRecorderEvents() {
+  try {
+    return JSON.parse(sessionStorage.getItem(EVENT_QUEUE_KEY) || "[]").filter((event) => event?.id && event?.payload);
+  } catch {
+    return [];
+  }
+}
+
+function writeQueuedRecorderEvents(events) {
+  try {
+    sessionStorage.setItem(EVENT_QUEUE_KEY, JSON.stringify(events));
+  } catch {
+    sessionStorage.removeItem(EVENT_QUEUE_KEY);
+  }
 }
 
 function resolveActionTarget(target) {

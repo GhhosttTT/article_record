@@ -192,7 +192,7 @@ async function handleMessage(message, sender) {
     case "recorder:update-node-mask":
       return updateNodeMask(message.payload);
     case "recorder:event":
-      return captureOperationNode(message.payload, sender);
+      return captureOperationNode(message.payload, sender, message.eventId);
     default:
       return { ok: false, error: "Unknown message type" };
   }
@@ -599,9 +599,10 @@ async function stopRecording() {
   return publicState();
 }
 
-async function captureOperationNode(payload, sender) {
+async function captureOperationNode(payload, sender, eventId = null) {
   if (runtimeState.status !== "recording") return { ok: true, skipped: "not_recording" };
   if (!sender.tab?.id || isIgnoredUrl(sender.tab.url)) return { ok: true, skipped: "ignored_page" };
+  if (eventId && hasRecordedEvent(eventId)) return { ok: true, duplicateEvent: true, state: publicState() };
 
   const context = await ensureTabContext(sender.tab, sender.tab.windowId);
   runtimeState.activeTabId = sender.tab.id;
@@ -621,12 +622,12 @@ async function captureOperationNode(payload, sender) {
   const hasAutoMask = Boolean(privacyMaskBoxes.length);
   const duplicateClickTarget = findMergeableClickNode(payload, context);
   if (duplicateClickTarget) {
-    await mergeOperationNode(duplicateClickTarget, payload, context, screenshot, privacy, privacyMaskBoxes, hasAutoMask, "mergedClickCount");
+    await mergeOperationNode(duplicateClickTarget, payload, context, screenshot, privacy, privacyMaskBoxes, hasAutoMask, "mergedClickCount", eventId);
     return { ok: true, nodeId: duplicateClickTarget.id, merged: true, duplicate: true, state: publicState() };
   }
   const mergeTarget = findMergeableInputNode(payload, context);
   if (mergeTarget) {
-    await mergeOperationNode(mergeTarget, payload, context, screenshot, privacy, privacyMaskBoxes, hasAutoMask, "mergedEventCount");
+    await mergeOperationNode(mergeTarget, payload, context, screenshot, privacy, privacyMaskBoxes, hasAutoMask, "mergedEventCount", eventId);
     return { ok: true, nodeId: mergeTarget.id, merged: true, state: publicState() };
   }
   const node = {
@@ -660,6 +661,8 @@ async function captureOperationNode(payload, sender) {
     maskedValue,
     value: maskedValue,
     generatedInstruction: generateInstruction(payload, context),
+    eventId,
+    eventIds: eventId ? [eventId] : [],
     status: "auto_generated",
     capturedAt: new Date().toISOString()
   };
@@ -670,7 +673,7 @@ async function captureOperationNode(payload, sender) {
   return { ok: true, nodeId: node.id, state: publicState() };
 }
 
-async function mergeOperationNode(node, payload, context, screenshot, privacy, privacyMaskBoxes, hasAutoMask, counterKey) {
+async function mergeOperationNode(node, payload, context, screenshot, privacy, privacyMaskBoxes, hasAutoMask, counterKey, eventId = null) {
   const previousScreenshotId = node.screenshot?.id;
   node.target = payload.target;
   node.key = payload.key;
@@ -691,6 +694,7 @@ async function mergeOperationNode(node, payload, context, screenshot, privacy, p
   node.beforeUrl = sanitizeRecordingUrl(node.beforeUrl || payload.beforeUrl || context.currentUrl);
   node.afterUrl = sanitizeRecordingUrl(payload.afterUrl || context.currentUrl);
   node.generatedInstruction = generateInstruction(payload, context);
+  if (eventId) node.eventIds = Array.from(new Set([...(node.eventIds || []), eventId]));
   node.updatedAt = new Date().toISOString();
   node[counterKey] = (node[counterKey] || 1) + 1;
   if (previousScreenshotId && previousScreenshotId !== screenshot.id) {
@@ -698,6 +702,10 @@ async function mergeOperationNode(node, payload, context, screenshot, privacy, p
   }
   await pruneScreenshotCapacity();
   await persistState();
+}
+
+function hasRecordedEvent(eventId) {
+  return runtimeState.nodes.some((node) => node.eventId === eventId || node.eventIds?.includes(eventId));
 }
 
 function findMergeableInputNode(payload, context) {
@@ -792,7 +800,7 @@ async function flushPendingNavigation(tabId, context, tab) {
     screenshot,
     generatedInstruction: `页面跳转到：${context.title || context.currentUrl}`
   });
-  linkNavigationTrigger(pending.triggeredByNodeId, navigationNode?.id, context.currentUrl);
+  linkNavigationTrigger(pending.triggeredByNodeId, navigationNode?.id, context.currentUrl, context.title);
   delete runtimeState.pendingNavigations[tabId];
 }
 
@@ -855,12 +863,13 @@ async function createTabOpenNodeForTab(tab, fallbackWindowId, existingContext = 
   return tabOpenNode;
 }
 
-function linkNavigationTrigger(triggerNodeId, navigationNodeId, targetUrl) {
+function linkNavigationTrigger(triggerNodeId, navigationNodeId, targetUrl, targetTitle = "") {
   if (!triggerNodeId || !navigationNodeId) return;
   const triggerNode = runtimeState.nodes.find((node) => node.id === triggerNodeId);
   if (!triggerNode || triggerNode.status === "discarded") return;
   triggerNode.triggeredNavigationNodeId = navigationNodeId;
   triggerNode.navigationTargetUrl = sanitizeRecordingUrl(targetUrl) || null;
+  triggerNode.navigationTargetTitle = targetTitle || null;
   triggerNode.updatedAt = new Date().toISOString();
 }
 

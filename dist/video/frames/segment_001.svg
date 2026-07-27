@@ -13,6 +13,6 @@
   <text x="101" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#145985" font-family="Microsoft YaHei, Segoe UI, sans-serif">操作步骤</text>
   
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
-  <text x="640" y="648" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">在登录页点击 SIGN UP，进入新用户注册流程。</text>
+  <text x="640" y="648" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面。</text>
   
 </svg>

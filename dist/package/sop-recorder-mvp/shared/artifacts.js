@@ -7,13 +7,19 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function createArtifactShared() {
   function buildArticleSteps(nodes) {
-    const activeNodes = filterMeaningfulTransitionNodes((nodes || []).filter((node) => node.status !== "discarded"));
+    const sourceNodes = nodes || [];
+    const navigationOutcomes = collectSameOriginNavigationOutcomes(sourceNodes);
+    const activeNodes = filterMeaningfulTransitionNodes(sourceNodes.filter((node) => node.status !== "discarded"))
+      .filter((node) => !shouldFoldNavigationNode(node, navigationOutcomes));
     const privacyMasksByContext = {};
     return activeNodes.map((node, index) => {
+      const nodeWithOutcome = navigationOutcomes.byTriggerId[node.id]
+        ? { ...node, navigationOutcome: navigationOutcomes.byTriggerId[node.id] }
+        : node;
       const type = articleStepType(node);
       const isTransition = type === "tab_transition" || type === "navigation";
-      const title = node.titleOverride || (isTransition ? transitionTitle(node) : operationTitle(node));
-      const description = node.descriptionOverride || node.generatedInstruction || title;
+      const title = node.titleOverride || (isTransition ? transitionTitle(nodeWithOutcome) : operationTitle(nodeWithOutcome));
+      const description = node.descriptionOverride || operationDescription(nodeWithOutcome) || node.generatedInstruction || title;
       const voiceoverText = normalizeText(node.voiceoverText || "");
       const focusBox = normalizeBox(node.focusBoxOverride || (node.target?.visibility?.canHighlight === false ? null : node.target?.boundingBox));
       const contextKey = privacyContextKey(node);
@@ -226,6 +232,44 @@
     return `${tabId}|${normalizeUrlForChapter(url)}`;
   }
 
+  function collectSameOriginNavigationOutcomes(nodes) {
+    const byTriggerId = {};
+    const foldedNavigationIds = new Set();
+    for (const node of nodes || []) {
+      if (node.status === "discarded" || node.action !== "navigation" || !node.triggeredByNodeId) continue;
+      if (!isSameTabSameOriginNavigation(node)) continue;
+      const pageUrl = node.pageUrl || node.toTab?.url || node.afterUrl || "";
+      byTriggerId[node.triggeredByNodeId] = {
+        navigationNodeId: node.id,
+        pageTitle: node.pageTitle || node.toTab?.title || pageNameFromUrl(pageUrl),
+        pageUrl
+      };
+      foldedNavigationIds.add(node.id);
+    }
+    return { byTriggerId, foldedNavigationIds };
+  }
+
+  function shouldFoldNavigationNode(node, navigationOutcomes) {
+    return node.action === "navigation" && navigationOutcomes.foldedNavigationIds.has(node.id);
+  }
+
+  function isSameTabSameOriginNavigation(node) {
+    const fromTabId = node.fromTab?.tabId || node.tab?.tabId || null;
+    const toTabId = node.toTab?.tabId || node.tab?.tabId || null;
+    if (fromTabId && toTabId && fromTabId !== toTabId) return false;
+    return sameOrigin(node.fromTab?.url || node.beforeUrl || "", node.toTab?.url || node.pageUrl || node.afterUrl || "");
+  }
+
+  function sameOrigin(fromUrl, toUrl) {
+    try {
+      const from = new URL(fromUrl);
+      const to = new URL(toUrl);
+      return from.origin === to.origin;
+    } catch {
+      return false;
+    }
+  }
+
   function normalizeBoxes(boxes) {
     return boxes.map(normalizeBox).filter(Boolean);
   }
@@ -359,6 +403,7 @@
   function operationTitle(node) {
     const target = node.target || {};
     const name = target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
+    if (node.navigationOutcome && ["click", "submit", "key"].includes(node.action)) return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面`;
     if (node.action === "input") return `填写 ${name}`;
     if (node.action === "select") return `选择 ${name}`;
     if (node.action === "check") return `勾选 ${name}`;
@@ -371,11 +416,38 @@
     return `点击 ${name}`;
   }
 
+  function operationDescription(node) {
+    if (!node.navigationOutcome || !["click", "submit", "key"].includes(node.action)) return "";
+    const target = node.target || {};
+    const name = target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
+    return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面。`;
+  }
+
+  function operationVerb(node) {
+    if (node.action === "submit") return "提交";
+    if (node.action === "key") return `按下${node.key || "快捷键"}操作`;
+    return "点击";
+  }
+
   function transitionTitle(node) {
-    if (node.action === "navigation") return `跳转到${node.pageTitle || node.toTab?.title || node.pageUrl || node.toTab?.url || "新页面"}`;
+    if (node.action === "navigation") return `进入${node.pageTitle || node.toTab?.title || pageNameFromUrl(node.pageUrl || node.toTab?.url) || "新页面"}`;
     if (node.action === "tab_open") return `打开${node.toTab?.tabAlias || "新标签页"}`;
     if (node.action === "tab_close") return `关闭${node.fromTab?.tabAlias || "标签页"}`;
     return `切换到${node.toTab?.tabAlias || "目标标签页"}`;
+  }
+
+  function formatPageName(outcome) {
+    return normalizeText(outcome?.pageTitle || pageNameFromUrl(outcome?.pageUrl) || "目标");
+  }
+
+  function pageNameFromUrl(url = "") {
+    try {
+      const parsed = new URL(url);
+      const last = parsed.pathname.split("/").filter(Boolean).at(-1);
+      return last || parsed.hostname;
+    } catch {
+      return "";
+    }
   }
 
   return {

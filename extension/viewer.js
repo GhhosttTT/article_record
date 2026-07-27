@@ -176,8 +176,7 @@ els.wordBtn.addEventListener("click", () => {
 els.timelineBtn.addEventListener("click", () => {
   if (!confirmPrivacyBeforeExport("视频时间轴")) return;
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps);
-  const chapters = buildArticleChapters(exportSteps);
-  const timeline = buildVideoTimeline(exportSteps, { chapters, includeChapterIntros: true });
+  const timeline = buildVideoTimeline(exportSteps);
   downloadTextFile(`sop-video-timeline-${currentState?.session?.id || Date.now()}.json`, "application/json", JSON.stringify(timeline, null, 2));
 });
 
