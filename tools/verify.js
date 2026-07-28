@@ -1304,7 +1304,7 @@ runCheck("页面弹窗出现和关闭会生成可导出的操作节点", () => {
   assert(shared.includes("if (node.action === \"modal_close\") return;"), "modal_close 不应进入最终文章和视频片段");
   assert(shared.includes("if (node.action === \"modal_close\") return null;"), "modal_close 不应生成弹窗原位置高亮");
   assert(viewerJs.includes("if (node.action === \"modal_close\") return null;"), "预览页 modal_close 不应框出弹窗原位置");
-  assert(viewerJs.includes("弹窗出现"), "viewer.js 必须显示可读弹窗步骤类型");
+  assert(viewerJs.includes("弹窗出现") || viewerJs.includes("\\u5f39\\u7a97\\u51fa\\u73b0"), "viewer.js 必须显示可读弹窗步骤类型");
   assert(company.includes("<dialog"), "公司测试页必须覆盖原生弹窗");
   assert(company.includes("showModal()"), "公司测试页必须能打开弹窗");
   assert(company.includes(".close()"), "公司测试页必须能关闭弹窗");

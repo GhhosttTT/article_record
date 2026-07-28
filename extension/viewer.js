@@ -390,15 +390,15 @@ function renderStep(node, index, nodes) {
         <div class="editor-panel text-panel">
           <div class="editor-row">
             <label class="editor-field">
-              <span>????</span>
+              <span>步骤标题</span>
               <input data-node-title value="${escapeHtml(title)}" ${isDiscarded ? "disabled" : ""}>
             </label>
-            <button type="button" class="small" data-node-action="save-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>????</button>
-            <button type="button" class="small secondary" data-node-action="clear-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || (!node.titleOverride && !node.descriptionOverride) ? "disabled" : ""}>????</button>
+            <button type="button" class="small" data-node-action="save-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存文案</button>
+            <button type="button" class="small secondary" data-node-action="clear-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || (!node.titleOverride && !node.descriptionOverride) ? "disabled" : ""}>恢复自动</button>
           </div>
           <div class="editor-row">
             <label class="editor-field">
-              <span>????</span>
+              <span>步骤说明</span>
               <textarea data-node-description rows="2" ${isDiscarded ? "disabled" : ""}>${escapeHtml(description)}</textarea>
             </label>
             <span class="editor-spacer"></span>
@@ -408,19 +408,19 @@ function renderStep(node, index, nodes) {
         <div class="editor-panel video-panel">
           <div class="editor-row">
             <label class="editor-field compact-field">
-              <span>???????</span>
+              <span>视频时长（秒）</span>
               <input type="number" min="1" max="120" step="0.5" data-node-duration value="${escapeHtml(durationSeconds)}" ${isDiscarded ? "disabled" : ""}>
             </label>
-            <button type="button" class="small" data-node-action="save-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>????</button>
-            <button type="button" class="small secondary" data-node-action="clear-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.durationOverrideSeconds ? "disabled" : ""}>????</button>
+            <button type="button" class="small" data-node-action="save-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存时长</button>
+            <button type="button" class="small secondary" data-node-action="clear-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.durationOverrideSeconds ? "disabled" : ""}>恢复自动</button>
           </div>
           <div class="editor-row">
             <label class="editor-field">
-              <span>????</span>
+              <span>视频旁白</span>
               <textarea data-node-voiceover rows="2" maxlength="500" ${isDiscarded ? "disabled" : ""}>${escapeHtml(voiceoverText)}</textarea>
             </label>
-            <button type="button" class="small" data-node-action="save-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>????</button>
-            <button type="button" class="small secondary" data-node-action="clear-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.voiceoverTextOverridden ? "disabled" : ""}>????</button>
+            <button type="button" class="small" data-node-action="save-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存旁白</button>
+            <button type="button" class="small secondary" data-node-action="clear-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.voiceoverTextOverridden ? "disabled" : ""}>恢复自动</button>
           </div>
         </div>
         ${focusBox ? renderFocusEditor(node, focusBox, isDiscarded) : ""}
@@ -433,16 +433,16 @@ function renderStep(node, index, nodes) {
 function renderFocusEditor(node, box, isDiscarded) {
   return `
     <div class="focus-editor">
-      <span>高亮区域</span>
+      <span>\u9ad8\u4eae\u533a\u57df</span>
       <div class="focus-grid">
         <label>X <input type="number" min="0" step="1" data-focus-x value="${escapeHtml(box.x)}" ${isDiscarded ? "disabled" : ""}></label>
         <label>Y <input type="number" min="0" step="1" data-focus-y value="${escapeHtml(box.y)}" ${isDiscarded ? "disabled" : ""}></label>
-        <label>宽 <input type="number" min="1" step="1" data-focus-width value="${escapeHtml(box.width)}" ${isDiscarded ? "disabled" : ""}></label>
-        <label>高 <input type="number" min="1" step="1" data-focus-height value="${escapeHtml(box.height)}" ${isDiscarded ? "disabled" : ""}></label>
+        <label>\u5bbd <input type="number" min="1" step="1" data-focus-width value="${escapeHtml(box.width)}" ${isDiscarded ? "disabled" : ""}></label>
+        <label>\u9ad8 <input type="number" min="1" step="1" data-focus-height value="${escapeHtml(box.height)}" ${isDiscarded ? "disabled" : ""}></label>
       </div>
       <div class="editor-actions">
-        <button type="button" class="small" data-node-action="save-focus" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存高亮</button>
-        <button type="button" class="small secondary" data-node-action="clear-focus" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.focusBoxOverride ? "disabled" : ""}>恢复自动</button>
+        <button type="button" class="small" data-node-action="save-focus" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>\u4fdd\u5b58\u9ad8\u4eae</button>
+        <button type="button" class="small secondary" data-node-action="clear-focus" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.focusBoxOverride ? "disabled" : ""}>\u6062\u590d\u81ea\u52a8</button>
       </div>
     </div>
   `;
@@ -451,25 +451,25 @@ function renderFocusEditor(node, box, isDiscarded) {
 function renderMaskEditor(node, box, isDiscarded) {
   return `
     <div class="mask-editor">
-      <span>打码区域</span>
+      <span>\u6253\u7801\u533a\u57df</span>
       <div class="focus-grid">
         <label>X <input type="number" min="0" step="1" data-mask-x value="${escapeHtml(box.x)}" ${isDiscarded ? "disabled" : ""}></label>
         <label>Y <input type="number" min="0" step="1" data-mask-y value="${escapeHtml(box.y)}" ${isDiscarded ? "disabled" : ""}></label>
-        <label>宽 <input type="number" min="1" step="1" data-mask-width value="${escapeHtml(box.width)}" ${isDiscarded ? "disabled" : ""}></label>
-        <label>高 <input type="number" min="1" step="1" data-mask-height value="${escapeHtml(box.height)}" ${isDiscarded ? "disabled" : ""}></label>
+        <label>\u5bbd <input type="number" min="1" step="1" data-mask-width value="${escapeHtml(box.width)}" ${isDiscarded ? "disabled" : ""}></label>
+        <label>\u9ad8 <input type="number" min="1" step="1" data-mask-height value="${escapeHtml(box.height)}" ${isDiscarded ? "disabled" : ""}></label>
       </div>
       <div class="editor-actions">
-        <button type="button" class="small" data-node-action="save-mask" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存打码</button>
-        <button type="button" class="small secondary" data-node-action="clear-mask" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.privacyMaskBoxes?.length ? "disabled" : ""}>清除打码</button>
+        <button type="button" class="small" data-node-action="save-mask" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>\u4fdd\u5b58\u6253\u7801</button>
+        <button type="button" class="small secondary" data-node-action="clear-mask" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.privacyMaskBoxes?.length ? "disabled" : ""}>\u6e05\u9664\u6253\u7801</button>
       </div>
     </div>
   `;
 }
 
 function statusText(status) {
-  if (status === "reviewed") return "已确认";
-  if (status === "discarded") return "已删除，不参与导出";
-  return "待确认";
+  if (status === "reviewed") return "\u5df2\u786e\u8ba4";
+  if (status === "discarded") return "\u5df2\u5220\u9664\uff0c\u4e0d\u53c2\u4e0e\u5bfc\u51fa";
+  return "\u5f85\u786e\u8ba4";
 }
 
 function renderOperationTitle(node) {
@@ -481,10 +481,10 @@ function renderTransitionTitle(node) {
 }
 
 function stepKindText(stepType, action) {
-  if (stepType === "tab_transition") return "标签页切换";
-  if (stepType === "navigation") return "页面跳转";
-  if (action === "modal_open") return "弹窗出现";
-  if (action === "modal_close") return "弹窗关闭";
+  if (stepType === "tab_transition") return "\u6807\u7b7e\u9875\u5207\u6362";
+  if (stepType === "navigation") return "\u9875\u9762\u8df3\u8f6c";
+  if (action === "modal_open") return "\u5f39\u7a97\u51fa\u73b0";
+  if (action === "modal_close") return "\u5f39\u7a97\u5173\u95ed";
   return action || "operation";
 }
 
