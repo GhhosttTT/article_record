@@ -1,3 +1,4 @@
+(() => {
 const INPUT_DEBOUNCE_MS = 800;
 const PAGE_LOAD_WAIT_THRESHOLD_MS = 1200;
 const MODAL_SCAN_DEBOUNCE_MS = 150;
@@ -56,6 +57,13 @@ document.addEventListener("click", (event) => {
   const target = resolveActionTarget(event.target);
   if (!target) return;
   flushPendingInputs();
+  if (isCheckableTarget(target)) {
+    window.setTimeout(() => {
+      if (!isActiveContentInstance()) return;
+      sendInputLikeEvent(target, "check");
+    }, 0);
+    return;
+  }
   const targetMeta = extractTarget(target);
   sendRecorderEvent({
     action: "click",
@@ -171,6 +179,15 @@ function sendInputLikeEvent(target, action) {
     beforeUrl: location.href,
     privacy
   });
+}
+
+function isCheckableTarget(target) {
+  if (!(target instanceof Element)) return false;
+  if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) return true;
+  if (target instanceof HTMLLabelElement && target.querySelector("input[type='checkbox'], input[type='radio']")) return true;
+  if (target.querySelector?.("input[type='checkbox'], input[type='radio']")) return true;
+  const role = target.getAttribute("role");
+  return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked");
 }
 
 function reportPageLoadWait() {
@@ -794,3 +811,4 @@ function getViewport() {
 function normalizeText(text = "") {
   return String(text).replace(/\s+/g, " ").trim();
 }
+})();

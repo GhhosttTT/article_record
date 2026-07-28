@@ -91,6 +91,7 @@ function renderFrame(segment) {
   <rect width="1280" height="720" fill="#111827"/>
   ${renderSegmentVisual(segment, isTab, isNavigation, isChapter)}
   ${renderTypeBadge(title, badgeColor, badgeText)}
+  ${renderArticleTitle(segment.articleTitle)}
   ${segment.key ? renderKeyBadge(segment.key) : ""}
   ${renderSubtitle(segment)}
 </svg>`;
@@ -106,6 +107,15 @@ function renderKeyBadge(key) {
   const label = `按键：${key}`;
   return `<rect x="196" y="28" width="150" height="42" rx="21" fill="#f4f1ff" opacity="0.96"/>
   <text x="271" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#5b21b6" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(label)}</text>`;
+}
+
+function renderArticleTitle(title) {
+  const text = trimMiddle(title || "", 42);
+  if (!text) return "";
+  const width = Math.min(700, Math.max(220, [...text].length * 18 + 42));
+  const x = 1280 - width - 34;
+  return `<rect x="${x}" y="28" width="${width}" height="42" rx="21" fill="#0f172a" opacity="0.86"/>
+  <text x="${x + width / 2}" y="56" text-anchor="middle" font-size="19" font-weight="800" fill="#f8fafc" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(text)}</text>`;
 }
 
 function renderSubtitle(segment) {

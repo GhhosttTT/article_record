@@ -189,16 +189,18 @@
 
   function buildVideoTimeline(steps, options = {}) {
     if (options.includeChapterIntros) {
-      return buildVideoTimelineWithChapters(steps, options.chapters || buildArticleChapters(steps));
+      return buildVideoTimelineWithChapters(steps, options.chapters || buildArticleChapters(steps), options);
     }
     let cursor = 0;
+    const articleTitle = normalizeText(options.title || "");
     const segments = (steps || []).map((step) => {
-      const segment = buildVideoSegment(step, cursor);
+      const segment = buildVideoSegment(step, cursor, articleTitle);
       cursor = segment.endTime;
       return segment;
     });
     return {
       version: "0.1.0",
+      title: articleTitle || null,
       duration: cursor,
       segments
     };
@@ -322,10 +324,11 @@
     return result;
   }
 
-  function buildVideoTimelineWithChapters(steps, chapters) {
+  function buildVideoTimelineWithChapters(steps, chapters, options = {}) {
     let cursor = 0;
     const segments = [];
     const stepSet = new Set(steps || []);
+    const articleTitle = normalizeText(options.title || "");
     for (const chapter of chapters || []) {
       const introDuration = 2;
       segments.push({
@@ -338,6 +341,7 @@
         currentTabAlias: chapter.tabAlias || null,
         pageTitle: chapter.pageTitle || null,
         pageUrl: chapter.pageUrl || null,
+        articleTitle: articleTitle || null,
         visual: null,
         screenshot: null,
         storyboardVisualType: "chapter_intro",
@@ -348,19 +352,20 @@
 
       for (const step of chapter.steps || []) {
         if (!stepSet.has(step)) continue;
-        const segment = buildVideoSegment(step, cursor);
+        const segment = buildVideoSegment(step, cursor, articleTitle);
         segments.push(segment);
         cursor = segment.endTime;
       }
     }
     return {
       version: "0.1.0",
+      title: articleTitle || null,
       duration: cursor,
       segments
     };
   }
 
-  function buildVideoSegment(step, cursor) {
+  function buildVideoSegment(step, cursor, articleTitle = "") {
     const duration = step.durationOverrideSeconds || (step.type === "tab_transition" || step.type === "navigation"
       ? 2
       : Math.max(3, Math.ceil([...step.description].length / 8)));
@@ -380,6 +385,7 @@
       toUrl: step.toUrl,
       pageTitle: step.pageTitle,
       pageUrl: step.pageUrl,
+      articleTitle: articleTitle || null,
       key: step.key || null,
       visual: step.image || null,
       screenshot: step.screenshot || null,

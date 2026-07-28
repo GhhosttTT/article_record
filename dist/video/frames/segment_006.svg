@@ -10,6 +10,7 @@
   <rect x="34" y="28" width="134" height="42" rx="21" fill="#e8f2fa" opacity="0.96"/>
   <text x="101" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#145985" font-family="Microsoft YaHei, Segoe UI, sans-serif">操作步骤</text>
   
+  
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
   <text x="640" y="648" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">在 Business License 中上传文件。</text>
   

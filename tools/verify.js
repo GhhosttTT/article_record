@@ -419,6 +419,7 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   const index = readText("test-pages/index.html");
   const company = readText("test-pages/company.html");
 
+  assert(content.startsWith("(() => {"), "content.js 必须包在函数作用域内，避免重复注入时顶层 const 重复声明");
   assert(content.includes("document.addEventListener(\"click\""), "content.js 必须监听点击事件");
   assert(content.includes("document.addEventListener(\"input\""), "content.js 必须监听输入事件");
   assert(content.includes("document.addEventListener(\"change\""), "content.js 必须监听 change 事件");
@@ -428,6 +429,8 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("event.repeat"), "键盘采集必须忽略长按重复键");
   assert(content.includes("sendInputLikeEvent(target, \"select\")"), "content.js 必须发送 select 事件");
   assert(content.includes("sendInputLikeEvent(target, \"check\")"), "content.js 必须发送 check 事件");
+  assert(content.includes("isCheckableTarget(target)"), "click 事件必须识别原生和自定义 checkbox/radio/switch");
+  assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(target, \"check\")"), "checkbox 点击必须等选中状态更新后再记录");
   assert(content.includes("action: \"submit\""), "content.js 必须发送 submit 事件");
   assert(content.includes("response?.ok || response?.duplicateEvent"), "content.js 只有收到 background 确认后才能删除事件队列");
   assert(content.includes("chrome.runtime?.id"), "content.js 必须在扩展上下文失效时避免直接调用 sendMessage");
@@ -507,6 +510,9 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("new MediaRecorder"), "预览页视频导出必须使用 MediaRecorder");
   assert(viewerJs.includes("renderSegmentFrames"), "预览页视频导出必须逐帧刷新 Canvas");
   assert(viewerJs.includes("requestFrame"), "预览页视频导出必须主动请求视频帧");
+  assert(viewerJs.includes("canvas.captureStream(0)"), "预览页视频导出必须使用手动帧捕获，避免自动捕获清屏过程导致频闪");
+  assert(viewerJs.includes("drawArticleTitle"), "预览页视频导出必须展示文章标题");
+  assert(viewerJs.includes("canvasImageCache"), "预览页视频导出必须缓存截图，避免逐帧重复加载导致抖动");
   assert(viewerJs.includes("!chunks.length"), "预览页视频导出必须检测空视频数据");
   assert(viewerJs.includes(".webm"), "预览页视频导出文件必须使用 WebM 扩展名");
   assert(viewerJs.includes("downloadBlobFile"), "预览页视频导出必须下载 Blob 视频文件");

@@ -19,6 +19,7 @@ const els = {
 let currentState = null;
 let currentTabs = [];
 let currentSteps = [];
+const canvasImageCache = new Map();
 
 els.privacyMaskToggle?.addEventListener("change", () => {
   if (currentState) applyState(currentState, { preserveTitle: true });
@@ -187,7 +188,7 @@ els.timelineBtn.addEventListener("click", () => {
   if (!confirmPrivacyBeforeExport("视频时间轴")) return;
   const options = getExportOptions();
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
-  const timeline = buildVideoTimeline(exportSteps);
+  const timeline = buildVideoTimeline(exportSteps, options);
   downloadTextFile(`sop-video-timeline-${currentState?.session?.id || Date.now()}.json`, "application/json", JSON.stringify(timeline, null, 2));
 });
 
@@ -205,7 +206,7 @@ els.videoBtn.addEventListener("click", async () => {
   try {
     const options = getExportOptions();
     const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
-    const timeline = buildVideoTimeline(exportSteps);
+    const timeline = buildVideoTimeline(exportSteps, options);
     const blob = await renderTimelineWebm(timeline);
     await downloadBlobFile(`sop-video-${currentState?.session?.id || Date.now()}.webm`, blob);
   } catch (error) {
@@ -558,7 +559,7 @@ async function renderTimelineWebm(timeline) {
   const ctx = canvas.getContext("2d");
   const fps = 12;
   const mimeType = pickVideoMimeType();
-  const stream = canvas.captureStream(fps);
+  const stream = canvas.captureStream(0);
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
   const chunks = [];
   recorder.addEventListener("dataavailable", (event) => {
@@ -570,7 +571,7 @@ async function renderTimelineWebm(timeline) {
     recorder.addEventListener("error", () => reject(recorder.error), { once: true });
   });
 
-  recorder.start(1000);
+  recorder.start();
   for (const segment of timeline.segments || []) {
     await renderSegmentFrames(ctx, stream, segment, fps);
   }
@@ -612,6 +613,7 @@ async function drawVideoFrame(ctx, segment) {
     drawBlankStepFrame(ctx, segment);
   }
   drawTypeBadge(ctx, segment);
+  drawArticleTitle(ctx, segment.articleTitle);
   if (segment.key) drawKeyBadge(ctx, segment.key);
   drawSubtitle(ctx, segment);
 }
@@ -680,6 +682,15 @@ function drawTypeBadge(ctx, segment) {
 function drawKeyBadge(ctx, key) {
   roundRect(ctx, 196, 28, 150, 42, 21, "#f4f1ff");
   drawText(ctx, `按键：${key}`, 271, 56, 20, "#5b21b6", "800", "center");
+}
+
+function drawArticleTitle(ctx, title) {
+  const text = trimMiddle(title || "", 42);
+  if (!text) return;
+  const width = Math.min(700, Math.max(220, [...text].length * 18 + 42));
+  const x = 1280 - width - 34;
+  roundRect(ctx, x, 28, width, 42, 21, "rgba(15,23,42,.86)");
+  drawText(ctx, text, x + width / 2, 56, 19, "#f8fafc", "800", "center");
 }
 
 function drawSubtitle(ctx, segment) {
@@ -759,12 +770,15 @@ function focusZoomFrameRect(box, frame) {
 }
 
 function loadCanvasImage(src) {
-  return new Promise((resolve, reject) => {
+  if (canvasImageCache.has(src)) return canvasImageCache.get(src);
+  const promise = new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error("截图加载失败，无法生成视频帧"));
     image.src = src;
   });
+  canvasImageCache.set(src, promise);
+  return promise;
 }
 
 function roundRect(ctx, x, y, width, height, radius, fill, stroke, lineWidth = 1) {
