@@ -444,7 +444,9 @@
 
   function operationTitle(node) {
     const target = node.target || {};
-    const name = target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
+    const name = node.action === "check"
+      ? checkTargetName(target)
+      : target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
     if (node.navigationOutcome && ["click", "submit", "key"].includes(node.action)) return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面`;
     if (node.action === "input") return `填写 ${name}`;
     if (node.action === "select") return `选择 ${name}`;
@@ -460,8 +462,11 @@
 
   function resolveFocusBox(node) {
     if (node.focusBoxOverride) return normalizeBox(node.focusBoxOverride);
+    if (node.action === "modal_close") return null;
     if (node.target?.visibility?.canHighlight === false) return null;
-    return normalizeBox(focusBoxFromClickPoint(node.clickPoint, node.target?.boundingBox, node.viewport)) || normalizeBox(node.target?.boundingBox);
+    const target = normalizeBox(node.target?.boundingBox);
+    if (!node.clickPoint) return target;
+    return normalizeBox(focusBoxFromClickPoint(node.clickPoint, target, node.viewport)) || target;
   }
 
   function focusBoxFromClickPoint(point, targetBox, viewport) {
@@ -470,7 +475,8 @@
     const target = normalizeBox(targetBox);
     const viewportWidth = Number(viewport?.width || target?.width || 1280);
     const viewportHeight = Number(viewport?.height || target?.height || 720);
-    const baseWidth = target ? Math.min(220, Math.max(96, target.width * 0.45)) : 140;
+    if (target && target.width <= 260 && target.height <= 140) return target;
+    const baseWidth = target ? Math.min(220, Math.max(96, target.width * 0.35)) : 140;
     const baseHeight = target ? Math.min(140, Math.max(72, target.height * 2.4)) : 100;
     const width = Math.round(baseWidth);
     const height = Math.round(baseHeight);
@@ -491,7 +497,9 @@
 
   function operationDescription(node) {
     const target = node.target || {};
-    const name = target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
+    const name = node.action === "check"
+      ? checkTargetName(target)
+      : target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
     if (node.action === "wait") return `等待 ${name} 加载完成。`;
     if (!node.navigationOutcome || !["click", "submit", "key"].includes(node.action)) return "";
     return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面。`;
@@ -501,6 +509,13 @@
     if (node.action === "submit") return "提交";
     if (node.action === "key") return `按下${node.key || "快捷键"}操作`;
     return "点击";
+  }
+
+  function checkTargetName(target = {}) {
+    const explicit = target.ariaLabel || target.labelText || target.placeholder || target.title || target.name || target.id;
+    if (explicit) return explicit;
+    if (target.type === "radio") return "单选框";
+    return "多选框";
   }
 
   function transitionTitle(node) {

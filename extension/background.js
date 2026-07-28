@@ -627,6 +627,9 @@ async function captureOperationNode(payload, sender, eventId = null) {
   if (payload.action === "submit" && shouldSkipSubmitAfterEnterKey(payload, context)) {
     return { ok: true, skipped: "redundant_submit_after_key", state: publicState() };
   }
+  if (payload.action === "submit" && shouldSkipSubmitAfterPreActionClick(payload, context)) {
+    return { ok: true, skipped: "redundant_submit_after_pre_action_click", state: publicState() };
+  }
   if (payload.action === "wait" && shouldSkipWaitNode(payload, context)) {
     return { ok: true, skipped: "redundant_wait", state: publicState() };
   }
@@ -665,6 +668,7 @@ async function captureOperationNode(payload, sender, eventId = null) {
     key: payload.key,
     checked: payload.checked ?? null,
     clickPoint: payload.clickPoint,
+    preAction: Boolean(payload.preAction),
     viewport: payload.viewport,
     screenshot,
     beforeUrl: sanitizeRecordingUrl(payload.beforeUrl || context.currentUrl),
@@ -697,6 +701,7 @@ async function mergeOperationNode(node, payload, context, screenshot, privacy, p
   node.key = payload.key;
   node.checked = payload.checked ?? null;
   node.clickPoint = payload.clickPoint;
+  node.preAction = Boolean(payload.preAction);
   node.viewport = payload.viewport;
   node.screenshot = screenshot;
   node.afterUrl = payload.afterUrl || context.currentUrl;
@@ -1005,7 +1010,9 @@ function makeTabAlias(index, title, domain) {
 }
 
 function generateInstruction(payload, context) {
-  const targetName = payload.target?.text || payload.target?.ariaLabel || payload.target?.labelText || payload.target?.placeholder || payload.target?.title || payload.target?.nearbyText || payload.target?.name || payload.target?.id || "目标元素";
+  const targetName = payload.action === "check"
+    ? checkTargetName(payload.target)
+    : payload.target?.text || payload.target?.ariaLabel || payload.target?.labelText || payload.target?.placeholder || payload.target?.title || payload.target?.nearbyText || payload.target?.name || payload.target?.id || "目标元素";
   if (payload.action === "wait") return `等待${context.title || targetName || "当前页面"}加载完成。`;
   if (payload.action === "input") return `在${targetName}中输入内容。`;
   if (payload.action === "select") return `在${targetName}中选择选项。`;
@@ -1016,6 +1023,13 @@ function generateInstruction(payload, context) {
   if (payload.action === "modal_open") return `页面出现弹窗：${targetName}。`;
   if (payload.action === "modal_close") return `关闭弹窗：${targetName}。`;
   return `点击${targetName}。`;
+}
+
+function checkTargetName(target = {}) {
+  const explicit = target.ariaLabel || target.labelText || target.placeholder || target.title || target.name || target.id;
+  if (explicit) return explicit;
+  if (target.type === "radio") return "单选框";
+  return "多选框";
 }
 
 function shouldSkipWaitNode(payload, context) {
@@ -1191,9 +1205,21 @@ function getScreenshotCaptureTiming(action) {
   if (action === "click") return "before_action_preferred";
   if (action === "navigation") return "after_navigation";
   if (action === "wait") return "after_wait";
-  if (action === "modal_open" || action === "modal_close") return "after_action";
-  if (["input", "select", "check", "upload", "submit"].includes(action)) return "after_action";
+  if (action === "modal_close") return "before_action_preferred";
+  if (action === "modal_open") return "after_action";
+  if (["check", "submit"].includes(action)) return "before_action_preferred";
+  if (["input", "select", "upload"].includes(action)) return "after_action";
   return "after_action";
+}
+
+function shouldSkipSubmitAfterPreActionClick(payload, context) {
+  const last = runtimeState.nodes[runtimeState.nodes.length - 1];
+  if (!last || last.status === "discarded") return false;
+  if (last.action !== "click" || !last.preAction) return false;
+  if (last.tab?.tabId !== context.tabId) return false;
+  const sameForm = payload.target?.form?.selector && last.target?.form?.selector && payload.target.form.selector === last.target.form.selector;
+  if (!sameForm && last.target?.type !== "button") return false;
+  return Date.now() - new Date(last.updatedAt || last.capturedAt).getTime() < 1800;
 }
 
 function delay(milliseconds) {

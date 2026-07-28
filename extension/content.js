@@ -27,6 +27,7 @@ var inputTimers = new WeakMap();
 var pendingInputTargets = new Set();
 var activeModalTargets = new Map();
 var recentCheckClickPoints = new WeakMap();
+var recentPreActionClicks = new WeakMap();
 var modalScanTimer = null;
 var EVENT_QUEUE_KEY = "sopRecorderPendingEvents";
 var MAX_QUEUED_EVENTS = 80;
@@ -54,13 +55,24 @@ if (document.readyState === "loading") {
   window.setTimeout(startModalObserver, 0);
 }
 
+document.addEventListener("pointerdown", (event) => {
+  if (!isActiveContentInstance()) return;
+  const clickPoint = getClickPoint(event);
+  const target = resolveActionTarget(event.target, clickPoint);
+  if (!target || isCheckableTarget(target) || !shouldCaptureBeforeClick(target)) return;
+  flushPendingInputs();
+  recentPreActionClicks.set(target, Date.now());
+  sendClickEvent(target, clickPoint, { preAction: true });
+}, true);
+
 document.addEventListener("click", (event) => {
   if (!isActiveContentInstance()) return;
-  const target = resolveActionTarget(event.target);
+  const clickPoint = getClickPoint(event);
+  const target = resolveActionTarget(event.target, clickPoint);
   if (!target) return;
+  if (shouldSkipAfterPreActionClick(target)) return;
   flushPendingInputs();
   if (isCheckableTarget(target)) {
-    const clickPoint = getClickPoint(event);
     const checkTarget = getCheckableInput(target) || target;
     recentCheckClickPoints.set(checkTarget, clickPoint);
     if (getCheckableInput(target)) return;
@@ -70,15 +82,7 @@ document.addEventListener("click", (event) => {
     }, 120);
     return;
   }
-  const targetMeta = extractTarget(target);
-  sendRecorderEvent({
-    action: "click",
-    target: targetMeta,
-    clickPoint: getClickPoint(event),
-    viewport: getViewport(),
-    beforeUrl: location.href,
-    privacy: detectPrivacy(target)
-  });
+  sendClickEvent(target, clickPoint);
 }, true);
 
 document.addEventListener("input", (event) => {
@@ -192,6 +196,41 @@ function getClickPoint(event) {
     y: event.clientY,
     coordinateSpace: "viewport-css-pixel"
   };
+}
+
+function sendClickEvent(target, clickPoint, options = {}) {
+  sendRecorderEvent({
+    action: "click",
+    target: extractTarget(target),
+    clickPoint,
+    viewport: getViewport(),
+    beforeUrl: location.href,
+    privacy: detectPrivacy(target),
+    preAction: Boolean(options.preAction)
+  });
+}
+
+function shouldSkipAfterPreActionClick(target) {
+  const timestamp = recentPreActionClicks.get(target);
+  if (!timestamp) return false;
+  if (Date.now() - timestamp > 1200) return false;
+  recentPreActionClicks.delete(target);
+  return true;
+}
+
+function shouldCaptureBeforeClick(target) {
+  if (!(target instanceof Element)) return false;
+  const type = inferTargetType(target);
+  if (!["button", "link", "menuitem"].includes(type)) return false;
+  const text = normalizeText([
+    target.innerText,
+    target.textContent,
+    target.getAttribute("aria-label"),
+    target.getAttribute("title"),
+    target.getAttribute("name"),
+    target.id
+  ].filter(Boolean).join(" ")).toLowerCase();
+  return /save|confirm|submit|delete|discard|close|ok|yes|保存|确认|提交|删除|关闭|取消|确定/.test(text);
 }
 
 function isCheckableTarget(target) {
@@ -481,11 +520,31 @@ function writeQueuedRecorderEvents(events) {
   }
 }
 
-function resolveActionTarget(target) {
+function resolveActionTarget(target, clickPoint = null) {
   if (!(target instanceof Element)) return null;
+  const pointCheckable = findCheckableAtPoint(clickPoint);
+  if (pointCheckable) return pointCheckable;
+  const checkableAncestor = getCheckableInput(target);
+  if (checkableAncestor) return checkableAncestor;
   const explicitTarget = target.closest(ACTION_TARGET_SELECTOR);
   if (explicitTarget) return explicitTarget;
   return findPointerCursorTarget(target);
+}
+
+function findCheckableAtPoint(point) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  const elements = document.elementsFromPoint?.(point.x, point.y) || [];
+  for (const element of elements) {
+    if (!(element instanceof Element)) continue;
+    const input = getCheckableInput(element);
+    if (input) return input;
+    if (isCustomCheckableTarget(element)) return element;
+  }
+  const nearbyInputs = Array.from(document.querySelectorAll("input[type='checkbox'], input[type='radio']"));
+  return nearbyInputs.find((input) => {
+    const box = input.getBoundingClientRect();
+    return point.x >= box.left - 8 && point.x <= box.right + 8 && point.y >= box.top - 8 && point.y <= box.bottom + 8;
+  }) || null;
 }
 
 function findPointerCursorTarget(element) {
@@ -507,7 +566,7 @@ function extractTarget(element) {
   const visibility = getTargetVisibility(element, box);
   return {
     type: inferTargetType(element),
-    text: visibleText.slice(0, 120),
+    text: isCheckableTarget(element) ? "" : visibleText.slice(0, 120),
     ariaLabel: element.getAttribute("aria-label"),
     placeholder: element.getAttribute("placeholder"),
     title,
@@ -862,5 +921,11 @@ function getViewport() {
 
 function normalizeText(text = "") {
   return String(text).replace(/\s+/g, " ").trim();
+}
+
+function isCustomCheckableTarget(target) {
+  if (!(target instanceof Element)) return false;
+  const role = target.getAttribute("role");
+  return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked");
 }
 })();

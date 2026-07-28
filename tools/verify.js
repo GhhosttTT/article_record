@@ -916,7 +916,9 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   const readme = readText("README.md");
   const company = readText("test-pages/company.html");
   assert(content.includes("function resolveActionTarget"), "content.js 必须实现点击目标归一");
-  assert(content.includes("resolveActionTarget(event.target)"), "click 事件必须先归一目标元素");
+  assert(content.includes("resolveActionTarget(event.target, clickPoint)"), "click 事件必须按点击坐标先归一目标元素");
+  assert(content.includes("findCheckableAtPoint"), "checkbox/radio 点击必须优先按点击坐标定位真实控件");
+  assert(content.includes("text: isCheckableTarget(element) ? \"\""), "checkbox/radio 目标不应把整行文本作为标题来源");
   assert(content.includes("ACTION_TARGET_SELECTOR"), "content.js 必须集中维护可操作点击目标选择器");
   assert(content.includes("[onclick]"), "点击目标归一必须覆盖 onclick 自定义控件");
   assert(content.includes("[tabindex]"), "点击目标归一必须覆盖 tabindex 自定义控件");
@@ -977,6 +979,24 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(steps[1].title === "勾选 Branch Office", "ArticleStep 必须为单选按钮生成可读标题");
   assert(timeline.segments[0].highlight.width === 220, "VideoTimeline 必须保留表格单元格高亮区域");
   assert(timeline.segments[1].caption === "勾选Branch Office。", "VideoTimeline 必须复用单选按钮说明");
+
+  const checkboxSteps = buildArticleSteps([{
+    id: "node_checkbox",
+    sequence: 3,
+    action: "check",
+    checked: true,
+    tab: { tabId: 1, tabAlias: "标签页 A：订单", domain: "example.com" },
+    target: {
+      type: "checkbox",
+      text: "",
+      selector: "input[type=checkbox]",
+      boundingBox: { x: 214, y: 185, width: 16, height: 16, coordinateSpace: "viewport-css-pixel" }
+    },
+    generatedInstruction: "勾选多选框。",
+    status: "auto_generated"
+  }]);
+  assert(checkboxSteps[0].title === "勾选 多选框", "无 label 多选框标题必须保持简洁");
+  assert(!checkboxSteps[0].title.includes("订单号码"), "多选框标题不得包含整行表格内容");
 });
 
 runCheck("点击坐标会生成局部 focusBox，避免长控件整条放大", () => {
@@ -1006,6 +1026,22 @@ runCheck("点击坐标会生成局部 focusBox，避免长控件整条放大", (
   assert(steps[0].focusBox.x <= 620 && steps[0].focusBox.x + steps[0].focusBox.width >= 620, "focusBox 必须覆盖点击位置 x");
   assert(steps[0].focusBox.y <= 82 && steps[0].focusBox.y + steps[0].focusBox.height >= 82, "focusBox 必须覆盖点击位置 y");
   assert(timeline.segments[0].highlight.width === steps[0].focusBox.width, "VideoTimeline 必须复用点击坐标生成的 focusBox");
+
+  const smallControlSteps = buildArticleSteps([{
+    id: "node_checkbox_focus",
+    sequence: 2,
+    action: "check",
+    tab: { tabId: 1, tabAlias: "标签页 A：订单", domain: "example.com" },
+    target: {
+      type: "checkbox",
+      boundingBox: { x: 214, y: 185, width: 16, height: 16, coordinateSpace: "viewport-css-pixel" }
+    },
+    clickPoint: { x: 222, y: 193, coordinateSpace: "viewport-css-pixel" },
+    viewport: { width: 1280, height: 720 },
+    generatedInstruction: "勾选多选框。",
+    status: "auto_generated"
+  }]);
+  assert(smallControlSteps[0].focusBox.width === 16 && smallControlSteps[0].focusBox.height === 16, "小控件 focusBox 必须只框点击元素本身");
 });
 
 runCheck("不可见目标不会生成坏步骤或坏高亮", () => {
@@ -1056,7 +1092,7 @@ runCheck("操作节点会保存视口、滚动偏移和设备像素比", () => {
   assert(content.includes("scrollX: Math.round(window.scrollX"), "content.js 必须采集水平滚动偏移");
   assert(content.includes("scrollY: Math.round(window.scrollY"), "content.js 必须采集垂直滚动偏移");
   assert(content.includes("devicePixelRatio: window.devicePixelRatio || 1"), "content.js 必须采集 devicePixelRatio");
-  assert(content.includes("clickPoint:"), "content.js 必须采集点击坐标 clickPoint");
+  assert(content.includes("function getClickPoint") && content.includes("clickPoint,"), "content.js 必须采集点击坐标 clickPoint");
   assert(background.includes("viewport: payload.viewport"), "background 必须把事件 viewport 保存到操作节点");
   assert(background.includes("clickPoint: payload.clickPoint"), "background 必须把 clickPoint 保存到操作节点");
   assert(background.includes("scrollX: viewport?.scrollX || 0"), "background 必须把 scrollX 写入截图元数据");
@@ -1085,6 +1121,8 @@ runCheck("截图元数据会标记捕获时机", () => {
   assert(background.includes("getScreenshotCaptureTiming(payload.action)"), "background 必须按动作决定截图捕获时机");
   assert(background.includes("captureTiming,"), "background 必须把 captureTiming 写入截图记录和节点元数据");
   assert(background.includes("before_action_preferred"), "background 必须支持点击前优先截图标记");
+  assert(background.includes("if ([\"check\", \"submit\"].includes(action)) return \"before_action_preferred\""), "check/submit 必须优先保留动作前截图");
+  assert(background.includes("shouldSkipSubmitAfterPreActionClick"), "preAction 点击后必须跳过冗余 submit 步骤");
   assert(background.includes("after_navigation"), "background 必须支持跳转后截图标记");
   assert(validator.includes("screenshot.captureTiming"), "validate_schema 必须校验 screenshot.captureTiming");
   assert(validator.includes("before_action_preferred") && validator.includes("after_wait"), "validate_schema 必须校验 captureTiming 枚举");
@@ -1094,6 +1132,7 @@ runCheck("截图元数据会标记捕获时机", () => {
   assert(clickNode?.screenshot?.captureTiming === "before_action_preferred", "示例点击截图必须标记 before_action_preferred");
   assert(inputNode?.screenshot?.captureTiming === "after_action", "示例输入截图必须标记 after_action");
   assert(navigationNode?.screenshot?.captureTiming === "after_navigation", "示例跳转截图必须标记 after_navigation");
+  assert(validator.includes("node.preAction"), "validate_schema 必须校验 preAction 字段");
 });
 
 runCheck("同域页面变化会合并进触发操作，跨域变化才保留独立步骤", () => {
@@ -1218,6 +1257,8 @@ runCheck("页面弹窗出现和关闭会生成可导出的操作节点", () => {
   assert(shared.includes("node.action === \"modal_open\""), "共享 artifact 必须生成弹窗出现标题");
   assert(shared.includes("node.action === \"modal_close\""), "共享 artifact 必须保留弹窗关闭标题兼容");
   assert(shared.includes("if (node.action === \"modal_close\") return;"), "modal_close 不应进入最终文章和视频片段");
+  assert(shared.includes("if (node.action === \"modal_close\") return null;"), "modal_close 不应生成弹窗原位置高亮");
+  assert(viewerJs.includes("if (node.action === \"modal_close\") return null;"), "预览页 modal_close 不应框出弹窗原位置");
   assert(viewerJs.includes("弹窗出现"), "viewer.js 必须显示可读弹窗步骤类型");
   assert(company.includes("<dialog"), "公司测试页必须覆盖原生弹窗");
   assert(company.includes("showModal()"), "公司测试页必须能打开弹窗");
