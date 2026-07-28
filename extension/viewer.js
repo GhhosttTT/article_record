@@ -181,13 +181,21 @@ els.markdownBtn.addEventListener("click", () => {
   downloadTextFile(`sop-article-${currentState.session?.id || Date.now()}.md`, "text/markdown", markdown);
 });
 
-els.wordBtn.addEventListener("click", () => {
+els.wordBtn.addEventListener("click", async () => {
   if (!currentState) return;
   if (!confirmPrivacyBeforeExport("SOP Word")) return;
   const options = getExportOptions();
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
-  const word = renderArticleWordDocument(currentState, currentTabs, exportSteps, options);
-  downloadTextFile(`sop-article-${currentState.session?.id || Date.now()}.doc`, "application/msword", word);
+  els.wordBtn.disabled = true;
+  const originalText = els.wordBtn.textContent;
+  els.wordBtn.textContent = "正在生成 Word...";
+  try {
+    const word = await renderArticleWordDocument(currentState, currentTabs, exportSteps, options);
+    await downloadBlobFile(`sop-article-${currentState.session?.id || Date.now()}.docx`, word);
+  } finally {
+    els.wordBtn.disabled = false;
+    els.wordBtn.textContent = originalText;
+  }
 });
 
 els.timelineBtn.addEventListener("click", () => {

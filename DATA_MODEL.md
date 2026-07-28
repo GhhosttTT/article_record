@@ -295,7 +295,7 @@ extension/shared/artifacts.js
 
 使用方：
 
-- 扩展预览页：导出 SOP 文章、Markdown、Word 兼容文档和视频时间轴。
+- 扩展预览页：导出 SOP 文章、Markdown、真正 `.docx` Word 文档和视频时间轴。
 - 离线工具：生成 `dist/article.html`、`dist/article.md`、`dist/article.doc`、`dist/article.pdf`、`dist/video-timeline.json`、`dist/video-storyboard.html`。
 
 不要在扩展端和离线端分别维护 `tab_transition` 规则。

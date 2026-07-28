@@ -816,8 +816,15 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   const word = readText("dist/article.doc");
   assert(viewerJs.includes("const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options)"), "viewer.js 必须从当前 ArticleStep 和隐私开关生成 Markdown 步骤");
   assert(viewerJs.includes("renderArticleMarkdown(currentState, currentTabs, exportSteps, options)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Markdown");
-  assert(viewerJs.includes("renderArticleWordDocument(currentState, currentTabs, exportSteps, options)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Word");
-  assert(viewerJs.includes("application/msword"), "viewer.js 必须以 Word 兼容 MIME 导出 .doc");
+  assert(viewerJs.includes("await renderArticleWordDocument(currentState, currentTabs, exportSteps, options)"), "viewer.js 必须等待隐私安全 ArticleStep 合成后再导出 Word");
+  assert(viewerJs.includes(".docx"), "viewer.js 必须导出真正的 .docx 文件");
+  assert(viewerJs.includes("downloadBlobFile(`sop-article-"), "viewer.js 必须以 Blob 下载 DOCX");
+  assert(viewerArtifacts.includes("async function renderArticleWordDocument"), "预览页 Word 导出必须支持异步截图合成");
+  assert(viewerArtifacts.includes("async function renderWordImage"), "预览页 Word 导出必须把截图和高亮合成为单张图片");
+  assert(viewerArtifacts.includes("function buildDocxBlob"), "预览页 Word 导出必须生成 OpenXML DOCX 包");
+  assert(viewerArtifacts.includes("[Content_Types].xml") && viewerArtifacts.includes("word/document.xml"), "预览页 Word 导出必须包含 DOCX 核心部件");
+  assert(viewerArtifacts.includes("drawWordFocusOverlay"), "预览页 Word 导出必须把高亮和阴影画进图片");
+  assert(viewerArtifacts.includes("canvas.toDataURL(\"image/png\")"), "预览页 Word 导出必须导出已渲染 PNG，避免 Word 丢失 CSS 叠层");
   assert(viewerArtifacts.includes("privacyMaskBoxes"), "预览 Markdown/Word 必须包含打码区域信息");
   assert(!viewerArtifacts.includes("点击坐标：x="), "预览 Markdown/Word 不应输出点击坐标元数据");
   assert(!viewerArtifacts.includes("高亮区域：x="), "预览 Markdown/Word 不应输出高亮区域元数据");

@@ -106,48 +106,18 @@ function renderArticleMarkdown(state, tabs, steps, options = {}) {
   return `${lines.join("\n").trim()}\n`;
 }
 
-function renderArticleWordDocument(state, tabs, steps, options = {}) {
+async function renderArticleWordDocument(state, tabs, steps, options = {}) {
   const title = resolveArticleTitle(state, tabs, options);
-  return `<!doctype html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(title)}</title>
-  <style>
-    @page { margin: 2cm; }
-    body { color:#18212b; font-family:"Microsoft YaHei","Segoe UI",sans-serif; line-height:1.55; }
-    h1 { font-size:26pt; margin:0 0 8pt; }
-    h2 { font-size:18pt; margin:22pt 0 8pt; border-bottom:1pt solid #dce3ea; padding-bottom:6pt; }
-    h3 { font-size:14pt; margin:14pt 0 6pt; }
-    p { margin:0 0 8pt; }
-    .meta { color:#66717d; margin-bottom:14pt; }
-    .tabs { margin:10pt 0 18pt; }
-    .tab { display:inline-block; border:1pt solid #e6c4aa; padding:4pt 7pt; margin:0 5pt 5pt 0; color:#854513; background:#fff7ef; }
-    .step { border:1pt solid #dce3ea; padding:12pt; margin:0 0 12pt; page-break-inside:avoid; }
-    .kind { color:#145985; font-weight:bold; }
-    .switch { color:#854513; background:#fff8f0; border:1pt dashed #dca977; padding:8pt; margin:8pt 0; }
-    .warning { color:#9a3f00; font-weight:bold; }
-    .shot { position:relative; max-width:100%; border:1pt solid #dce3ea; overflow:visible; }
-    .shot img { display:block; max-width:100%; height:auto; }
-    .focus { position:absolute; border:2pt solid #f18a2a; }
-    .focus-zoom { position:absolute; border:2pt solid #f18a2a; overflow:hidden; background:#fff; }
-    .focus-zoom img { position:absolute; display:block; max-width:none; height:auto; }
-    .mask { position:absolute; background:#111827; }
-    .redacted { color:#66717d; font-weight:bold; border:1pt dashed #dce3ea; padding:10pt; }
-    .coords { color:#66717d; font-size:9pt; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(title)}</h1>
-  <p class="meta">${renderStepSummary(steps)}</p>
-  <div class="tabs">${tabs.map((tab) => `<span class="tab">${escapeHtml(tab.tabAlias)}${tab.domain ? ` · ${escapeHtml(tab.domain)}` : ""}</span>`).join("")}</div>
-  <h2>操作步骤</h2>
-  ${steps.map(renderWordStep).join("\n")}
-</body>
-</html>`;
+  const safeSteps = steps || [];
+  const images = await Promise.all(safeSteps.map(async (step, index) => ({
+    stepId: step.id,
+    filename: `image${index + 1}.png`,
+    dataUrl: step.image ? await renderWordScreenshotDataUrl(step) : null,
+    screenshot: step.screenshot || null
+  })));
+  return buildDocxBlob(title, tabs || [], safeSteps, images);
 }
-
-function renderWordStep(step) {
+async function renderWordStep(step) {
   const transition = step.fromTabAlias || step.toTabAlias
     ? `<div class="switch">${escapeHtml(step.fromTabAlias || "当前标签页")} -> ${escapeHtml(step.toTabAlias || "目标标签页")}</div>`
     : "";
@@ -156,7 +126,7 @@ function renderWordStep(step) {
     : "";
   const warnings = step.privacyWarnings?.map((warning) => `<p class="warning">${escapeHtml(warning)}</p>`).join("") || "";
   const image = step.image
-    ? renderArticleImage(step)
+    ? await renderWordImage(step)
     : step.imageRedactedForPrivacy ? `<p class="redacted">截图已因隐私保护从导出文件中移除，仅保留截图元数据。</p>` : "";
   const key = step.key
     ? `<p class="coords">按键：${escapeHtml(step.key)}</p>`
@@ -232,6 +202,304 @@ function renderArticleImage(step) {
   const zoom = box && viewportWidth && viewportHeight ? renderFocusZoom(step.image, box, viewportWidth, viewportHeight, step.privacyMaskBoxes || []) : "";
   const masks = viewportWidth && viewportHeight ? renderMaskBoxes(step.privacyMaskBoxes || [], viewportWidth, viewportHeight) : "";
   return `<div class="shot"><img src="${step.image}" alt="步骤截图">${focus}${masks}${zoom}</div>`;
+}
+
+async function renderWordImage(step) {
+  const rendered = await renderWordScreenshotDataUrl(step);
+  return `<div class="shot"><img src="${rendered}" alt="Word screenshot"></div>`;
+}
+
+async function renderWordScreenshotDataUrl(step) {
+  const box = step.focusBox;
+  const masks = step.privacyMaskBoxes || [];
+  if (!box && !masks.length) return step.image;
+  try {
+    const image = await loadImageElement(step.image);
+    const shot = step.screenshot || {};
+    const width = Math.max(1, Math.round(shot.viewportWidth || shot.width || image.naturalWidth || image.width));
+    const height = Math.max(1, Math.round(shot.viewportHeight || shot.height || image.naturalHeight || image.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0, width, height);
+    if (box && Number.isFinite(box.x)) drawWordFocusOverlay(ctx, image, box, width, height);
+    masks.forEach((mask) => drawWordMask(ctx, mask));
+    return canvas.toDataURL("image/png");
+  } catch {
+    return step.image;
+  }
+}
+
+function drawWordFocusOverlay(ctx, image, box, width, height) {
+  const focus = expandBox(box, width, height, 12);
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(image, focus.x, focus.y, focus.width, focus.height, focus.x, focus.y, focus.width, focus.height);
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
+  roundedRectPath(ctx, focus.x, focus.y, focus.width, focus.height, 8);
+  ctx.strokeStyle = "#f18a2a";
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawWordMask(ctx, box) {
+  if (!box || !Number.isFinite(box.x)) return;
+  ctx.save();
+  ctx.fillStyle = "#111827";
+  roundedRectPath(ctx, box.x, box.y, Math.max(1, box.width), Math.max(1, box.height), 6);
+  ctx.fill();
+  ctx.restore();
+}
+
+function expandBox(box, width, height, padding) {
+  const x = Math.max(0, box.x - padding);
+  const y = Math.max(0, box.y - padding);
+  return {
+    x,
+    y,
+    width: Math.min(width - x, Math.max(48, box.width + padding * 2)),
+    height: Math.min(height - y, Math.max(32, box.height + padding * 2))
+  };
+}
+
+function roundedRectPath(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function buildDocxBlob(title, tabs, steps, images) {
+  const mediaFiles = images
+    .filter((item) => item.dataUrl)
+    .map((item, index) => ({
+      ...item,
+      relId: `rIdImage${index + 1}`,
+      path: `word/media/${item.filename}`,
+      bytes: dataUrlToBytes(item.dataUrl)
+    }));
+  const imageByStep = new Map(mediaFiles.map((item) => [item.stepId, item]));
+  const parts = [
+    { path: "[Content_Types].xml", text: docxContentTypes(mediaFiles) },
+    { path: "_rels/.rels", text: docxRootRels() },
+    { path: "word/_rels/document.xml.rels", text: docxDocumentRels(mediaFiles) },
+    { path: "word/document.xml", text: docxDocumentXml(title, tabs, steps, imageByStep) },
+    ...mediaFiles.map((file) => ({ path: file.path, bytes: file.bytes }))
+  ];
+  return new Blob([zipStore(parts)], {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  });
+}
+
+function docxContentTypes(mediaFiles) {
+  const pngOverride = mediaFiles.length ? '<Default Extension="png" ContentType="image/png"/>' : "";
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  ${pngOverride}
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+}
+
+function docxRootRels() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+}
+
+function docxDocumentRels(mediaFiles) {
+  const imageRels = mediaFiles.map((file) =>
+    `<Relationship Id="${file.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${escapeXml(file.filename)}"/>`
+  ).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${imageRels}</Relationships>`;
+}
+
+function docxDocumentXml(title, tabs, steps, imageByStep) {
+  const body = [
+    docxParagraph(title, "Title"),
+    docxParagraph(renderStepSummary(steps), "Meta"),
+    ...(tabs || []).map((tab) => docxParagraph(`${tab.tabAlias}${tab.domain ? ` - ${tab.domain}` : ""}`, "Meta")),
+    docxParagraph("操作步骤", "Heading1"),
+    ...steps.flatMap((step) => docxStepBlocks(step, imageByStep.get(step.id)))
+  ].join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+  <w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body>
+</w:document>`;
+}
+
+function docxStepBlocks(step, image) {
+  const blocks = [
+    docxParagraph(`${step.sequence}. ${step.title}`, "Heading2"),
+    docxParagraph(stepTypeText(step.type), "Kind"),
+    docxParagraph(step.description || "")
+  ];
+  if (step.fromTabAlias || step.toTabAlias) blocks.push(docxParagraph(`${step.fromTabAlias || "当前标签页"} -> ${step.toTabAlias || "目标标签页"}`, "Meta"));
+  if (step.type === "navigation") blocks.push(docxParagraph(`${step.fromUrl || "当前页面"} -> ${step.toUrl || step.pageUrl || "目标页面"}`, "Meta"));
+  (step.privacyWarnings || []).forEach((warning) => blocks.push(docxParagraph(warning, "Warning")));
+  if (image) blocks.push(docxImageParagraph(image));
+  if (!image && step.imageRedactedForPrivacy) blocks.push(docxParagraph("截图已因隐私保护从导出文件中移除，仅保留截图元数据。", "Meta"));
+  if (step.key) blocks.push(docxParagraph(`按键：${step.key}`, "Meta"));
+  if (step.privacyMaskBoxes?.length) blocks.push(docxParagraph("打码区域已渲染到截图中。", "Meta"));
+  return blocks;
+}
+
+function docxParagraph(text, style = "") {
+  const styleXml = style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : "";
+  return `<w:p>${styleXml}<w:r><w:t xml:space="preserve">${escapeXml(text || "")}</w:t></w:r></w:p>`;
+}
+
+function docxImageParagraph(image) {
+  const dims = docxImageSize(image.screenshot);
+  return `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">
+    <wp:extent cx="${dims.width}" cy="${dims.height}"/><wp:docPr id="${image.relId.replace(/\D/g, "") || 1}" name="${escapeXml(image.filename)}"/>
+    <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>
+      <pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(image.filename)}"/><pic:cNvPicPr/></pic:nvPicPr>
+      <pic:blipFill><a:blip r:embed="${image.relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+      <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${dims.width}" cy="${dims.height}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+    </pic:pic></a:graphicData></a:graphic>
+  </wp:inline></w:drawing></w:r></w:p>`;
+}
+
+function docxImageSize(screenshot = {}) {
+  const sourceWidth = Math.max(1, Number(screenshot.viewportWidth || screenshot.width || 1280));
+  const sourceHeight = Math.max(1, Number(screenshot.viewportHeight || screenshot.height || 720));
+  const maxWidth = 6.4 * 914400;
+  const height = Math.round(maxWidth * sourceHeight / sourceWidth);
+  return { width: Math.round(maxWidth), height };
+}
+
+function dataUrlToBytes(dataUrl) {
+  const base64 = String(dataUrl || "").split(",", 2)[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function zipStore(parts) {
+  const encoder = new TextEncoder();
+  const files = parts.map((part) => {
+    const name = encoder.encode(part.path);
+    const data = part.bytes || encoder.encode(part.text || "");
+    return { ...part, name, data, crc: crc32(data) };
+  });
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  files.forEach((file) => {
+    const local = zipLocalHeader(file);
+    chunks.push(local, file.name, file.data);
+    central.push({ file, offset });
+    offset += local.length + file.name.length + file.data.length;
+  });
+  const centralStart = offset;
+  central.forEach((entry) => {
+    const header = zipCentralHeader(entry.file, entry.offset);
+    chunks.push(header, entry.file.name);
+    offset += header.length + entry.file.name.length;
+  });
+  chunks.push(zipEndRecord(files.length, offset - centralStart, centralStart));
+  return concatBytes(chunks);
+}
+
+function zipLocalHeader(file) {
+  const header = new Uint8Array(30);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, 0x04034b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(10, 0, true);
+  view.setUint16(12, 0, true);
+  view.setUint32(14, file.crc, true);
+  view.setUint32(18, file.data.length, true);
+  view.setUint32(22, file.data.length, true);
+  view.setUint16(26, file.name.length, true);
+  return header;
+}
+
+function zipCentralHeader(file, offset) {
+  const header = new Uint8Array(46);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, 0x02014b50, true);
+  view.setUint16(4, 20, true);
+  view.setUint16(6, 20, true);
+  view.setUint32(16, file.crc, true);
+  view.setUint32(20, file.data.length, true);
+  view.setUint32(24, file.data.length, true);
+  view.setUint16(28, file.name.length, true);
+  view.setUint32(42, offset, true);
+  return header;
+}
+
+function zipEndRecord(fileCount, centralSize, centralOffset) {
+  const header = new Uint8Array(22);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, 0x06054b50, true);
+  view.setUint16(8, fileCount, true);
+  view.setUint16(10, fileCount, true);
+  view.setUint32(12, centralSize, true);
+  view.setUint32(16, centralOffset, true);
+  return header;
+}
+
+function concatBytes(chunks) {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const output = new Uint8Array(total);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return output;
+}
+
+function crc32(bytes) {
+  let crc = -1;
+  for (const byte of bytes) {
+    crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ byte) & 0xff];
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let index = 0; index < 256; index += 1) {
+    let value = index;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[index] = value >>> 0;
+  }
+  return table;
+})();
+
+function escapeXml(value) {
+  return escapeHtml(value);
 }
 
 function renderRedactedImageNotice() {

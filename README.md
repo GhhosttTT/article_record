@@ -42,9 +42,9 @@
 - 输入、选择和上传节点只持久化 `maskedValue`，不会保存 `rawValue`；旧字段 `value` 仅作为兼容别名。
 - Popup 和预览页导出前都会显示隐私检查结果，提示仍含敏感信息但未手动打码的步骤。
 - 导出录制 JSON 时，含敏感信息或打码区域的步骤会移除原始截图 `dataUrl`，只保留截图元数据和 `redactedForPrivacy` 标记。
-- 导出 SOP 文章、Markdown、Word 兼容文档和视频时间轴时，如步骤已有可靠打码区域，会保留截图并叠加遮挡；没有可靠打码区域的敏感截图才会移除原始 `dataUrl`。
+- 导出 SOP 文章、Markdown、Word 文档和视频时间轴时，如步骤已有可靠打码区域，会保留截图并叠加遮挡；没有可靠打码区域的敏感截图才会移除原始 `dataUrl`。
 - 导出录制 JSON。
-- 从预览页直接导出 SOP 文章 HTML、Markdown、Word 兼容 `.doc` 和视频时间轴 JSON。
+- 从预览页直接导出 SOP 文章 HTML、Markdown、真正 `.docx` Word 文档和视频时间轴 JSON。
 - 离线工具可基于 SOP HTML 生成基础 PDF，用于归档和分享。
 - SOP 文章按操作步骤导出，避免把同一系统内的路径变化写成章节教学。
 - 视频时间轴默认只输出步骤片段，不插入章节开场片段。
