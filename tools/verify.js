@@ -999,11 +999,13 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(!checkboxSteps[0].title.includes("订单号码"), "多选框标题不得包含整行表格内容");
 });
 
-runCheck("点击坐标会生成局部 focusBox，避免长控件整条放大", () => {
+runCheck("自动高亮会使用用户选择的目标元素 boundingBox", () => {
   const shared = readText("extension/shared/artifacts.js");
   const viewerJs = readText("extension/viewer.js");
-  assert(shared.includes("function focusBoxFromClickPoint"), "共享 artifact 必须按点击坐标生成 focusBox");
-  assert(viewerJs.includes("function focusBoxFromClickPoint"), "预览页必须按点击坐标生成 focusBox");
+  assert(shared.includes("return normalizeBox(node.target?.boundingBox)"), "共享 artifact 自动高亮必须使用目标元素 boundingBox");
+  assert(viewerJs.includes("return node.target?.boundingBox || null"), "预览页自动高亮必须使用目标元素 boundingBox");
+  assert(!shared.includes("function focusBoxFromClickPoint"), "共享 artifact 不应再按点击坐标裁切高亮框");
+  assert(!viewerJs.includes("function focusBoxFromClickPoint"), "预览页不应再按点击坐标裁切高亮框");
 
   const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
   const steps = buildArticleSteps([{
@@ -1022,10 +1024,9 @@ runCheck("点击坐标会生成局部 focusBox，避免长控件整条放大", (
     status: "auto_generated"
   }]);
   const timeline = buildVideoTimeline(steps);
-  assert(steps[0].focusBox.width < 260, "长输入框 focusBox 不应使用整条元素宽度");
-  assert(steps[0].focusBox.x <= 620 && steps[0].focusBox.x + steps[0].focusBox.width >= 620, "focusBox 必须覆盖点击位置 x");
-  assert(steps[0].focusBox.y <= 82 && steps[0].focusBox.y + steps[0].focusBox.height >= 82, "focusBox 必须覆盖点击位置 y");
-  assert(timeline.segments[0].highlight.width === steps[0].focusBox.width, "VideoTimeline 必须复用点击坐标生成的 focusBox");
+  assert(steps[0].focusBox.x === 120 && steps[0].focusBox.width === 720, "长输入框 focusBox 必须完整使用目标元素 boundingBox");
+  assert(steps[0].focusBox.y === 64 && steps[0].focusBox.height === 36, "长输入框 focusBox 位置必须来自目标元素 boundingBox");
+  assert(timeline.segments[0].highlight.width === 720, "VideoTimeline 必须复用目标元素 boundingBox");
 
   const smallControlSteps = buildArticleSteps([{
     id: "node_checkbox_focus",

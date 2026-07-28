@@ -509,30 +509,7 @@ function getNodeFocusBox(node) {
   if (node.focusBoxOverride) return node.focusBoxOverride;
   if (node.action === "modal_close") return null;
   if (node.target?.visibility?.canHighlight === false) return null;
-  if (!node.clickPoint) return node.target?.boundingBox || null;
-  return focusBoxFromClickPoint(node.clickPoint, node.target?.boundingBox, node.viewport) || node.target?.boundingBox || null;
-}
-
-function focusBoxFromClickPoint(point, targetBox, viewport) {
-  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
-  if (targetBox && targetBox.width <= 260 && targetBox.height <= 140) return targetBox;
-  const viewportWidth = Number(viewport?.width || targetBox?.width || 1280);
-  const viewportHeight = Number(viewport?.height || targetBox?.height || 720);
-  const baseWidth = targetBox ? Math.min(220, Math.max(96, targetBox.width * 0.35)) : 140;
-  const baseHeight = targetBox ? Math.min(140, Math.max(72, targetBox.height * 2.4)) : 100;
-  const width = Math.round(baseWidth);
-  const height = Math.round(baseHeight);
-  return {
-    x: Math.round(clamp(point.x - width / 2, 0, Math.max(0, viewportWidth - width))),
-    y: Math.round(clamp(point.y - height / 2, 0, Math.max(0, viewportHeight - height))),
-    width,
-    height,
-    coordinateSpace: point.coordinateSpace || targetBox?.coordinateSpace || "viewport-css-pixel"
-  };
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+  return node.target?.boundingBox || null;
 }
 
 function canMergeFormFields(node, laterNodes) {

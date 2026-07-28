@@ -464,35 +464,7 @@
     if (node.focusBoxOverride) return normalizeBox(node.focusBoxOverride);
     if (node.action === "modal_close") return null;
     if (node.target?.visibility?.canHighlight === false) return null;
-    const target = normalizeBox(node.target?.boundingBox);
-    if (!node.clickPoint) return target;
-    return normalizeBox(focusBoxFromClickPoint(node.clickPoint, target, node.viewport)) || target;
-  }
-
-  function focusBoxFromClickPoint(point, targetBox, viewport) {
-    const normalizedPoint = normalizePoint(point);
-    if (!normalizedPoint) return null;
-    const target = normalizeBox(targetBox);
-    const viewportWidth = Number(viewport?.width || target?.width || 1280);
-    const viewportHeight = Number(viewport?.height || target?.height || 720);
-    if (target && target.width <= 260 && target.height <= 140) return target;
-    const baseWidth = target ? Math.min(220, Math.max(96, target.width * 0.35)) : 140;
-    const baseHeight = target ? Math.min(140, Math.max(72, target.height * 2.4)) : 100;
-    const width = Math.round(baseWidth);
-    const height = Math.round(baseHeight);
-    const x = Math.round(clamp(normalizedPoint.x - width / 2, 0, Math.max(0, viewportWidth - width)));
-    const y = Math.round(clamp(normalizedPoint.y - height / 2, 0, Math.max(0, viewportHeight - height)));
-    return {
-      x,
-      y,
-      width,
-      height,
-      coordinateSpace: normalizedPoint.coordinateSpace || target?.coordinateSpace || "viewport-css-pixel"
-    };
-  }
-
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+    return normalizeBox(node.target?.boundingBox);
   }
 
   function operationDescription(node) {
