@@ -942,7 +942,7 @@ function buildSelector(element) {
 
 function detectPrivacy(element) {
   const value = getElementValue(element);
-  const sensitiveByField = isPasswordElement(element);
+  const sensitiveByField = isPasswordElement(element) && hasNonEmptyValue(element);
   const sensitiveByValue = isEmailValue(value);
   const sensitive = sensitiveByField || sensitiveByValue;
   return {
@@ -990,9 +990,13 @@ function collectPagePrivacyMaskBoxes() {
 
 function isEmailOrPasswordElement(element) {
   const value = getElementValue(element);
-  return isPasswordElement(element) ||
+  return (isPasswordElement(element) && hasNonEmptyValue(element)) ||
     (element instanceof HTMLInputElement && element.type === "email") ||
     isEmailValue(value);
+}
+
+function hasNonEmptyValue(element) {
+  return Boolean(String(getElementValue(element) || "").trim());
 }
 
 function isPasswordElement(element) {

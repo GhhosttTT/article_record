@@ -1612,6 +1612,7 @@ runCheck("敏感字段录制时会自动生成截图打码区域", () => {
   assert(content.includes("containsSensitiveData: sensitive"), "content.js 必须识别敏感字段");
   assert(content.includes("isEmailValue(value)"), "content.js 必须按输入值识别邮箱");
   assert(content.includes("isPasswordElement(element)"), "content.js 必须按字段识别密码");
+  assert(content.includes("isPasswordElement(element) && hasNonEmptyValue(element)"), "content.js 不应遮挡空密码框");
   assert(content.includes("collectPagePrivacyMaskBoxes"), "content.js 必须扫描页面中后续出现的邮箱/密码区域");
   assert(content.includes("pagePrivacyMaskBoxes"), "content.js 必须把页面级邮箱/密码打码区域传给 background");
   assert(content.includes("\"email\""), "content.js 必须记录邮箱敏感原因");
