@@ -12,6 +12,7 @@ runCheck("manifest.json 可解析且为 MV3", () => {
   assert(manifest.background?.service_worker === "background.js", "缺少 background service_worker");
   assert(manifest.permissions.includes("tabs"), "需要 tabs 权限记录多标签页");
   assert(manifest.permissions.includes("scripting"), "需要 scripting 权限在开始录制时注入 content.js");
+  assert(!manifest.content_scripts, "content.js must be injected by background only");
 });
 
 [
@@ -431,6 +432,7 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("sendInputLikeEvent(target, \"check\")"), "content.js 必须发送 check 事件");
   assert(content.includes("isCheckableTarget(target)"), "click 事件必须识别原生和自定义 checkbox/radio/switch");
   assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(target, \"check\")"), "checkbox 点击必须等选中状态更新后再记录");
+  assert(!content.includes("target.querySelector?.(\"input[type='checkbox']"), "checkbox detection must not scan child rows/cells");
   assert(content.includes("action: \"submit\""), "content.js 必须发送 submit 事件");
   assert(content.includes("response?.ok || response?.duplicateEvent"), "content.js 只有收到 background 确认后才能删除事件队列");
   assert(content.includes("chrome.runtime?.id"), "content.js 必须在扩展上下文失效时避免直接调用 sendMessage");
@@ -513,6 +515,7 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("canvas.captureStream(0)"), "预览页视频导出必须使用手动帧捕获，避免自动捕获清屏过程导致频闪");
   assert(viewerJs.includes("drawArticleTitle"), "预览页视频导出必须展示文章标题");
   assert(viewerJs.includes("canvasImageCache"), "预览页视频导出必须缓存截图，避免逐帧重复加载导致抖动");
+  assert(viewerJs.includes("drawText(ctx, line, 640, firstY + index * 32, 24"), "video subtitle font must be smaller");
   assert(viewerJs.includes("!chunks.length"), "预览页视频导出必须检测空视频数据");
   assert(viewerJs.includes(".webm"), "预览页视频导出文件必须使用 WebM 扩展名");
   assert(viewerJs.includes("downloadBlobFile"), "预览页视频导出必须下载 Blob 视频文件");
@@ -628,6 +631,7 @@ runCheck("录制控制状态会保持 runtime 和 session 一致", () => {
   assert(background.includes("activeTabId: activeTabIsRecordable ? activeTab.id : null"), "从内部页开始录制时 activeTabId 必须保持为空");
   assert(background.includes("if (activeTabIsRecordable)") && background.includes("await ensureTabContext(activeTab, activeTab.windowId)"), "开始录制时只能为可记录 tab 建立上下文");
   assert(background.includes("injectRecorderContentScript(activeTab.id)"), "开始录制时必须主动向当前页面注入 content.js");
+  assert(background.includes("await injectRecorderContentScript(tabId)") && background.indexOf("chrome.tabs.onActivated") < background.indexOf("await injectRecorderContentScript(tabId)"), "tab activation must inject content.js so operations after tab switch are recorded");
   assert(background.includes("chrome.scripting.executeScript"), "background 必须通过 scripting API 注入 content.js");
   assert(background.includes("deleteScreenshotRecords(runtimeState.nodes.map((node) => node.screenshot?.id))"), "截图清理必须删除当前节点引用的截图记录");
   assert(background.includes("MAX_SCREENSHOT_RECORDS = 120"), "background 必须限制单次录制截图数量");

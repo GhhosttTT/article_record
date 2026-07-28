@@ -12,6 +12,6 @@
   
   
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
-  <text x="640" y="648" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">在邮箱中点击 Activate Account，激活刚注册的账号。</text>
+  <text x="640" y="650" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">在邮箱中点击 Activate Account，激活刚注册的账号。</text>
   
 </svg>

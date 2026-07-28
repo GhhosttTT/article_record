@@ -696,11 +696,11 @@ function drawArticleTitle(ctx, title) {
 function drawSubtitle(ctx, segment) {
   ctx.fillStyle = "rgba(17,24,39,.88)";
   ctx.fillRect(0, 586, 1280, 134);
-  const lines = wrapCanvasText(segment.caption || "", 30, 2);
-  const firstY = lines.length > 1 ? 626 : 648;
-  lines.forEach((line, index) => drawText(ctx, line, 640, firstY + index * 38, 32, "#fff", "800", "center"));
+  const lines = wrapCanvasText(segment.caption || "", 40, 2);
+  const firstY = lines.length > 1 ? 628 : 650;
+  lines.forEach((line, index) => drawText(ctx, line, 640, firstY + index * 32, 24, "#fff", "800", "center"));
   const context = videoSubtitleContext(segment);
-  if (context) drawText(ctx, context, 640, 704, 20, "#cbd5e1", "400", "center");
+  if (context) drawText(ctx, context, 640, 704, 16, "#cbd5e1", "400", "center");
 }
 
 function videoSubtitleContext(segment) {

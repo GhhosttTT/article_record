@@ -6,6 +6,7 @@ const ACTION_TARGET_SELECTOR = [
   "button",
   "a[href]",
   "input",
+  "label",
   "select",
   "textarea",
   "summary",
@@ -184,8 +185,7 @@ function sendInputLikeEvent(target, action) {
 function isCheckableTarget(target) {
   if (!(target instanceof Element)) return false;
   if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) return true;
-  if (target instanceof HTMLLabelElement && target.querySelector("input[type='checkbox'], input[type='radio']")) return true;
-  if (target.querySelector?.("input[type='checkbox'], input[type='radio']")) return true;
+  if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.control.type)) return true;
   const role = target.getAttribute("role");
   return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked");
 }

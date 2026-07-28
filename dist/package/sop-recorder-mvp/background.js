@@ -43,6 +43,7 @@ chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
   runtimeState.activeTabId = tabId;
 
   const toContext = await ensureTabContext(tab, windowId);
+  await injectRecorderContentScript(tabId);
   const fromContext = fromTabId ? runtimeState.tabContexts[fromTabId] : null;
 
   if (fromContext && fromContext.tabId !== toContext.tabId && !shouldSkipTabSwitch(fromContext, toContext)) {
@@ -139,6 +140,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 
   if (changeInfo.status === "complete" && runtimeState.status === "recording") {
+    await injectRecorderContentScript(tabId);
     await flushPendingNavigation(tabId, context, tab);
   }
   await persistState();

@@ -17,6 +17,6 @@
   
   
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
-  <text x="640" y="648" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">打开标签页 B：邮箱收件箱，查收账号激活邮件。</text>
-  <text x="640" y="704" text-anchor="middle" font-size="20" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页 A：ZKBio TimeCloud 注册页 -&gt; 标签页 B：邮箱收件箱</text>
+  <text x="640" y="650" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">打开标签页 B：邮箱收件箱，查收账号激活邮件。</text>
+  <text x="640" y="704" text-anchor="middle" font-size="16" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页 A：ZKBio TimeCloud 注册页 -&gt; 标签页 B：邮箱收件箱</text>
 </svg>

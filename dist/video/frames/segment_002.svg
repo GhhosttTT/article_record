@@ -12,7 +12,7 @@
   
   
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
-  <text x="640" y="626" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">Enter the registration email, then wait for the</text>
-  <text x="640" y="664" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">activation message.</text>
+  <text x="640" y="628" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">Enter the registration email, then wait for the activation</text>
+  <text x="640" y="660" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">message.</text>
   
 </svg>

@@ -119,12 +119,12 @@ function renderArticleTitle(title) {
 }
 
 function renderSubtitle(segment) {
-  const captionLines = wrapText(segment.caption || "", 30, 2);
+  const captionLines = wrapText(segment.caption || "", 40, 2);
   const context = subtitleContext(segment);
-  const firstY = captionLines.length > 1 ? 626 : 648;
+  const firstY = captionLines.length > 1 ? 628 : 650;
   return `<rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
-  ${captionLines.map((line, index) => `<text x="640" y="${firstY + index * 38}" text-anchor="middle" font-size="32" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(line)}</text>`).join("\n  ")}
-  ${context ? `<text x="640" y="704" text-anchor="middle" font-size="20" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(context)}</text>` : ""}`;
+  ${captionLines.map((line, index) => `<text x="640" y="${firstY + index * 32}" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(line)}</text>`).join("\n  ")}
+  ${context ? `<text x="640" y="704" text-anchor="middle" font-size="16" fill="#cbd5e1" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(context)}</text>` : ""}`;
 }
 
 function subtitleContext(segment) {
