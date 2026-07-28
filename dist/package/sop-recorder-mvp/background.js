@@ -1024,7 +1024,7 @@ function generateInstruction(payload, context) {
     : payload.action === "modal_open" || payload.action === "modal_close"
       ? modalTargetName(payload.target)
     : payload.target?.text || payload.target?.ariaLabel || payload.target?.labelText || payload.target?.placeholder || payload.target?.title || payload.target?.nearbyText || payload.target?.name || payload.target?.id || "目标元素";
-  if (payload.action === "wait") return `等待${context.title || targetName || "当前页面"}加载完成。`;
+  if (payload.action === "wait") return `${context.title || targetName || "当前页面"}页面加载完成。`;
   if (payload.action === "input") return `在${targetName}中输入内容。`;
   if (payload.action === "select") return `在${targetName}中选择选项。`;
   if (payload.action === "check") return `${payload.checked === false ? "取消勾选" : "勾选"}${targetName}。`;

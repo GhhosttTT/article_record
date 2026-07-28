@@ -356,6 +356,7 @@ function renderStep(node, index, nodes) {
   const isTransition = stepType === "tab_transition" || stepType === "navigation";
   const title = node.titleOverride || (isTransition ? renderTransitionTitle(node) : renderOperationTitle(node));
   const description = node.descriptionOverride || node.generatedInstruction || "";
+  const headerDescription = shouldShowHeaderDescription(node, title, description) ? description : "";
   const voiceoverText = node.voiceoverText || description;
   const durationSeconds = node.durationOverrideSeconds || getDefaultDurationSeconds(description, stepType);
   const focusBox = getNodeFocusBox(node);
@@ -370,8 +371,7 @@ function renderStep(node, index, nodes) {
       <header class="step-header">
         <div>
           <h3>${escapeHtml(node.sequence || "-")}. ${escapeHtml(title)}</h3>
-          <p>${escapeHtml(description)}</p>
-          ${node.tab?.tabAlias ? `<p>${escapeHtml(node.tab.tabAlias)} · ${escapeHtml(node.tab.domain || "")}</p>` : ""}
+          ${headerDescription ? `<p>${escapeHtml(headerDescription)}</p>` : ""}
         </div>
         <div class="step-side">
           <span class="step-kind ${isTransition ? "tab" : ""}">${escapeHtml(stepKindText(stepType, node.action))}</span>
@@ -388,17 +388,20 @@ function renderStep(node, index, nodes) {
         </div>
       </header>
       <section class="step-editor">
-        <label>
-          <span>步骤标题</span>
-          <input data-node-title value="${escapeHtml(title)}" ${isDiscarded ? "disabled" : ""}>
-        </label>
-        <label>
-          <span>步骤说明</span>
-          <textarea data-node-description rows="3" ${isDiscarded ? "disabled" : ""}>${escapeHtml(description)}</textarea>
-        </label>
-        <div class="editor-actions">
-          <button type="button" class="small" data-node-action="save-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存文案</button>
-          <button type="button" class="small secondary" data-node-action="clear-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || (!node.titleOverride && !node.descriptionOverride) ? "disabled" : ""}>恢复自动</button>
+        <div class="text-editor-grid">
+          <label class="editor-field">
+            <span>步骤标题</span>
+            <input data-node-title value="${escapeHtml(title)}" ${isDiscarded ? "disabled" : ""}>
+          </label>
+          <div></div>
+          <label class="editor-field">
+            <span>步骤说明</span>
+            <textarea data-node-description rows="2" ${isDiscarded ? "disabled" : ""}>${escapeHtml(description)}</textarea>
+          </label>
+          <div class="editor-actions text-actions">
+            <button type="button" class="small" data-node-action="save-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存文案</button>
+            <button type="button" class="small secondary" data-node-action="clear-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || (!node.titleOverride && !node.descriptionOverride) ? "disabled" : ""}>恢复自动</button>
+          </div>
         </div>
         <div class="duration-editor">
           <label>
@@ -476,6 +479,14 @@ function renderOperationTitle(node) {
 
 function renderTransitionTitle(node) {
   return SopArtifactShared.transitionTitle(node);
+}
+
+function shouldShowHeaderDescription(node, title, description) {
+  const normalizedDescription = String(description || "").trim();
+  if (!normalizedDescription) return false;
+  if (normalizedDescription === String(title || "").trim()) return false;
+  if (node.action === "wait") return false;
+  return true;
 }
 
 function stepKindText(stepType, action) {

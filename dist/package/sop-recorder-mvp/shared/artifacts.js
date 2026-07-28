@@ -456,7 +456,7 @@
     if (node.action === "upload") return `上传 ${name}`;
     if (node.action === "submit") return "提交表单";
     if (node.action === "key") return `按下 ${node.key || "快捷键"}：${name}`;
-    if (node.action === "wait") return `等待 ${name} 加载`;
+    if (node.action === "wait") return `进入 ${name} 页面`;
     if (node.action === "modal_open") return `弹窗出现：${name}`;
     if (node.action === "modal_close") return `关闭弹窗：${name}`;
     return `点击 ${name}`;
@@ -476,7 +476,7 @@
       : node.action === "modal_open" || node.action === "modal_close"
         ? modalTargetName(target)
       : target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
-    if (node.action === "wait") return `等待 ${name} 加载完成。`;
+    if (node.action === "wait") return `${name} 页面加载完成。`;
     if (!node.navigationOutcome || !["click", "submit", "key"].includes(node.action)) return "";
     return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面。`;
   }

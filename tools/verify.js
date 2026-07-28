@@ -809,9 +809,9 @@ runCheck("耗时页面加载会生成去重后的 wait 节点", () => {
   ]);
   const timeline = buildVideoTimeline(steps);
   assert(steps[0].type === "operation", "wait 节点应作为普通操作步骤导出");
-  assert(steps[0].title === "等待 报表页 加载", "wait 节点必须生成可读标题");
-  assert(steps[0].description === "等待 报表页 加载完成。", "wait 节点说明不应包含具体等待秒数");
-  assert(timeline.segments[0].caption === "等待 报表页 加载完成。", "wait 视频字幕不应包含具体等待秒数");
+  assert(steps[0].title === "进入 报表页 页面", "wait 节点必须生成可读标题");
+  assert(steps[0].description === "报表页 页面加载完成。", "wait 节点说明不应包含具体等待秒数");
+  assert(timeline.segments[0].caption === "报表页 页面加载完成。", "wait 视频字幕不应包含具体等待秒数");
 });
 
 runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => {
