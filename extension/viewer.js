@@ -643,8 +643,11 @@ async function drawVideoFrame(ctx, segment, timelineTitle = "") {
 async function drawScreenshotFrame(ctx, segment) {
   const sourceWidth = segment.screenshot?.viewportWidth || segment.screenshot?.width || 1280;
   const sourceHeight = segment.screenshot?.viewportHeight || segment.screenshot?.height || 720;
-  const frame = fitVideoRect(sourceWidth, sourceHeight, { x: 32, y: 24, width: 1216, height: 548 });
   const image = await loadCanvasImage(segment.visual);
+  const frame = fitVideoRect(sourceWidth, sourceHeight, { x: 32, y: 24, width: 1216, height: 548 }, {
+    maxOutputWidth: image.naturalWidth || image.width || null,
+    maxOutputHeight: image.naturalHeight || image.height || null
+  });
   roundRect(ctx, frame.x - 4, frame.y - 4, frame.width + 8, frame.height + 8, 18, "#e2e8f0");
   ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
   drawOverlayBox(ctx, segment.highlight, frame, "#f18a2a", null, 6);
@@ -765,8 +768,15 @@ function drawOverlayBox(ctx, box, frame, stroke, fill, lineWidth) {
   if (stroke && lineWidth) roundRect(ctx, x, y, width, height, 8, null, stroke, lineWidth);
 }
 
-function fitVideoRect(sourceWidth, sourceHeight, bounds) {
-  const scale = Math.min(bounds.width / sourceWidth, bounds.height / sourceHeight);
+function fitVideoRect(sourceWidth, sourceHeight, bounds, options = {}) {
+  const maxLogicalWidth = options.maxOutputWidth ? options.maxOutputWidth / VIDEO_SCALE : Infinity;
+  const maxLogicalHeight = options.maxOutputHeight ? options.maxOutputHeight / VIDEO_SCALE : Infinity;
+  const scale = Math.min(
+    bounds.width / sourceWidth,
+    bounds.height / sourceHeight,
+    maxLogicalWidth / sourceWidth,
+    maxLogicalHeight / sourceHeight
+  );
   const width = sourceWidth * scale;
   const height = sourceHeight * scale;
   return {

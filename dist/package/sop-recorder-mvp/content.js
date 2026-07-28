@@ -60,6 +60,7 @@ if (document.readyState === "loading") {
 
 document.addEventListener("pointerdown", (event) => {
   if (!isActiveContentInstance()) return;
+  if (event.button !== 0) return;
   const clickPoint = getClickPoint(event);
   const target = resolveActionTarget(event.target, clickPoint);
   if (!target || isCheckableTarget(target) || !shouldCaptureBeforeClick(target)) return;
@@ -639,6 +640,8 @@ function resolveActionTarget(target, clickPoint = null) {
   if (pointCheckable) return pointCheckable;
   const checkableAncestor = getCheckableInput(target);
   if (checkableAncestor) return checkableAncestor;
+  const pointAction = findActionAtPoint(clickPoint);
+  if (pointAction) return pointAction;
   const preferredTarget = findPreferredActionTarget(target);
   if (preferredTarget) return preferredTarget;
   return findPointerCursorTarget(target);
@@ -687,6 +690,33 @@ function expandActionContainer(element) {
     depth += 1;
   }
   return element;
+}
+
+function findActionAtPoint(point) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  const elements = document.elementsFromPoint?.(point.x, point.y) || [];
+  for (const element of elements) {
+    if (!(element instanceof Element)) continue;
+    const action = closestVisibleActionElement(element);
+    if (action) return expandActionContainer(action);
+  }
+  return null;
+}
+
+function closestVisibleActionElement(element) {
+  let current = element;
+  let depth = 0;
+  while (current && current !== document.body && current !== document.documentElement && depth < 5) {
+    const type = inferTargetType(current);
+    if (["button", "link", "menuitem"].includes(type) || current.hasAttribute("onclick")) {
+      const box = current.getBoundingClientRect();
+      const visibility = getTargetVisibility(current, box);
+      if (visibility.visible && box.width >= 12 && box.height >= 12) return current;
+    }
+    current = current.parentElement;
+    depth += 1;
+  }
+  return null;
 }
 
 function isLikelyActionWrapper(element, wrapperBox, innerBox) {

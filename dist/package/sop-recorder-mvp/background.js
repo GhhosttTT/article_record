@@ -754,8 +754,17 @@ function findMergeableClickNode(payload, context) {
   if (last.action !== "click") return null;
   if (last.tab?.tabId !== context.tabId) return null;
   if (last.target?.selector !== selector) return null;
+  if (!isNearbyClickPoint(payload.clickPoint, last.clickPoint, 10)) return null;
   if (Date.now() - new Date(last.updatedAt || last.capturedAt).getTime() > 1000) return null;
   return last;
+}
+
+function isNearbyClickPoint(a, b, threshold = 10) {
+  if (!a || !b) return false;
+  const dx = Number(a.x) - Number(b.x);
+  const dy = Number(a.y) - Number(b.y);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return false;
+  return Math.hypot(dx, dy) <= threshold;
 }
 
 function buildAutoMaskBoxes(payload = {}) {

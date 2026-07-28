@@ -190,10 +190,12 @@ function renderNavigationVisual(segment) {
 }
 
 function renderScreenshotVisual(segment) {
+  const imageSize = dataUrlImageSize(segment.visual);
   const frame = fitRect(
     segment.screenshot?.viewportWidth || segment.screenshot?.width || 1280,
     segment.screenshot?.viewportHeight || segment.screenshot?.height || 720,
-    { x: 32, y: 24, width: 1216, height: 548 }
+    { x: 32, y: 24, width: 1216, height: 548 },
+    imageSize ? { maxOutputWidth: imageSize.width, maxOutputHeight: imageSize.height } : {}
   );
   const highlight = renderOverlayBox(segment.highlight, frame, "#f18a2a", "none", 6);
   const masks = (segment.privacyMaskBoxes || [])
@@ -365,8 +367,16 @@ function pathToFileUrl(filePath) {
   return `file:///${path.resolve(filePath).replaceAll("\\", "/")}`;
 }
 
-function fitRect(sourceWidth, sourceHeight, target) {
-  const scale = Math.min(target.width / sourceWidth, target.height / sourceHeight);
+function fitRect(sourceWidth, sourceHeight, target, options = {}) {
+  const outputScale = VIDEO_WIDTH / VIDEO_VIEWBOX_WIDTH;
+  const maxLogicalWidth = options.maxOutputWidth ? options.maxOutputWidth / outputScale : Infinity;
+  const maxLogicalHeight = options.maxOutputHeight ? options.maxOutputHeight / outputScale : Infinity;
+  const scale = Math.min(
+    target.width / sourceWidth,
+    target.height / sourceHeight,
+    maxLogicalWidth / sourceWidth,
+    maxLogicalHeight / sourceHeight
+  );
   const width = Math.round(sourceWidth * scale);
   const height = Math.round(sourceHeight * scale);
   return {
@@ -377,6 +387,38 @@ function fitRect(sourceWidth, sourceHeight, target) {
     sourceWidth,
     sourceHeight
   };
+}
+
+function dataUrlImageSize(dataUrl = "") {
+  const match = /^data:image\/(png|jpeg|jpg);base64,(.+)$/i.exec(String(dataUrl || ""));
+  if (!match) return null;
+  try {
+    const buffer = Buffer.from(match[2], "base64");
+    if (match[1].toLowerCase() === "png") return pngSize(buffer);
+    return jpegSize(buffer);
+  } catch {
+    return null;
+  }
+}
+
+function pngSize(buffer) {
+  if (buffer.length < 24) return null;
+  if (buffer.readUInt32BE(0) !== 0x89504e47 || buffer.toString("ascii", 12, 16) !== "IHDR") return null;
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+function jpegSize(buffer) {
+  let offset = 2;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) return null;
+    const marker = buffer[offset + 1];
+    const length = buffer.readUInt16BE(offset + 2);
+    if (marker >= 0xc0 && marker <= 0xc3) {
+      return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
+    }
+    offset += 2 + length;
+  }
+  return null;
 }
 
 function renderOverlayBox(box, frame, stroke, fill, strokeWidth) {
