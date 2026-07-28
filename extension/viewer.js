@@ -25,7 +25,7 @@ const VIDEO_HEIGHT = 1440;
 const VIDEO_VIEWBOX_WIDTH = 1280;
 const VIDEO_VIEWBOX_HEIGHT = 720;
 const VIDEO_SCALE = VIDEO_WIDTH / VIDEO_VIEWBOX_WIDTH;
-const WEBM_VIDEO_BITS_PER_SECOND = 24_000_000;
+const WEBM_VIDEO_BITS_PER_SECOND = 48_000_000;
 
 els.privacyMaskToggle?.addEventListener("change", () => {
   if (currentState) applyState(currentState, { preserveTitle: true });
@@ -572,6 +572,7 @@ async function renderTimelineWebm(timeline) {
   canvas.width = VIDEO_WIDTH;
   canvas.height = VIDEO_HEIGHT;
   const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
   ctx.setTransform(VIDEO_SCALE, 0, 0, VIDEO_SCALE, 0, 0);
   const fps = 12;
   const mimeType = pickVideoMimeType();

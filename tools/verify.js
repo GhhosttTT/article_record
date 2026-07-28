@@ -439,6 +439,8 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("event.repeat"), "键盘采集必须忽略长按重复键");
   assert(content.includes("sendInputLikeEvent(target, \"select\")"), "content.js 必须发送 select 事件");
   assert(content.includes("sendInputLikeEvent(target, \"check\","), "content.js 必须发送 check 事件");
+  assert(content.includes("function scheduleCheckClickEvent"), "checkbox/switch 点击必须主动延迟记录，不能只依赖 change 事件");
+  assert(content.includes("function shouldSkipCheckChange"), "checkbox/switch click 和 change 必须去重");
   assert(content.includes("isCheckableTarget(target)"), "click 事件必须识别原生和自定义 checkbox/radio/switch");
   assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(target, \"check\", clickPoint)"), "自定义 checkbox 点击必须等选中状态更新后再记录");
   assert(!content.includes("target.querySelector?.(\"input[type='checkbox']"), "checkbox detection must not scan child rows/cells");
@@ -526,7 +528,8 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("canvas.captureStream(0)"), "预览页视频导出必须使用手动帧捕获，避免自动捕获清屏过程导致频闪");
   assert(viewerJs.includes("const VIDEO_WIDTH = 2560") && viewerJs.includes("const VIDEO_HEIGHT = 1440"), "video export must use 2K canvas");
   assert(viewerJs.includes("ctx.setTransform(VIDEO_SCALE"), "video export must scale virtual coordinates on high-res canvas");
-  assert(viewerJs.includes("WEBM_VIDEO_BITS_PER_SECOND = 24_000_000"), "video export must use a high bitrate for clear 2K WebM output");
+  assert(viewerJs.includes("WEBM_VIDEO_BITS_PER_SECOND = 48_000_000"), "video export must use a high bitrate for clear 2K WebM output");
+  assert(viewerJs.includes("ctx.imageSmoothingEnabled = false"), "video export must avoid browser smoothing when scaling screenshots");
   assert(viewerJs.includes("* 4.25"), "focus zoom must use stronger magnification");
   assert(viewerJs.includes("frame.width * 0.43"), "focus zoom window must be larger");
   assert(viewerJs.includes("function focusZoomAnchor") && viewerJs.includes("box.width * 0.2"), "focus zoom must bias the crop toward the left text area");
@@ -939,6 +942,7 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(content.includes("\"button\",") && content.includes("\"[tabindex]\""), "click target normalization must prefer buttons before generic tabindex wrappers");
   assert(content.includes("function expandActionContainer"), "button clicks on inner icons/text must expand to the visible action wrapper");
   assert(content.includes("wrapperBox.width > innerBox.width + 90"), "button wrapper expansion must stay tightly scoped");
+  assert(content.includes("looksLikeTightTextButton"), "icon clicks inside text buttons must expand to the full button label");
   assert(content.includes("findCheckableAtPoint"), "checkbox/radio 点击必须优先按点击坐标定位真实控件");
   assert(content.includes("isCheckboxLikeElement"), "checkbox/radio 点击必须覆盖常见 UI 库的 checkbox-like 元素");
   assert(content.includes("function isSwitchLikeElement"), "switch/toggle tracks must be recognized as checkable controls");
@@ -1287,6 +1291,9 @@ runCheck("页面弹窗出现和关闭会生成可导出的操作节点", () => {
   assert(content.includes("dialog[open]"), "content.js 必须支持原生 dialog");
   assert(background.includes("\"modal_open\""), "background 必须放行 modal_open 事件");
   assert(background.includes("\"modal_close\""), "background 必须放行 modal_close 事件");
+  assert(content.includes("return \"\\u5f39\\u7a97\";"), "content.js 弹窗缺少标题时不应回退整段弹窗内容");
+  assert(background.includes("return \"\\u5f39\\u7a97\";"), "background 弹窗标题缺失时不应回退整段弹窗内容");
+  assert(shared.includes("return \"\\u5f39\\u7a97\";"), "共享导出弹窗标题缺失时不应回退整段弹窗内容");
   assert(background.includes("页面出现弹窗"), "background 必须生成弹窗出现说明");
   assert(background.includes("关闭弹窗"), "background 必须生成弹窗关闭说明");
   assert(shared.includes("node.action === \"modal_open\""), "共享 artifact 必须生成弹窗出现标题");

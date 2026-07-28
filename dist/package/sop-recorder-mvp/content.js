@@ -27,6 +27,8 @@ var inputTimers = new WeakMap();
 var pendingInputTargets = new Set();
 var activeModalTargets = new Map();
 var recentCheckClickPoints = new WeakMap();
+var pendingCheckClickTimers = new WeakMap();
+var recentCheckSentAt = new WeakMap();
 var recentPreActionClicks = new WeakMap();
 var modalScanTimer = null;
 var EVENT_QUEUE_KEY = "sopRecorderPendingEvents";
@@ -75,11 +77,7 @@ document.addEventListener("click", (event) => {
   if (isCheckableTarget(target)) {
     const checkTarget = getCheckableInput(target) || target;
     recentCheckClickPoints.set(checkTarget, clickPoint);
-    if (getCheckableInput(target)) return;
-    window.setTimeout(() => {
-      if (!isActiveContentInstance()) return;
-      sendInputLikeEvent(target, "check", clickPoint);
-    }, 120);
+    scheduleCheckClickEvent(checkTarget, clickPoint);
     return;
   }
   sendClickEvent(target, clickPoint);
@@ -105,6 +103,7 @@ document.addEventListener("change", (event) => {
     return;
   }
   if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) {
+    if (shouldSkipCheckChange(target)) return;
     sendInputLikeEvent(target, "check", recentCheckClickPoints.get(target) || null);
   }
 }, true);
@@ -171,6 +170,22 @@ function flushPendingInput(target) {
   inputTimers.delete(target);
   pendingInputTargets.delete(target);
   sendInputLikeEvent(target, "input");
+}
+
+function scheduleCheckClickEvent(target, clickPoint) {
+  window.clearTimeout(pendingCheckClickTimers.get(target));
+  pendingCheckClickTimers.set(target, window.setTimeout(() => {
+    pendingCheckClickTimers.delete(target);
+    if (!isActiveContentInstance()) return;
+    recentCheckSentAt.set(target, Date.now());
+    sendInputLikeEvent(target, "check", clickPoint);
+  }, 160));
+}
+
+function shouldSkipCheckChange(target) {
+  if (pendingCheckClickTimers.has(target)) return true;
+  const sentAt = recentCheckSentAt.get(target);
+  return Boolean(sentAt && Date.now() - sentAt < 500);
 }
 
 function sendInputLikeEvent(target, action, clickPoint = null) {
@@ -617,7 +632,9 @@ function isLikelyActionWrapper(element, wrapperBox, innerBox) {
     element.getAttribute("title"),
     style.cursor
   ].map((value) => String(value || "")).join(" ").toLowerCase();
-  return /button|btn|toolbar-button|action|pointer/.test(signature);
+  const text = normalizeText(element.innerText || element.textContent || "");
+  const looksLikeTightTextButton = text.length > 0 && text.length <= 40 && wrapperBox.width <= 180 && wrapperBox.height <= 56;
+  return /button|btn|toolbar-button|action|pointer/.test(signature) || looksLikeTightTextButton;
 }
 
 function findCheckableAtPoint(point) {
@@ -1042,7 +1059,7 @@ function findDialogTitle(element) {
   ].join(","));
   const title = normalizeText(titleElement?.innerText || titleElement?.textContent || "");
   if (title) return title.slice(0, 80);
-  return normalizeText(element.innerText || element.textContent || "").split(/[。.!?？]/, 1)[0].slice(0, 80);
+  return "\u5f39\u7a97";
 }
 
 function findCustomCheckableTarget(target, point = null) {
@@ -1115,7 +1132,10 @@ function isSwitchLikeElement(target) {
     style.backgroundColor,
     style.cursor
   ].map((value) => String(value || "")).join(" ").toLowerCase();
-  return /switch|toggle|slider|active|inactive|checked|unchecked|pointer|rgb|rgba/.test(signature);
+  const radius = Number.parseFloat(style.borderRadius || "0") || 0;
+  const ratio = box.width / Math.max(1, box.height);
+  const looksLikeTrack = style.cursor === "pointer" && radius >= 6 && ratio >= 1.4 && ratio <= 4.5;
+  return /switch|toggle|slider|active|inactive|checked|unchecked/.test(signature) || looksLikeTrack;
 }
 
 function isSmallCheckableVisual(target) {

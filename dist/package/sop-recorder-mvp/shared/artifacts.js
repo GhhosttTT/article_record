@@ -497,8 +497,7 @@
   function modalTargetName(target = {}) {
     const explicit = target.ariaLabel || target.labelText || target.title || target.name || target.id;
     if (explicit) return explicit;
-    const text = normalizeText(target.text || "");
-    return text.split(/[。.!?？]/, 1)[0].slice(0, 80) || "弹窗";
+    return "\u5f39\u7a97";
   }
 
   function transitionTitle(node) {
