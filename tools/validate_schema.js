@@ -81,6 +81,7 @@ function validateNode(node, index) {
   if (node.rawValue !== undefined) assert(false, `${label}.rawValue 不允许持久化`);
   if (node.maskedValue !== undefined && node.maskedValue !== null) assert(typeof node.maskedValue === "string", `${label}.maskedValue 必须是字符串`);
   if (node.value !== undefined && node.value !== null) assert(typeof node.value === "string", `${label}.value 必须是字符串`);
+  if (node.checked !== undefined && node.checked !== null) assert(typeof node.checked === "boolean", `${label}.checked must be boolean`);
   if (node.maskedValue !== undefined && node.value !== undefined) assert(node.maskedValue === node.value, `${label}.value 必须与 maskedValue 保持兼容一致`);
   if (node.key !== undefined) assert(["Enter", "Escape"].includes(node.key), `${label}.key 只允许 Enter 或 Escape`);
   validateViewport(node.viewport, `${label}.viewport`);

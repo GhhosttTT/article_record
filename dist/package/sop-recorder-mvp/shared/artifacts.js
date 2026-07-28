@@ -448,7 +448,7 @@
     if (node.navigationOutcome && ["click", "submit", "key"].includes(node.action)) return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面`;
     if (node.action === "input") return `填写 ${name}`;
     if (node.action === "select") return `选择 ${name}`;
-    if (node.action === "check") return `勾选 ${name}`;
+    if (node.action === "check") return `${node.checked === false ? "取消勾选" : "勾选"} ${name}`;
     if (node.action === "upload") return `上传 ${name}`;
     if (node.action === "submit") return "提交表单";
     if (node.action === "key") return `按下 ${node.key || "快捷键"}：${name}`;

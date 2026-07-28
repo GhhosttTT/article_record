@@ -10,6 +10,10 @@ const outputDir = positionalArgs[1] || path.join(__dirname, "..", "dist", "video
 const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf8"));
 const frameDir = path.join(outputDir, "frames");
 const pngFrameDir = path.join(outputDir, "png-frames");
+const VIDEO_WIDTH = 2560;
+const VIDEO_HEIGHT = 1440;
+const VIDEO_VIEWBOX_WIDTH = 1280;
+const VIDEO_VIEWBOX_HEIGHT = 720;
 fs.mkdirSync(frameDir, { recursive: true });
 fs.mkdirSync(pngFrameDir, { recursive: true });
 cleanGeneratedFrames(frameDir);
@@ -87,8 +91,8 @@ function renderFrame(segment) {
   const badgeText = isChapter ? "#354a9f" : isTab ? "#a65016" : isNavigation ? "#226438" : "#145985";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-  <rect width="1280" height="720" fill="#111827"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" viewBox="0 0 ${VIDEO_VIEWBOX_WIDTH} ${VIDEO_VIEWBOX_HEIGHT}">
+  <rect width="${VIDEO_VIEWBOX_WIDTH}" height="${VIDEO_VIEWBOX_HEIGHT}" fill="#111827"/>
   ${renderSegmentVisual(segment, isTab, isNavigation, isChapter)}
   ${renderTypeBadge(title, badgeColor, badgeText)}
   ${renderArticleTitle(segment.articleTitle)}
@@ -224,7 +228,7 @@ function renderFocusZoom(segment, frame) {
   const box = segment.highlight;
   if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
   const zoomRect = focusZoomRect(box, frame);
-  const zoomScale = frame.width / frame.sourceWidth * 2.35;
+  const zoomScale = frame.width / frame.sourceWidth * 4.25;
   const boxCenterX = box.x + box.width / 2;
   const boxCenterY = box.y + box.height / 2;
   const imageWidth = frame.sourceWidth * zoomScale;
@@ -252,9 +256,9 @@ function renderFocusZoom(segment, frame) {
 }
 
 function focusZoomRect(box, frame) {
-  const width = 330;
-  const height = 210;
-  const margin = 20;
+  const width = Math.min(560, Math.max(440, frame.width * 0.43));
+  const height = Math.round(width * 0.62);
+  const margin = 24;
   const boxFrameX = frame.x + box.x / frame.sourceWidth * frame.width;
   const boxFrameY = frame.y + box.y / frame.sourceHeight * frame.height;
   const boxFrameW = box.width / frame.sourceWidth * frame.width;
@@ -293,7 +297,7 @@ function renderPngFramesWithChrome(chrome, segments, svgDir, pngDir) {
       "--headless",
       "--disable-gpu",
       "--no-sandbox",
-      "--window-size=1280,720",
+      `--window-size=${VIDEO_WIDTH},${VIDEO_HEIGHT}`,
       `--screenshot=${pngPath}`,
       pathToFileUrl(svgPath)
     ], { encoding: "utf8" });

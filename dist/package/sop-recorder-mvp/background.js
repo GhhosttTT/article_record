@@ -663,6 +663,7 @@ async function captureOperationNode(payload, sender, eventId = null) {
     },
     target: payload.target,
     key: payload.key,
+    checked: payload.checked ?? null,
     clickPoint: payload.clickPoint,
     viewport: payload.viewport,
     screenshot,
@@ -694,6 +695,7 @@ async function mergeOperationNode(node, payload, context, screenshot, privacy, p
   const previousScreenshotId = node.screenshot?.id;
   node.target = payload.target;
   node.key = payload.key;
+  node.checked = payload.checked ?? null;
   node.clickPoint = payload.clickPoint;
   node.viewport = payload.viewport;
   node.screenshot = screenshot;
@@ -1007,7 +1009,7 @@ function generateInstruction(payload, context) {
   if (payload.action === "wait") return `等待${context.title || targetName || "当前页面"}加载完成。`;
   if (payload.action === "input") return `在${targetName}中输入内容。`;
   if (payload.action === "select") return `在${targetName}中选择选项。`;
-  if (payload.action === "check") return `勾选${targetName}。`;
+  if (payload.action === "check") return `${payload.checked === false ? "取消勾选" : "勾选"}${targetName}。`;
   if (payload.action === "upload") return `在${targetName}中上传文件。`;
   if (payload.action === "submit") return `提交${context.title || "当前页面"}中的表单。`;
   if (payload.action === "key") return `按下 ${payload.key || "快捷键"}，操作${targetName}。`;

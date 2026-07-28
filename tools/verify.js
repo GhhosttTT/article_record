@@ -293,6 +293,10 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   assert(!renderVideo.includes("目标操作区域"), "render_video.js 不应为普通操作片段伪造系统页面");
   assert(renderVideo.includes("privacyMaskBoxes"), "render_video.js 必须渲染打码区域");
   assert(renderVideo.includes("renderFocusZoom"), "render_video.js 必须基于高亮区域渲染局部放大预览");
+  assert(renderVideo.includes("const VIDEO_WIDTH = 2560") && renderVideo.includes("const VIDEO_HEIGHT = 1440"), "render_video.js must output 2K frames");
+  assert(renderVideo.includes("viewBox=\"0 0 ${VIDEO_VIEWBOX_WIDTH} ${VIDEO_VIEWBOX_HEIGHT}\""), "render_video.js must scale legacy coordinates through SVG viewBox");
+  assert(renderVideo.includes("--window-size=${VIDEO_WIDTH},${VIDEO_HEIGHT}"), "render_video.js must render PNG frames at 2K resolution");
+  assert(renderVideo.includes("* 4.25"), "render_video.js focus zoom must use stronger magnification");
   assert(renderVideo.includes("renderSubtitle"), "render_video.js 必须把说明渲染为字幕");
   assert(renderVideo.includes("{ x: 32, y: 24, width: 1216, height: 548 }"), "render_video.js 必须使用大面积截图主画面");
   assert(renderVideo.includes("已打码"), "render_video.js 必须在有打码区域时显示提示");
@@ -421,6 +425,7 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   const company = readText("test-pages/company.html");
 
   assert(content.startsWith("(() => {"), "content.js 必须包在函数作用域内，避免重复注入时顶层 const 重复声明");
+  assert(content.includes("var INPUT_DEBOUNCE_MS") && !content.includes("const INPUT_DEBOUNCE_MS"), "content top-level recorder variables must not redeclare const");
   assert(content.includes("document.addEventListener(\"click\""), "content.js 必须监听点击事件");
   assert(content.includes("document.addEventListener(\"input\""), "content.js 必须监听输入事件");
   assert(content.includes("document.addEventListener(\"change\""), "content.js 必须监听 change 事件");
@@ -513,6 +518,10 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("renderSegmentFrames"), "预览页视频导出必须逐帧刷新 Canvas");
   assert(viewerJs.includes("requestFrame"), "预览页视频导出必须主动请求视频帧");
   assert(viewerJs.includes("canvas.captureStream(0)"), "预览页视频导出必须使用手动帧捕获，避免自动捕获清屏过程导致频闪");
+  assert(viewerJs.includes("const VIDEO_WIDTH = 2560") && viewerJs.includes("const VIDEO_HEIGHT = 1440"), "video export must use 2K canvas");
+  assert(viewerJs.includes("ctx.setTransform(VIDEO_SCALE"), "video export must scale virtual coordinates on high-res canvas");
+  assert(viewerJs.includes("* 4.25"), "focus zoom must use stronger magnification");
+  assert(viewerJs.includes("frame.width * 0.43"), "focus zoom window must be larger");
   assert(viewerJs.includes("drawArticleTitle"), "预览页视频导出必须展示文章标题");
   assert(viewerJs.includes("canvasImageCache"), "预览页视频导出必须缓存截图，避免逐帧重复加载导致抖动");
   assert(viewerJs.includes("drawText(ctx, line, 640, firstY + index * 32, 24"), "video subtitle font must be smaller");
@@ -882,7 +891,7 @@ runCheck("目标元素会保存安全 DOM 属性摘要", () => {
 
 runCheck("输入防抖会在提交和离页前刷新", () => {
   const content = readText("extension/content.js");
-  assert(content.includes("const pendingInputTargets = new Set()"), "content.js 必须维护待刷新输入集合");
+  assert(content.includes("var pendingInputTargets = new Set()"), "content.js must keep pending input targets");
   assert(content.includes("function scheduleInputEvent"), "content.js 必须封装输入防抖调度");
   assert(content.includes("function flushPendingInputs"), "content.js 必须提供批量刷新待发送输入");
   assert(content.includes("function flushPendingInput"), "content.js 必须提供单个输入刷新逻辑");
@@ -1511,7 +1520,10 @@ runCheck("输入值只持久化 maskedValue 且不保存 rawValue", () => {
   const readme = readText("README.md");
   const sample = readJson("examples/sample-recording.json");
   assert(content.includes("const maskedValue = getMaskedValue"), "content.js 必须先生成 maskedValue");
-  assert(content.includes("maskedValue,") && content.includes("value: maskedValue"), "content.js 必须发送 maskedValue 并兼容 value");
+  assert(content.includes("maskedValue,") && content.includes("value: action === \"check\""), "content.js must send maskedValue and check-compatible value");
+  assert(content.includes("checked: checkedState?.checked ?? null"), "content.js must send checked state");
+  assert(background.includes("checked: payload.checked ?? null"), "background must persist checked state on new nodes");
+  assert(background.includes("node.checked = payload.checked ?? null"), "background must update checked state on merged nodes");
   assert(!content.includes("rawValue"), "content.js 不应发送 rawValue");
   assert(background.includes("const maskedValue = payload.maskedValue ?? payload.value ?? null"), "background 必须兼容读取 maskedValue");
   assert(background.includes("maskedValue,") && background.includes("value: maskedValue"), "background 新节点必须持久化 maskedValue 并兼容 value");

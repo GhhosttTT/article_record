@@ -20,6 +20,11 @@ let currentState = null;
 let currentTabs = [];
 let currentSteps = [];
 const canvasImageCache = new Map();
+const VIDEO_WIDTH = 2560;
+const VIDEO_HEIGHT = 1440;
+const VIDEO_VIEWBOX_WIDTH = 1280;
+const VIDEO_VIEWBOX_HEIGHT = 720;
+const VIDEO_SCALE = VIDEO_WIDTH / VIDEO_VIEWBOX_WIDTH;
 
 els.privacyMaskToggle?.addEventListener("change", () => {
   if (currentState) applyState(currentState, { preserveTitle: true });
@@ -554,9 +559,10 @@ function downloadBlobFile(filename, blob) {
 
 async function renderTimelineWebm(timeline) {
   const canvas = document.createElement("canvas");
-  canvas.width = 1280;
-  canvas.height = 720;
+  canvas.width = VIDEO_WIDTH;
+  canvas.height = VIDEO_HEIGHT;
   const ctx = canvas.getContext("2d");
+  ctx.setTransform(VIDEO_SCALE, 0, 0, VIDEO_SCALE, 0, 0);
   const fps = 12;
   const mimeType = pickVideoMimeType();
   const stream = canvas.captureStream(0);
@@ -602,7 +608,7 @@ function pickVideoMimeType() {
 
 async function drawVideoFrame(ctx, segment) {
   ctx.fillStyle = "#111827";
-  ctx.fillRect(0, 0, 1280, 720);
+  ctx.fillRect(0, 0, VIDEO_VIEWBOX_WIDTH, VIDEO_VIEWBOX_HEIGHT);
   if (segment.visual) {
     await drawScreenshotFrame(ctx, segment);
   } else if (segment.type === "tab_transition") {
@@ -714,7 +720,7 @@ function drawFocusZoom(ctx, image, segment, frame) {
   const box = segment.highlight;
   if (!box || !Number.isFinite(box.x)) return;
   const zoom = focusZoomFrameRect(box, frame);
-  const scale = frame.width / frame.sourceWidth * 2.35;
+  const scale = frame.width / frame.sourceWidth * 4.25;
   const imageWidth = frame.sourceWidth * scale;
   const imageHeight = frame.sourceHeight * scale;
   const imageX = zoom.x + zoom.width / 2 - (box.x + box.width / 2) * scale;
@@ -756,9 +762,9 @@ function fitVideoRect(sourceWidth, sourceHeight, bounds) {
 }
 
 function focusZoomFrameRect(box, frame) {
-  const width = 330;
-  const height = 210;
-  const margin = 20;
+  const width = Math.min(560, Math.max(440, frame.width * 0.43));
+  const height = Math.round(width * 0.62);
+  const margin = 24;
   const boxX = frame.x + box.x / frame.sourceWidth * frame.width;
   const boxY = frame.y + box.y / frame.sourceHeight * frame.height;
   const boxW = box.width / frame.sourceWidth * frame.width;

@@ -1,8 +1,8 @@
 (() => {
-const INPUT_DEBOUNCE_MS = 800;
-const PAGE_LOAD_WAIT_THRESHOLD_MS = 1200;
-const MODAL_SCAN_DEBOUNCE_MS = 150;
-const ACTION_TARGET_SELECTOR = [
+var INPUT_DEBOUNCE_MS = 800;
+var PAGE_LOAD_WAIT_THRESHOLD_MS = 1200;
+var MODAL_SCAN_DEBOUNCE_MS = 150;
+var ACTION_TARGET_SELECTOR = [
   "button",
   "a[href]",
   "input",
@@ -23,16 +23,16 @@ const ACTION_TARGET_SELECTOR = [
   "[role='gridcell']",
   "[role='row']"
 ].join(",");
-const inputTimers = new WeakMap();
-const pendingInputTargets = new Set();
-const activeModalTargets = new Map();
-let modalScanTimer = null;
-const EVENT_QUEUE_KEY = "sopRecorderPendingEvents";
-const MAX_QUEUED_EVENTS = 80;
-const MAX_EVENT_DELIVERY_ATTEMPTS = 8;
-const MAX_EVENT_QUEUE_AGE_MS = 2 * 60 * 1000;
+var inputTimers = new WeakMap();
+var pendingInputTargets = new Set();
+var activeModalTargets = new Map();
+var modalScanTimer = null;
+var EVENT_QUEUE_KEY = "sopRecorderPendingEvents";
+var MAX_QUEUED_EVENTS = 80;
+var MAX_EVENT_DELIVERY_ATTEMPTS = 8;
+var MAX_EVENT_QUEUE_AGE_MS = 2 * 60 * 1000;
 
-const CONTENT_INSTANCE_ID = `content_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+var CONTENT_INSTANCE_ID = `content_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 window.__sopRecorderContentInstanceId = CONTENT_INSTANCE_ID;
 window.__sopRecorderContentLoadedAt = Date.now();
 
@@ -171,11 +171,13 @@ function flushPendingInput(target) {
 function sendInputLikeEvent(target, action) {
   const privacy = detectPrivacy(target);
   const maskedValue = getMaskedValue(target, privacy.containsSensitiveData);
+  const checkedState = action === "check" ? getCheckedState(target) : null;
   sendRecorderEvent({
     action,
     target: extractTarget(target),
     maskedValue,
-    value: maskedValue,
+    value: action === "check" && checkedState ? checkedState.label : maskedValue,
+    checked: checkedState?.checked ?? null,
     viewport: getViewport(),
     beforeUrl: location.href,
     privacy
@@ -188,6 +190,46 @@ function isCheckableTarget(target) {
   if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.control.type)) return true;
   const role = target.getAttribute("role");
   return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked");
+}
+
+function getCheckedState(target) {
+  const input = getCheckableInput(target);
+  if (input) {
+    const checked = Boolean(input.checked);
+    return {
+      checked,
+      label: `${checked ? "已勾选" : "已取消勾选"} ${getElementDisplayName(input)}`
+    };
+  }
+  const ariaChecked = target instanceof Element ? target.getAttribute("aria-checked") : null;
+  if (ariaChecked) {
+    const checked = ariaChecked === "true";
+    return {
+      checked,
+      label: `${checked ? "已勾选" : "已取消勾选"} ${getElementDisplayName(target)}`
+    };
+  }
+  return null;
+}
+
+function getCheckableInput(target) {
+  if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) return target;
+  if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.control.type)) return target.control;
+  return null;
+}
+
+function getElementDisplayName(element) {
+  return normalizeText(
+    findLabelText(element) ||
+    element.getAttribute("aria-label") ||
+    element.getAttribute("title") ||
+    element.getAttribute("name") ||
+    element.id ||
+    element.innerText ||
+    element.textContent ||
+    element.type ||
+    "目标元素"
+  ).slice(0, 120);
 }
 
 function reportPageLoadWait() {
