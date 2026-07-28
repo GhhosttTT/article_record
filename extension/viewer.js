@@ -722,10 +722,11 @@ function drawFocusZoom(ctx, image, segment, frame) {
   if (!box || !Number.isFinite(box.x)) return;
   const zoom = focusZoomFrameRect(box, frame);
   const scale = frame.width / frame.sourceWidth * 4.25;
+  const focusAnchor = focusZoomAnchor(box, zoom, scale);
   const imageWidth = frame.sourceWidth * scale;
   const imageHeight = frame.sourceHeight * scale;
-  const imageX = zoom.x + zoom.width / 2 - (box.x + box.width / 2) * scale;
-  const imageY = zoom.y + zoom.height / 2 - (box.y + box.height / 2) * scale;
+  const imageX = zoom.x + zoom.width / 2 - focusAnchor.x * scale;
+  const imageY = zoom.y + zoom.height / 2 - focusAnchor.y * scale;
   roundRect(ctx, zoom.x - 3, zoom.y - 3, zoom.width + 6, zoom.height + 6, 16, "#fff", "#f18a2a", 6);
   ctx.save();
   roundedClip(ctx, zoom.x, zoom.y, zoom.width, zoom.height, 14);
@@ -774,6 +775,15 @@ function focusZoomFrameRect(box, frame) {
   const x = rightSpace >= width + margin ? boxX + boxW + margin : Math.max(frame.x + margin, boxX - width - margin);
   const y = Math.max(frame.y + margin, Math.min(frame.y + frame.height - height - margin, boxY + boxH / 2 - height / 2));
   return { x, y, width, height };
+}
+
+function focusZoomAnchor(box, zoom, scale) {
+  const visibleSourceWidth = zoom.width / scale;
+  const leftBias = Math.min(box.width * 0.2, Math.max(24, visibleSourceWidth * 0.28));
+  return {
+    x: box.x + Math.min(box.width / 2, leftBias),
+    y: box.y + box.height / 2
+  };
 }
 
 function loadCanvasImage(src) {

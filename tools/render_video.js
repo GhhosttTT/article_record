@@ -229,12 +229,11 @@ function renderFocusZoom(segment, frame) {
   if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
   const zoomRect = focusZoomRect(box, frame);
   const zoomScale = frame.width / frame.sourceWidth * 4.25;
-  const boxCenterX = box.x + box.width / 2;
-  const boxCenterY = box.y + box.height / 2;
+  const focusAnchor = focusZoomAnchor(box, zoomRect, zoomScale);
   const imageWidth = frame.sourceWidth * zoomScale;
   const imageHeight = frame.sourceHeight * zoomScale;
-  const imageX = zoomRect.x + zoomRect.width / 2 - boxCenterX * zoomScale;
-  const imageY = zoomRect.y + zoomRect.height / 2 - boxCenterY * zoomScale;
+  const imageX = zoomRect.x + zoomRect.width / 2 - focusAnchor.x * zoomScale;
+  const imageY = zoomRect.y + zoomRect.height / 2 - focusAnchor.y * zoomScale;
   const clipId = `clip_${String(segment.id || "focus").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   const masks = (segment.privacyMaskBoxes || []).map((mask) => {
     const x = imageX + mask.x * zoomScale;
@@ -271,6 +270,15 @@ function focusZoomRect(box, frame) {
   const x = rightSpace >= width + margin ? rightCandidate : Math.max(frame.x + margin, leftCandidate);
   const y = Math.max(frame.y + margin, Math.min(frameBottom - height - margin, boxFrameY + boxFrameH / 2 - height / 2));
   return { x: round(x), y: round(y), width, height };
+}
+
+function focusZoomAnchor(box, zoomRect, zoomScale) {
+  const visibleSourceWidth = zoomRect.width / zoomScale;
+  const leftBias = Math.min(box.width * 0.2, Math.max(24, visibleSourceWidth * 0.28));
+  return {
+    x: box.x + Math.min(box.width / 2, leftBias),
+    y: box.y + box.height / 2
+  };
 }
 
 function cleanGeneratedFrames(frameDir) {
