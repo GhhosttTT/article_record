@@ -583,9 +583,41 @@ function findPreferredActionTarget(target) {
   ];
   for (const selector of prioritySelectors) {
     const candidate = target.closest(selector);
-    if (candidate instanceof Element && candidate.closest(ACTION_TARGET_SELECTOR)) return candidate;
+    if (candidate instanceof Element && candidate.closest(ACTION_TARGET_SELECTOR)) return expandActionContainer(candidate);
   }
   return null;
+}
+
+function expandActionContainer(element) {
+  if (!(element instanceof Element)) return element;
+  const type = inferTargetType(element);
+  if (!["button", "link", "menuitem"].includes(type)) return element;
+  const box = element.getBoundingClientRect();
+  let current = element.parentElement;
+  let depth = 0;
+  while (current && current !== document.body && current !== document.documentElement && depth < 3) {
+    const currentBox = current.getBoundingClientRect();
+    if (!isLikelyActionWrapper(current, currentBox, box)) break;
+    element = current;
+    current = current.parentElement;
+    depth += 1;
+  }
+  return element;
+}
+
+function isLikelyActionWrapper(element, wrapperBox, innerBox) {
+  if (!(element instanceof Element)) return false;
+  if (wrapperBox.width <= innerBox.width || wrapperBox.height < innerBox.height) return false;
+  if (wrapperBox.width > innerBox.width + 90 || wrapperBox.height > innerBox.height + 36) return false;
+  const style = window.getComputedStyle(element);
+  const signature = [
+    element.className,
+    element.getAttribute("role"),
+    element.getAttribute("aria-label"),
+    element.getAttribute("title"),
+    style.cursor
+  ].map((value) => String(value || "")).join(" ").toLowerCase();
+  return /button|btn|toolbar-button|action|pointer/.test(signature);
 }
 
 function findCheckableAtPoint(point) {
@@ -727,7 +759,7 @@ function inferTargetType(element) {
   if (tag === "td" || tag === "th" || role === "cell" || role === "gridcell") return "table_cell";
   if (tag === "tr" || role === "row") return "table_row";
   if (role === "menuitem") return "menuitem";
-  if (role === "checkbox" || isCheckboxLikeElement(element)) return "checkbox";
+  if (role === "checkbox" || role === "switch" || isCheckboxLikeElement(element)) return "checkbox";
   if (role === "radio") return "radio";
   if (tag === "input") {
     const type = element.getAttribute("type") || "text";
@@ -1028,9 +1060,10 @@ function findCustomCheckableTarget(target, point = null) {
     current = current.parentElement;
     depth += 1;
   }
-  return candidates
-    .filter((candidate) => isExplicitCheckable(candidate.element) || isCompactCheckableBox(candidate.element))
-    .sort((a, b) => a.area - b.area)[0]?.element || null;
+  const valid = candidates.filter((candidate) => isExplicitCheckable(candidate.element) || isCompactCheckableBox(candidate.element) || isSwitchLikeElement(candidate.element));
+  return valid.find((candidate) => isExplicitCheckable(candidate.element))?.element ||
+    valid.filter((candidate) => isSwitchLikeElement(candidate.element)).sort((a, b) => b.area - a.area)[0]?.element ||
+    valid.sort((a, b) => a.area - b.area)[0]?.element || null;
 }
 
 function isCustomCheckableTarget(target) {
@@ -1041,7 +1074,7 @@ function isCustomCheckableTarget(target) {
 
 function isCheckboxLikeElement(target) {
   if (!(target instanceof Element)) return false;
-  if (!isCompactCheckableBox(target) && !isExplicitCheckable(target)) return false;
+  if (!isCompactCheckableBox(target) && !isExplicitCheckable(target) && !isSwitchLikeElement(target)) return false;
   const signature = [
     target.className,
     target.id,
@@ -1050,7 +1083,7 @@ function isCheckboxLikeElement(target) {
     target.getAttribute("aria-label"),
     target.getAttribute("title")
   ].map((value) => String(value || "")).join(" ").toLowerCase();
-  return /\b(checkbox|check-box|checkable|selection|select-row|row-select|ant-checkbox|el-checkbox|mat-checkbox|mui-checkbox|p-checkbox|v-input--selection-controls)\b/.test(signature);
+  return /\b(checkbox|check-box|checkable|selection|select-row|row-select|switch|toggle|slider|ant-checkbox|el-checkbox|mat-checkbox|mui-checkbox|p-checkbox|v-input--selection-controls)\b/.test(signature);
 }
 
 function isExplicitCheckable(target) {
@@ -1064,6 +1097,25 @@ function isCompactCheckableBox(target) {
   const box = target.getBoundingClientRect();
   if (box.width <= 0 || box.height <= 0) return false;
   return box.width <= 36 && box.height <= 36;
+}
+
+function isSwitchLikeElement(target) {
+  if (!(target instanceof Element)) return false;
+  const box = target.getBoundingClientRect();
+  if (box.width < 24 || box.width > 72 || box.height < 12 || box.height > 40) return false;
+  const style = window.getComputedStyle(target);
+  const signature = [
+    target.className,
+    target.id,
+    target.getAttribute("data-testid"),
+    target.getAttribute("data-test"),
+    target.getAttribute("aria-label"),
+    target.getAttribute("title"),
+    style.borderRadius,
+    style.backgroundColor,
+    style.cursor
+  ].map((value) => String(value || "")).join(" ").toLowerCase();
+  return /switch|toggle|slider|active|inactive|checked|unchecked|pointer|rgb|rgba/.test(signature);
 }
 
 function isSmallCheckableVisual(target) {

@@ -937,8 +937,12 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(content.includes("resolveActionTarget(event.target, clickPoint)"), "click 事件必须按点击坐标先归一目标元素");
   assert(content.includes("function findPreferredActionTarget"), "click target normalization must prioritize the real actionable element");
   assert(content.includes("\"button\",") && content.includes("\"[tabindex]\""), "click target normalization must prefer buttons before generic tabindex wrappers");
+  assert(content.includes("function expandActionContainer"), "button clicks on inner icons/text must expand to the visible action wrapper");
+  assert(content.includes("wrapperBox.width > innerBox.width + 90"), "button wrapper expansion must stay tightly scoped");
   assert(content.includes("findCheckableAtPoint"), "checkbox/radio 点击必须优先按点击坐标定位真实控件");
   assert(content.includes("isCheckboxLikeElement"), "checkbox/radio 点击必须覆盖常见 UI 库的 checkbox-like 元素");
+  assert(content.includes("function isSwitchLikeElement"), "switch/toggle tracks must be recognized as checkable controls");
+  assert(content.includes("box.width > 72") && content.includes("role === \"switch\""), "switch detection must allow wider toggle tracks and role=switch");
   assert(content.includes("function findCompactCheckableOwner"), "checkbox/radio detection must look for inputs inside compact checkbox wrappers");
   assert(content.includes("ownedInput = compactOwner.querySelector"), "checkbox/radio detection must capture hidden native inputs inside compact wrappers");
   assert(content.includes("ant-checkbox") && content.includes("el-checkbox") && content.includes("mat-checkbox"), "checkbox-like 识别必须覆盖常见组件库类名");
