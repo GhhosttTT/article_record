@@ -550,7 +550,7 @@ function findCheckableAtPoint(point) {
     if (!(element instanceof Element)) continue;
     const input = getCheckableInput(element);
     if (input) return input;
-    const customCheckable = findCustomCheckableTarget(element);
+    const customCheckable = findCustomCheckableTarget(element, point);
     if (customCheckable) return customCheckable;
   }
   const nearbyInputs = Array.from(document.querySelectorAll("input[type='checkbox'], input[type='radio']"));
@@ -968,16 +968,24 @@ function findDialogTitle(element) {
   return normalizeText(element.innerText || element.textContent || "").split(/[。.!?？]/, 1)[0].slice(0, 80);
 }
 
-function findCustomCheckableTarget(target) {
+function findCustomCheckableTarget(target, point = null) {
   if (!(target instanceof Element)) return null;
   let current = target;
   let depth = 0;
+  const candidates = [];
   while (current && current !== document.body && depth < 5) {
-    if (isCustomCheckableTarget(current) || isCheckboxLikeElement(current)) return current;
+    if (isCustomCheckableTarget(current) || isCheckboxLikeElement(current) || isSmallCheckableVisual(current)) {
+      const box = current.getBoundingClientRect();
+      if (!point || pointInsideExpandedBox(point, box, 6)) {
+        candidates.push({ element: current, area: Math.max(1, box.width * box.height) });
+      }
+    }
     current = current.parentElement;
     depth += 1;
   }
-  return null;
+  return candidates
+    .filter((candidate) => isExplicitCheckable(candidate.element) || isCompactCheckableBox(candidate.element))
+    .sort((a, b) => a.area - b.area)[0]?.element || null;
 }
 
 function isCustomCheckableTarget(target) {
@@ -988,6 +996,7 @@ function isCustomCheckableTarget(target) {
 
 function isCheckboxLikeElement(target) {
   if (!(target instanceof Element)) return false;
+  if (!isCompactCheckableBox(target) && !isExplicitCheckable(target)) return false;
   const signature = [
     target.className,
     target.id,
@@ -999,12 +1008,46 @@ function isCheckboxLikeElement(target) {
   return /\b(checkbox|check-box|checkable|selection|select-row|row-select|ant-checkbox|el-checkbox|mat-checkbox|mui-checkbox|p-checkbox|v-input--selection-controls)\b/.test(signature);
 }
 
+function isExplicitCheckable(target) {
+  if (!(target instanceof Element)) return false;
+  const role = target.getAttribute("role");
+  return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked");
+}
+
+function isCompactCheckableBox(target) {
+  if (!(target instanceof Element)) return false;
+  const box = target.getBoundingClientRect();
+  if (box.width <= 0 || box.height <= 0) return false;
+  return box.width <= 36 && box.height <= 36;
+}
+
+function isSmallCheckableVisual(target) {
+  if (!(target instanceof Element) || !isCompactCheckableBox(target)) return false;
+  const style = window.getComputedStyle(target);
+  const signature = [
+    target.className,
+    style.border,
+    style.backgroundImage,
+    style.cursor
+  ].map((value) => String(value || "")).join(" ").toLowerCase();
+  return /checkbox|check|square|border|pointer|rgb|rgba|url/.test(signature);
+}
+
+function pointInsideExpandedBox(point, box, padding = 0) {
+  return point.x >= box.left - padding &&
+    point.x <= box.right + padding &&
+    point.y >= box.top - padding &&
+    point.y <= box.bottom + padding;
+}
+
 function isCheckboxLikeChecked(target) {
   if (!(target instanceof Element)) return false;
   const input = target.querySelector("input[type='checkbox'], input[type='radio']");
   if (input instanceof HTMLInputElement) return input.checked;
   const ariaChecked = target.getAttribute("aria-checked") || target.querySelector("[aria-checked]")?.getAttribute("aria-checked");
   if (ariaChecked) return ariaChecked === "true";
+  const selectedAncestor = target.closest(".selected, .checked, .is-checked, .ant-checkbox-checked, .el-checkbox__input.is-checked, tr[aria-selected='true'], [aria-selected='true']");
+  if (selectedAncestor) return true;
   const signature = String(target.className || "").toLowerCase();
   return /\b(checked|selected|active|is-checked|ant-checkbox-checked|el-checkbox__input is-checked)\b/.test(signature);
 }

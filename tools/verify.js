@@ -922,6 +922,8 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(content.includes("findCheckableAtPoint"), "checkbox/radio 点击必须优先按点击坐标定位真实控件");
   assert(content.includes("isCheckboxLikeElement"), "checkbox/radio 点击必须覆盖常见 UI 库的 checkbox-like 元素");
   assert(content.includes("ant-checkbox") && content.includes("el-checkbox") && content.includes("mat-checkbox"), "checkbox-like 识别必须覆盖常见组件库类名");
+  assert(content.includes("isCompactCheckableBox") && content.includes("box.width <= 36 && box.height <= 36"), "checkbox-like 识别必须限制为小尺寸控件，避免框整列");
+  assert(content.includes(".sort((a, b) => a.area - b.area)"), "checkbox-like 点击坐标命中时必须优先返回最小候选控件");
   assert(content.includes("isCheckableTarget(element) ? \"\" : visibleText.slice(0, 120)"), "checkbox/radio 目标不应把整行文本作为标题来源");
   assert(content.includes("ACTION_TARGET_SELECTOR"), "content.js 必须集中维护可操作点击目标选择器");
   assert(content.includes("[onclick]"), "点击目标归一必须覆盖 onclick 自定义控件");
@@ -1001,6 +1003,7 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   }]);
   assert(checkboxSteps[0].title === "勾选 多选框", "无 label 多选框标题必须保持简洁");
   assert(!checkboxSteps[0].title.includes("订单号码"), "多选框标题不得包含整行表格内容");
+  assert(content.includes("isSmallCheckableVisual"), "checkbox-like 识别必须覆盖无明确 role/class 的小方框视觉元素");
 });
 
 runCheck("自动高亮会使用用户选择的目标元素 boundingBox", () => {
