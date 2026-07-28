@@ -1492,8 +1492,8 @@ runCheck("扩展预览页支持设置视频片段时长", () => {
   assert(viewerJs.includes("data-node-duration"), "viewer.js 必须渲染视频时长输入");
   assert(viewerJs.includes("data-node-action=\"save-duration\""), "viewer.js 必须提供保存视频时长入口");
   assert(viewerJs.includes("data-node-action=\"clear-duration\""), "viewer.js 必须提供恢复自动视频时长入口");
-  assert(viewerCss.includes(".duration-editor"), "viewer.css 必须提供视频时长编辑区样式");
-  assert(viewerCss.includes(".inline-actions"), "viewer.css 必须支持时长编辑按钮换行");
+  assert(viewerCss.includes(".editor-panel") && viewerCss.includes(".editor-row"), "viewer.css 必须提供视频时长编辑区样式");
+  assert(viewerCss.includes(".editor-row"), "viewer.css 必须支持时长编辑按钮换行");
   assert(validator.includes("durationOverrideSeconds"), "validate_schema 必须校验视频时长覆盖字段");
 
   const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
@@ -1544,7 +1544,7 @@ runCheck("扩展预览页支持设置视频旁白", () => {
   assert(viewerJs.includes("data-node-voiceover"), "viewer.js 必须渲染视频旁白输入");
   assert(viewerJs.includes("data-node-action=\"save-voiceover\""), "viewer.js 必须提供保存视频旁白入口");
   assert(viewerJs.includes("data-node-action=\"clear-voiceover\""), "viewer.js 必须提供恢复自动视频旁白入口");
-  assert(viewerCss.includes(".voiceover-editor"), "viewer.css 必须提供视频旁白编辑区样式");
+  assert(viewerCss.includes(".video-panel"), "viewer.css 必须提供视频旁白编辑区样式");
   assert(validator.includes("voiceoverTextOverridden"), "validate_schema 必须校验视频旁白覆盖标记");
 
   const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));

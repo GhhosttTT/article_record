@@ -366,22 +366,35 @@ button:disabled {
 
 .step-editor {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(300px, .75fr);
+  grid-template-columns: minmax(360px, 1fr) minmax(320px, .85fr);
   gap: 14px;
   padding: 16px 18px;
   border-top: 1px solid var(--line);
   background: #fbfcfd;
 }
 
-.text-editor-grid {
+.editor-panel {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
   gap: 12px;
+}
+
+.editor-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 10px;
   align-items: end;
 }
 
-.text-editor-grid .editor-field {
+.editor-field {
   min-width: 0;
+}
+
+.compact-field {
+  max-width: 220px;
+}
+
+.editor-spacer {
+  width: 86px;
 }
 
 .step-editor label {
@@ -417,7 +430,8 @@ button:disabled {
   padding: 8px 10px;
 }
 
-.text-editor-grid textarea {
+.text-panel textarea,
+.video-panel textarea {
   min-height: 56px;
 }
 
@@ -434,38 +448,13 @@ button:disabled {
   justify-content: flex-end;
 }
 
-.text-actions {
-  align-self: end;
-  min-width: 194px;
-  padding-bottom: 0;
-}
-
 .focus-editor,
 .mask-editor {
   display: grid;
+  grid-column: 1 / -1;
   gap: 10px;
-  padding-top: 4px;
-}
-
-.duration-editor,
-.voiceover-editor {
-  display: grid;
-  grid-column: 2;
-  grid-template-columns: minmax(140px, 1fr) auto;
-  gap: 10px;
-  align-items: end;
-}
-
-.duration-editor {
-  align-self: start;
-}
-
-.voiceover-editor {
-  align-self: start;
-}
-
-.voiceover-editor textarea {
-  min-height: 52px;
+  padding-top: 12px;
+  border-top: 1px solid #e6edf3;
 }
 
 .inline-actions {
@@ -477,7 +466,7 @@ button:disabled {
 
 .focus-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  grid-template-columns: repeat(4, minmax(84px, 132px));
   gap: 8px;
 }
 
@@ -491,6 +480,7 @@ button:disabled {
 
 .focus-grid input {
   min-height: 34px;
+  max-width: 132px;
 }
 
 .screenshot-wrap {
@@ -557,14 +547,14 @@ button:disabled {
 
   .step-actions,
   .step-editor,
-  .text-editor-grid,
-  .duration-editor,
-  .voiceover-editor {
+  .editor-row {
     grid-template-columns: 1fr;
   }
 
-  .text-actions {
-    min-width: 0;
+  .compact-field,
+  .editor-spacer {
+    max-width: none;
+    width: auto;
   }
 
   .focus-grid {

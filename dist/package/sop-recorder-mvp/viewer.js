@@ -359,7 +359,7 @@ function renderStep(node, index, nodes) {
   const voiceoverText = node.voiceoverText || description;
   const durationSeconds = node.durationOverrideSeconds || getDefaultDurationSeconds(description, stepType);
   const focusBox = getNodeFocusBox(node);
-  const maskBox = getNodeMaskBox(node, focusBox);
+  const maskBox = getNodeMaskBox(node);
   const isDiscarded = node.status === "discarded";
   const isReviewed = node.status === "reviewed";
   const isMerged = Boolean(node.mergedNodeIds?.length);
@@ -387,39 +387,40 @@ function renderStep(node, index, nodes) {
       </header>
       ${renderScreenshot(node)}
       <section class="step-editor">
-        <div class="text-editor-grid">
-          <label class="editor-field">
-            <span>步骤标题</span>
-            <input data-node-title value="${escapeHtml(title)}" ${isDiscarded ? "disabled" : ""}>
-          </label>
-          <div></div>
-          <label class="editor-field">
-            <span>步骤说明</span>
-            <textarea data-node-description rows="2" ${isDiscarded ? "disabled" : ""}>${escapeHtml(description)}</textarea>
-          </label>
-          <div class="editor-actions text-actions">
-            <button type="button" class="small" data-node-action="save-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存文案</button>
-            <button type="button" class="small secondary" data-node-action="clear-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || (!node.titleOverride && !node.descriptionOverride) ? "disabled" : ""}>恢复自动</button>
+        <div class="editor-panel text-panel">
+          <div class="editor-row">
+            <label class="editor-field">
+              <span>????</span>
+              <input data-node-title value="${escapeHtml(title)}" ${isDiscarded ? "disabled" : ""}>
+            </label>
+            <button type="button" class="small" data-node-action="save-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>????</button>
+            <button type="button" class="small secondary" data-node-action="clear-text" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || (!node.titleOverride && !node.descriptionOverride) ? "disabled" : ""}>????</button>
+          </div>
+          <div class="editor-row">
+            <label class="editor-field">
+              <span>????</span>
+              <textarea data-node-description rows="2" ${isDiscarded ? "disabled" : ""}>${escapeHtml(description)}</textarea>
+            </label>
+            <span class="editor-spacer"></span>
+            <span class="editor-spacer"></span>
           </div>
         </div>
-        <div class="duration-editor">
-          <label>
-            <span>视频时长（秒）</span>
-            <input type="number" min="1" max="120" step="0.5" data-node-duration value="${escapeHtml(durationSeconds)}" ${isDiscarded ? "disabled" : ""}>
-          </label>
-          <div class="inline-actions">
-            <button type="button" class="small" data-node-action="save-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存时长</button>
-            <button type="button" class="small secondary" data-node-action="clear-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.durationOverrideSeconds ? "disabled" : ""}>恢复自动</button>
+        <div class="editor-panel video-panel">
+          <div class="editor-row">
+            <label class="editor-field compact-field">
+              <span>???????</span>
+              <input type="number" min="1" max="120" step="0.5" data-node-duration value="${escapeHtml(durationSeconds)}" ${isDiscarded ? "disabled" : ""}>
+            </label>
+            <button type="button" class="small" data-node-action="save-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>????</button>
+            <button type="button" class="small secondary" data-node-action="clear-duration" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.durationOverrideSeconds ? "disabled" : ""}>????</button>
           </div>
-        </div>
-        <div class="voiceover-editor">
-          <label>
-            <span>视频旁白</span>
-            <textarea data-node-voiceover rows="2" maxlength="500" ${isDiscarded ? "disabled" : ""}>${escapeHtml(voiceoverText)}</textarea>
-          </label>
-          <div class="inline-actions">
-            <button type="button" class="small" data-node-action="save-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>保存旁白</button>
-            <button type="button" class="small secondary" data-node-action="clear-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.voiceoverTextOverridden ? "disabled" : ""}>恢复自动</button>
+          <div class="editor-row">
+            <label class="editor-field">
+              <span>????</span>
+              <textarea data-node-voiceover rows="2" maxlength="500" ${isDiscarded ? "disabled" : ""}>${escapeHtml(voiceoverText)}</textarea>
+            </label>
+            <button type="button" class="small" data-node-action="save-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded ? "disabled" : ""}>????</button>
+            <button type="button" class="small secondary" data-node-action="clear-voiceover" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !node.voiceoverTextOverridden ? "disabled" : ""}>????</button>
           </div>
         </div>
         ${focusBox ? renderFocusEditor(node, focusBox, isDiscarded) : ""}
@@ -534,9 +535,9 @@ function canMergeFormFields(node, laterNodes) {
   );
 }
 
-function getNodeMaskBox(node, fallbackBox) {
+function getNodeMaskBox(node) {
   if (node.privacyMaskBoxes?.[0]) return node.privacyMaskBoxes[0];
-  return fallbackBox;
+  return null;
 }
 
 function renderMaskBoxes(boxes, viewportWidth, viewportHeight) {
