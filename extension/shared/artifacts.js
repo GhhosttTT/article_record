@@ -446,6 +446,8 @@
     const target = node.target || {};
     const name = node.action === "check"
       ? checkTargetName(target)
+      : node.action === "modal_open" || node.action === "modal_close"
+        ? modalTargetName(target)
       : target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
     if (node.navigationOutcome && ["click", "submit", "key"].includes(node.action)) return `${operationVerb(node)} ${name}，进入${formatPageName(node.navigationOutcome)}页面`;
     if (node.action === "input") return `填写 ${name}`;
@@ -471,6 +473,8 @@
     const target = node.target || {};
     const name = node.action === "check"
       ? checkTargetName(target)
+      : node.action === "modal_open" || node.action === "modal_close"
+        ? modalTargetName(target)
       : target.text || target.ariaLabel || target.labelText || target.placeholder || target.title || target.nearbyText || target.name || target.id || target.type || "目标元素";
     if (node.action === "wait") return `等待 ${name} 加载完成。`;
     if (!node.navigationOutcome || !["click", "submit", "key"].includes(node.action)) return "";
@@ -488,6 +492,13 @@
     if (explicit) return explicit;
     if (target.type === "radio") return "单选框";
     return "多选框";
+  }
+
+  function modalTargetName(target = {}) {
+    const explicit = target.ariaLabel || target.labelText || target.title || target.name || target.id;
+    if (explicit) return explicit;
+    const text = normalizeText(target.text || "");
+    return text.split(/[。.!?？]/, 1)[0].slice(0, 80) || "弹窗";
   }
 
   function transitionTitle(node) {

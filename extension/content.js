@@ -221,7 +221,9 @@ function shouldSkipAfterPreActionClick(target) {
 function shouldCaptureBeforeClick(target) {
   if (!(target instanceof Element)) return false;
   const type = inferTargetType(target);
-  if (!["button", "link", "menuitem"].includes(type)) return false;
+  if (["button", "link", "menuitem", "table_cell", "table_row"].includes(type)) return true;
+  if (target.hasAttribute("onclick")) return true;
+  if (window.getComputedStyle(target).cursor === "pointer" && !["input", "select", "checkbox", "radio", "upload"].includes(type)) return true;
   const text = normalizeText([
     target.innerText,
     target.textContent,
@@ -238,7 +240,7 @@ function isCheckableTarget(target) {
   if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) return true;
   if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.control.type)) return true;
   const role = target.getAttribute("role");
-  return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked");
+  return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked") || isCheckboxLikeElement(target);
 }
 
 function getCheckedState(target) {
@@ -258,12 +260,21 @@ function getCheckedState(target) {
       label: `${checked ? "已勾选" : "已取消勾选"} ${getElementDisplayName(target)}`
     };
   }
+  if (target instanceof Element && isCheckboxLikeElement(target)) {
+    const checked = isCheckboxLikeChecked(target);
+    return {
+      checked,
+      label: `${checked ? "已勾选" : "已取消勾选"} ${getElementDisplayName(target)}`
+    };
+  }
   return null;
 }
 
 function getCheckableInput(target) {
   if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) return target;
   if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.control.type)) return target.control;
+  const input = target instanceof Element ? target.closest("label")?.querySelector("input[type='checkbox'], input[type='radio']") : null;
+  if (input instanceof HTMLInputElement) return input;
   return null;
 }
 
@@ -277,6 +288,7 @@ function getElementDisplayName(element) {
     element.innerText ||
     element.textContent ||
     element.type ||
+    (isCheckboxLikeElement(element) ? "多选框" : "") ||
     "目标元素"
   ).slice(0, 120);
 }
@@ -538,7 +550,8 @@ function findCheckableAtPoint(point) {
     if (!(element instanceof Element)) continue;
     const input = getCheckableInput(element);
     if (input) return input;
-    if (isCustomCheckableTarget(element)) return element;
+    const customCheckable = findCustomCheckableTarget(element);
+    if (customCheckable) return customCheckable;
   }
   const nearbyInputs = Array.from(document.querySelectorAll("input[type='checkbox'], input[type='radio']"));
   return nearbyInputs.find((input) => {
@@ -561,12 +574,13 @@ function findPointerCursorTarget(element) {
 function extractTarget(element) {
   const box = element.getBoundingClientRect();
   const labelText = findLabelText(element);
+  const dialogTitle = inferTargetType(element) === "dialog" ? findDialogTitle(element) : null;
   const visibleText = normalizeText(element.innerText || element.textContent || "");
   const title = element.getAttribute("title");
   const visibility = getTargetVisibility(element, box);
   return {
     type: inferTargetType(element),
-    text: isCheckableTarget(element) ? "" : visibleText.slice(0, 120),
+    text: dialogTitle || (isCheckableTarget(element) ? "" : visibleText.slice(0, 120)),
     ariaLabel: element.getAttribute("aria-label"),
     placeholder: element.getAttribute("placeholder"),
     title,
@@ -668,7 +682,7 @@ function inferTargetType(element) {
   if (tag === "td" || tag === "th" || role === "cell" || role === "gridcell") return "table_cell";
   if (tag === "tr" || role === "row") return "table_row";
   if (role === "menuitem") return "menuitem";
-  if (role === "checkbox") return "checkbox";
+  if (role === "checkbox" || isCheckboxLikeElement(element)) return "checkbox";
   if (role === "radio") return "radio";
   if (tag === "input") {
     const type = element.getAttribute("type") || "text";
@@ -923,9 +937,75 @@ function normalizeText(text = "") {
   return String(text).replace(/\s+/g, " ").trim();
 }
 
+function findDialogTitle(element) {
+  const aria = normalizeText(element.getAttribute("aria-label") || "");
+  if (aria) return aria.slice(0, 80);
+  const labelledBy = element.getAttribute("aria-labelledby");
+  if (labelledBy) {
+    const label = labelledBy
+      .split(/\s+/)
+      .map((id) => document.getElementById(id))
+      .filter(Boolean)
+      .map((node) => normalizeText(node.innerText || node.textContent || ""))
+      .find(Boolean);
+    if (label) return label.slice(0, 80);
+  }
+  const titleElement = element.querySelector([
+    "[role='heading']",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    ".modal-title",
+    ".ant-modal-title",
+    ".el-dialog__title",
+    ".MuiDialogTitle-root"
+  ].join(","));
+  const title = normalizeText(titleElement?.innerText || titleElement?.textContent || "");
+  if (title) return title.slice(0, 80);
+  return normalizeText(element.innerText || element.textContent || "").split(/[。.!?？]/, 1)[0].slice(0, 80);
+}
+
+function findCustomCheckableTarget(target) {
+  if (!(target instanceof Element)) return null;
+  let current = target;
+  let depth = 0;
+  while (current && current !== document.body && depth < 5) {
+    if (isCustomCheckableTarget(current) || isCheckboxLikeElement(current)) return current;
+    current = current.parentElement;
+    depth += 1;
+  }
+  return null;
+}
+
 function isCustomCheckableTarget(target) {
   if (!(target instanceof Element)) return false;
   const role = target.getAttribute("role");
   return ["checkbox", "radio", "switch"].includes(role || "") || target.hasAttribute("aria-checked");
+}
+
+function isCheckboxLikeElement(target) {
+  if (!(target instanceof Element)) return false;
+  const signature = [
+    target.className,
+    target.id,
+    target.getAttribute("data-testid"),
+    target.getAttribute("data-test"),
+    target.getAttribute("aria-label"),
+    target.getAttribute("title")
+  ].map((value) => String(value || "")).join(" ").toLowerCase();
+  return /\b(checkbox|check-box|checkable|selection|select-row|row-select|ant-checkbox|el-checkbox|mat-checkbox|mui-checkbox|p-checkbox|v-input--selection-controls)\b/.test(signature);
+}
+
+function isCheckboxLikeChecked(target) {
+  if (!(target instanceof Element)) return false;
+  const input = target.querySelector("input[type='checkbox'], input[type='radio']");
+  if (input instanceof HTMLInputElement) return input.checked;
+  const ariaChecked = target.getAttribute("aria-checked") || target.querySelector("[aria-checked]")?.getAttribute("aria-checked");
+  if (ariaChecked) return ariaChecked === "true";
+  const signature = String(target.className || "").toLowerCase();
+  return /\b(checked|selected|active|is-checked|ant-checkbox-checked|el-checkbox__input is-checked)\b/.test(signature);
 }
 })();

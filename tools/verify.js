@@ -920,7 +920,9 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(content.includes("function resolveActionTarget"), "content.js 必须实现点击目标归一");
   assert(content.includes("resolveActionTarget(event.target, clickPoint)"), "click 事件必须按点击坐标先归一目标元素");
   assert(content.includes("findCheckableAtPoint"), "checkbox/radio 点击必须优先按点击坐标定位真实控件");
-  assert(content.includes("text: isCheckableTarget(element) ? \"\""), "checkbox/radio 目标不应把整行文本作为标题来源");
+  assert(content.includes("isCheckboxLikeElement"), "checkbox/radio 点击必须覆盖常见 UI 库的 checkbox-like 元素");
+  assert(content.includes("ant-checkbox") && content.includes("el-checkbox") && content.includes("mat-checkbox"), "checkbox-like 识别必须覆盖常见组件库类名");
+  assert(content.includes("isCheckableTarget(element) ? \"\" : visibleText.slice(0, 120)"), "checkbox/radio 目标不应把整行文本作为标题来源");
   assert(content.includes("ACTION_TARGET_SELECTOR"), "content.js 必须集中维护可操作点击目标选择器");
   assert(content.includes("[onclick]"), "点击目标归一必须覆盖 onclick 自定义控件");
   assert(content.includes("[tabindex]"), "点击目标归一必须覆盖 tabindex 自定义控件");
@@ -1112,6 +1114,7 @@ runCheck("操作节点会保存视口、滚动偏移和设备像素比", () => {
 });
 
 runCheck("截图元数据会标记捕获时机", () => {
+  const content = readText("extension/content.js");
   const background = readText("extension/background.js");
   const validator = readText("tools/validate_schema.js");
   const dataModel = readText("DATA_MODEL.md");
@@ -1124,6 +1127,8 @@ runCheck("截图元数据会标记捕获时机", () => {
   assert(background.includes("getScreenshotCaptureTiming(payload.action)"), "background 必须按动作决定截图捕获时机");
   assert(background.includes("captureTiming,"), "background 必须把 captureTiming 写入截图记录和节点元数据");
   assert(background.includes("before_action_preferred"), "background 必须支持点击前优先截图标记");
+  assert(content.includes("sendClickEvent(target, clickPoint, { preAction: true })"), "content.js 必须在 pointerdown 阶段发送点击前截图事件");
+  assert(content.includes("[\"button\", \"link\", \"menuitem\", \"table_cell\", \"table_row\"].includes(type)"), "点击前截图必须覆盖按钮、链接、菜单和表格点击");
   assert(background.includes("if ([\"check\", \"submit\"].includes(action)) return \"before_action_preferred\""), "check/submit 必须优先保留动作前截图");
   assert(background.includes("shouldSkipSubmitAfterPreActionClick"), "preAction 点击后必须跳过冗余 submit 步骤");
   assert(background.includes("after_navigation"), "background 必须支持跳转后截图标记");
@@ -1301,11 +1306,11 @@ runCheck("页面弹窗出现和关闭会生成可导出的操作节点", () => {
     }
   ]);
   const timeline = buildVideoTimeline(steps);
-  assert(steps[0].title === "弹窗出现：Company Review Confirm the company profile before submitting.", "ArticleStep 必须生成弹窗出现标题");
+  assert(steps[0].title === "弹窗出现：Company Review", "ArticleStep 弹窗标题必须只保留弹窗标题");
   assert(steps[0].focusMode === "highlight", "弹窗出现步骤应可高亮弹窗区域");
   assert(steps.length === 1, "ArticleStep 不应导出 modal_close 空截图步骤");
   assert(timeline.segments.length === 1, "VideoTimeline 不应包含 modal_close 空截图片段");
-  assert(timeline.segments[0].caption === "页面出现弹窗：Company Review。", "VideoTimeline 必须复用弹窗出现说明");
+  assert(timeline.segments[0].caption === "页面出现弹窗：Company Review。", "VideoTimeline 必须复用弹窗标题说明");
 });
 
 runCheck("同一输入框连续输入会合并为一个节点", () => {

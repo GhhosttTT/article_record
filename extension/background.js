@@ -1012,6 +1012,8 @@ function makeTabAlias(index, title, domain) {
 function generateInstruction(payload, context) {
   const targetName = payload.action === "check"
     ? checkTargetName(payload.target)
+    : payload.action === "modal_open" || payload.action === "modal_close"
+      ? modalTargetName(payload.target)
     : payload.target?.text || payload.target?.ariaLabel || payload.target?.labelText || payload.target?.placeholder || payload.target?.title || payload.target?.nearbyText || payload.target?.name || payload.target?.id || "目标元素";
   if (payload.action === "wait") return `等待${context.title || targetName || "当前页面"}加载完成。`;
   if (payload.action === "input") return `在${targetName}中输入内容。`;
@@ -1030,6 +1032,13 @@ function checkTargetName(target = {}) {
   if (explicit) return explicit;
   if (target.type === "radio") return "单选框";
   return "多选框";
+}
+
+function modalTargetName(target = {}) {
+  const explicit = target.ariaLabel || target.labelText || target.title || target.name || target.id;
+  if (explicit) return explicit;
+  const text = normalizeText(target.text || "");
+  return text.split(/[。.!?？]/, 1)[0].slice(0, 80) || "弹窗";
 }
 
 function shouldSkipWaitNode(payload, context) {
