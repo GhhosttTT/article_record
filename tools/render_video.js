@@ -228,6 +228,7 @@ function renderFocusZoom(segment, frame) {
   const box = segment.highlight;
   if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
   const zoomRect = focusZoomRect(box, frame);
+  if (!shouldRenderFocusZoom(box, zoomRect, frame)) return "";
   const zoomScale = frame.width / frame.sourceWidth * 4.25;
   const focusAnchor = focusZoomAnchor(box, zoomRect, zoomScale);
   const imageWidth = frame.sourceWidth * zoomScale;
@@ -270,6 +271,27 @@ function focusZoomRect(box, frame) {
   const x = rightSpace >= width + margin ? rightCandidate : Math.max(frame.x + margin, leftCandidate);
   const y = Math.max(frame.y + margin, Math.min(frameBottom - height - margin, boxFrameY + boxFrameH / 2 - height / 2));
   return { x: round(x), y: round(y), width, height };
+}
+
+function shouldRenderFocusZoom(box, zoomRect, frame) {
+  const highlight = boxToFrameRect(box, frame);
+  if (!highlight) return false;
+  const overlapWidth = Math.max(0, Math.min(highlight.x + highlight.width, zoomRect.x + zoomRect.width) - Math.max(highlight.x, zoomRect.x));
+  const overlapHeight = Math.max(0, Math.min(highlight.y + highlight.height, zoomRect.y + zoomRect.height) - Math.max(highlight.y, zoomRect.y));
+  if (overlapWidth > 0 && overlapHeight > 0) return false;
+  const highlightArea = highlight.width * highlight.height;
+  const frameArea = frame.width * frame.height;
+  return highlightArea / frameArea < 0.12;
+}
+
+function boxToFrameRect(box, frame) {
+  if (!box || !Number.isFinite(box.x)) return null;
+  return {
+    x: frame.x + box.x / frame.sourceWidth * frame.width,
+    y: frame.y + box.y / frame.sourceHeight * frame.height,
+    width: Math.max(1, box.width / frame.sourceWidth * frame.width),
+    height: Math.max(1, box.height / frame.sourceHeight * frame.height)
+  };
 }
 
 function focusZoomAnchor(box, zoomRect, zoomScale) {

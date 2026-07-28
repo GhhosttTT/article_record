@@ -592,8 +592,8 @@ async function renderTimelineWebm(timeline) {
 async function renderSegmentFrames(ctx, stream, segment, fps) {
   const durationMs = Math.max(500, ((segment.endTime || 0) - (segment.startTime || 0)) * 1000);
   const frameCount = Math.max(1, Math.ceil(durationMs / (1000 / fps)));
+  await drawVideoFrame(ctx, segment);
   for (let index = 0; index < frameCount; index += 1) {
-    await drawVideoFrame(ctx, segment);
     stream.getVideoTracks?.()[0]?.requestFrame?.();
     await wait(1000 / fps);
   }
@@ -721,6 +721,7 @@ function drawFocusZoom(ctx, image, segment, frame) {
   const box = segment.highlight;
   if (!box || !Number.isFinite(box.x)) return;
   const zoom = focusZoomFrameRect(box, frame);
+  if (!shouldRenderFocusZoom(box, zoom, frame)) return;
   const scale = frame.width / frame.sourceWidth * 4.25;
   const focusAnchor = focusZoomAnchor(box, zoom, scale);
   const imageWidth = frame.sourceWidth * scale;
@@ -775,6 +776,27 @@ function focusZoomFrameRect(box, frame) {
   const x = rightSpace >= width + margin ? boxX + boxW + margin : Math.max(frame.x + margin, boxX - width - margin);
   const y = Math.max(frame.y + margin, Math.min(frame.y + frame.height - height - margin, boxY + boxH / 2 - height / 2));
   return { x, y, width, height };
+}
+
+function shouldRenderFocusZoom(box, zoom, frame) {
+  const highlight = boxToFrameRect(box, frame);
+  if (!highlight) return false;
+  const overlapWidth = Math.max(0, Math.min(highlight.x + highlight.width, zoom.x + zoom.width) - Math.max(highlight.x, zoom.x));
+  const overlapHeight = Math.max(0, Math.min(highlight.y + highlight.height, zoom.y + zoom.height) - Math.max(highlight.y, zoom.y));
+  if (overlapWidth > 0 && overlapHeight > 0) return false;
+  const highlightArea = highlight.width * highlight.height;
+  const frameArea = frame.width * frame.height;
+  return highlightArea / frameArea < 0.12;
+}
+
+function boxToFrameRect(box, frame) {
+  if (!box || !Number.isFinite(box.x)) return null;
+  return {
+    x: frame.x + box.x / frame.sourceWidth * frame.width,
+    y: frame.y + box.y / frame.sourceHeight * frame.height,
+    width: Math.max(1, box.width / frame.sourceWidth * frame.width),
+    height: Math.max(1, box.height / frame.sourceHeight * frame.height)
+  };
 }
 
 function focusZoomAnchor(box, zoom, scale) {

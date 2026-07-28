@@ -298,6 +298,9 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   assert(renderVideo.includes("--window-size=${VIDEO_WIDTH},${VIDEO_HEIGHT}"), "render_video.js must render PNG frames at 2K resolution");
   assert(renderVideo.includes("* 4.25"), "render_video.js focus zoom must use stronger magnification");
   assert(renderVideo.includes("function focusZoomAnchor") && renderVideo.includes("box.width * 0.2"), "render_video.js focus zoom must bias the crop toward the left text area");
+  assert(renderVideo.includes("function shouldRenderFocusZoom"), "render_video.js must decide when focus zoom is useful");
+  assert(renderVideo.includes("overlapWidth > 0 && overlapHeight > 0"), "render_video.js must hide focus zoom when it overlaps the original highlight");
+  assert(renderVideo.includes("highlightArea / frameArea < 0.12"), "render_video.js must hide focus zoom for already-large highlights");
   assert(renderVideo.includes("renderSubtitle"), "render_video.js 必须把说明渲染为字幕");
   assert(renderVideo.includes("{ x: 32, y: 24, width: 1216, height: 548 }"), "render_video.js 必须使用大面积截图主画面");
   assert(renderVideo.includes("已打码"), "render_video.js 必须在有打码区域时显示提示");
@@ -526,6 +529,10 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("* 4.25"), "focus zoom must use stronger magnification");
   assert(viewerJs.includes("frame.width * 0.43"), "focus zoom window must be larger");
   assert(viewerJs.includes("function focusZoomAnchor") && viewerJs.includes("box.width * 0.2"), "focus zoom must bias the crop toward the left text area");
+  assert(viewerJs.includes("function shouldRenderFocusZoom"), "preview video export must decide when focus zoom is useful");
+  assert(viewerJs.includes("overlapWidth > 0 && overlapHeight > 0"), "preview video export must hide focus zoom when it overlaps the original highlight");
+  assert(viewerJs.includes("highlightArea / frameArea < 0.12"), "preview video export must hide focus zoom for already-large highlights");
+  assert(viewerJs.indexOf("await drawVideoFrame(ctx, segment);") < viewerJs.indexOf("for (let index = 0; index < frameCount; index += 1)"), "preview video export must draw the segment once before timed frame requests");
   assert(viewerJs.includes("drawArticleTitle"), "预览页视频导出必须展示文章标题");
   assert(viewerJs.includes("canvasImageCache"), "预览页视频导出必须缓存截图，避免逐帧重复加载导致抖动");
   assert(viewerJs.includes("drawText(ctx, line, 640, firstY + index * 32, 24"), "video subtitle font must be smaller");
