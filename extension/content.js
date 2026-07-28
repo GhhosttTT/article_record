@@ -275,6 +275,23 @@ function getCheckableInput(target) {
   if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.control.type)) return target.control;
   const input = target instanceof Element ? target.closest("label")?.querySelector("input[type='checkbox'], input[type='radio']") : null;
   if (input instanceof HTMLInputElement) return input;
+  const compactOwner = findCompactCheckableOwner(target);
+  if (compactOwner) {
+    const ownedInput = compactOwner.querySelector("input[type='checkbox'], input[type='radio']");
+    if (ownedInput instanceof HTMLInputElement) return ownedInput;
+  }
+  return null;
+}
+
+function findCompactCheckableOwner(target) {
+  if (!(target instanceof Element)) return null;
+  let current = target;
+  let depth = 0;
+  while (current && current !== document.body && depth < 4) {
+    if (isExplicitCheckable(current) || isCheckboxLikeElement(current) || isCompactCheckableBox(current)) return current;
+    current = current.parentElement;
+    depth += 1;
+  }
   return null;
 }
 
@@ -538,9 +555,37 @@ function resolveActionTarget(target, clickPoint = null) {
   if (pointCheckable) return pointCheckable;
   const checkableAncestor = getCheckableInput(target);
   if (checkableAncestor) return checkableAncestor;
-  const explicitTarget = target.closest(ACTION_TARGET_SELECTOR);
-  if (explicitTarget) return explicitTarget;
+  const preferredTarget = findPreferredActionTarget(target);
+  if (preferredTarget) return preferredTarget;
   return findPointerCursorTarget(target);
+}
+
+function findPreferredActionTarget(target) {
+  if (!(target instanceof Element)) return null;
+  const prioritySelectors = [
+    "button",
+    "[role='button']",
+    "a[href]",
+    "[role='link']",
+    "[role='menuitem']",
+    "input",
+    "label",
+    "select",
+    "textarea",
+    "summary",
+    "[onclick]",
+    "td",
+    "th",
+    "[role='cell']",
+    "[role='gridcell']",
+    "[role='row']",
+    "[tabindex]"
+  ];
+  for (const selector of prioritySelectors) {
+    const candidate = target.closest(selector);
+    if (candidate instanceof Element && candidate.closest(ACTION_TARGET_SELECTOR)) return candidate;
+  }
+  return null;
 }
 
 function findCheckableAtPoint(point) {
