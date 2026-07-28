@@ -526,6 +526,7 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("canvas.captureStream(0)"), "预览页视频导出必须使用手动帧捕获，避免自动捕获清屏过程导致频闪");
   assert(viewerJs.includes("const VIDEO_WIDTH = 2560") && viewerJs.includes("const VIDEO_HEIGHT = 1440"), "video export must use 2K canvas");
   assert(viewerJs.includes("ctx.setTransform(VIDEO_SCALE"), "video export must scale virtual coordinates on high-res canvas");
+  assert(viewerJs.includes("WEBM_VIDEO_BITS_PER_SECOND = 24_000_000"), "video export must use a high bitrate for clear 2K WebM output");
   assert(viewerJs.includes("* 4.25"), "focus zoom must use stronger magnification");
   assert(viewerJs.includes("frame.width * 0.43"), "focus zoom window must be larger");
   assert(viewerJs.includes("function focusZoomAnchor") && viewerJs.includes("box.width * 0.2"), "focus zoom must bias the crop toward the left text area");
@@ -534,6 +535,7 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("highlightArea / frameArea < 0.12"), "preview video export must hide focus zoom for already-large highlights");
   assert(viewerJs.indexOf("await drawVideoFrame(ctx, segment);") < viewerJs.indexOf("for (let index = 0; index < frameCount; index += 1)"), "preview video export must draw the segment once before timed frame requests");
   assert(viewerJs.includes("drawArticleTitle"), "预览页视频导出必须展示文章标题");
+  assert(viewerJs.includes("segment.articleTitle || timelineTitle"), "preview video export must use timeline title as a global fallback");
   assert(viewerJs.includes("canvasImageCache"), "预览页视频导出必须缓存截图，避免逐帧重复加载导致抖动");
   assert(viewerJs.includes("drawText(ctx, line, 640, firstY + index * 32, 24"), "video subtitle font must be smaller");
   assert(viewerJs.includes("!chunks.length"), "预览页视频导出必须检测空视频数据");

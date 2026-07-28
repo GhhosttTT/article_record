@@ -25,6 +25,7 @@ const VIDEO_HEIGHT = 1440;
 const VIDEO_VIEWBOX_WIDTH = 1280;
 const VIDEO_VIEWBOX_HEIGHT = 720;
 const VIDEO_SCALE = VIDEO_WIDTH / VIDEO_VIEWBOX_WIDTH;
+const WEBM_VIDEO_BITS_PER_SECOND = 24_000_000;
 
 els.privacyMaskToggle?.addEventListener("change", () => {
   if (currentState) applyState(currentState, { preserveTitle: true });
@@ -567,7 +568,11 @@ async function renderTimelineWebm(timeline) {
   const fps = 12;
   const mimeType = pickVideoMimeType();
   const stream = canvas.captureStream(0);
-  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  const recorderOptions = {
+    videoBitsPerSecond: WEBM_VIDEO_BITS_PER_SECOND,
+    ...(mimeType ? { mimeType } : {})
+  };
+  const recorder = new MediaRecorder(stream, recorderOptions);
   const chunks = [];
   recorder.addEventListener("dataavailable", (event) => {
     if (event.data?.size) chunks.push(event.data);
@@ -580,7 +585,7 @@ async function renderTimelineWebm(timeline) {
 
   recorder.start();
   for (const segment of timeline.segments || []) {
-    await renderSegmentFrames(ctx, stream, segment, fps);
+    await renderSegmentFrames(ctx, stream, segment, fps, timeline.title);
   }
   recorder.stop();
   await stopped;
@@ -589,10 +594,10 @@ async function renderTimelineWebm(timeline) {
   return new Blob(chunks, { type: mimeType || "video/webm" });
 }
 
-async function renderSegmentFrames(ctx, stream, segment, fps) {
+async function renderSegmentFrames(ctx, stream, segment, fps, timelineTitle = "") {
   const durationMs = Math.max(500, ((segment.endTime || 0) - (segment.startTime || 0)) * 1000);
   const frameCount = Math.max(1, Math.ceil(durationMs / (1000 / fps)));
-  await drawVideoFrame(ctx, segment);
+  await drawVideoFrame(ctx, segment, timelineTitle);
   for (let index = 0; index < frameCount; index += 1) {
     stream.getVideoTracks?.()[0]?.requestFrame?.();
     await wait(1000 / fps);
@@ -607,7 +612,7 @@ function pickVideoMimeType() {
   ].find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
-async function drawVideoFrame(ctx, segment) {
+async function drawVideoFrame(ctx, segment, timelineTitle = "") {
   ctx.fillStyle = "#111827";
   ctx.fillRect(0, 0, VIDEO_VIEWBOX_WIDTH, VIDEO_VIEWBOX_HEIGHT);
   if (segment.visual) {
@@ -620,7 +625,7 @@ async function drawVideoFrame(ctx, segment) {
     drawBlankStepFrame(ctx, segment);
   }
   drawTypeBadge(ctx, segment);
-  drawArticleTitle(ctx, segment.articleTitle);
+  drawArticleTitle(ctx, segment.articleTitle || timelineTitle);
   if (segment.key) drawKeyBadge(ctx, segment.key);
   drawSubtitle(ctx, segment);
 }
