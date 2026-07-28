@@ -22,7 +22,7 @@
       const title = node.titleOverride || (isTransition ? transitionTitle(nodeWithOutcome) : operationTitle(nodeWithOutcome));
       const description = node.descriptionOverride || operationDescription(nodeWithOutcome) || node.generatedInstruction || title;
       const voiceoverText = normalizeText(node.voiceoverText || "");
-      const focusBox = normalizeBox(node.focusBoxOverride || (node.target?.visibility?.canHighlight === false ? null : node.target?.boundingBox));
+      const focusBox = resolveFocusBox(node);
       const contextKey = privacyContextKey(node);
       const currentPrivacyMaskBoxes = privacyMaskingEnabled
         ? normalizeBoxes(Array.isArray(node.privacyMaskBoxes) ? node.privacyMaskBoxes : [])
@@ -456,6 +456,37 @@
     if (node.action === "modal_open") return `弹窗出现：${name}`;
     if (node.action === "modal_close") return `关闭弹窗：${name}`;
     return `点击 ${name}`;
+  }
+
+  function resolveFocusBox(node) {
+    if (node.focusBoxOverride) return normalizeBox(node.focusBoxOverride);
+    if (node.target?.visibility?.canHighlight === false) return null;
+    return normalizeBox(focusBoxFromClickPoint(node.clickPoint, node.target?.boundingBox, node.viewport)) || normalizeBox(node.target?.boundingBox);
+  }
+
+  function focusBoxFromClickPoint(point, targetBox, viewport) {
+    const normalizedPoint = normalizePoint(point);
+    if (!normalizedPoint) return null;
+    const target = normalizeBox(targetBox);
+    const viewportWidth = Number(viewport?.width || target?.width || 1280);
+    const viewportHeight = Number(viewport?.height || target?.height || 720);
+    const baseWidth = target ? Math.min(220, Math.max(96, target.width * 0.45)) : 140;
+    const baseHeight = target ? Math.min(140, Math.max(72, target.height * 2.4)) : 100;
+    const width = Math.round(baseWidth);
+    const height = Math.round(baseHeight);
+    const x = Math.round(clamp(normalizedPoint.x - width / 2, 0, Math.max(0, viewportWidth - width)));
+    const y = Math.round(clamp(normalizedPoint.y - height / 2, 0, Math.max(0, viewportHeight - height)));
+    return {
+      x,
+      y,
+      width,
+      height,
+      coordinateSpace: normalizedPoint.coordinateSpace || target?.coordinateSpace || "viewport-css-pixel"
+    };
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
   function operationDescription(node) {

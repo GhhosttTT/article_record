@@ -26,6 +26,7 @@ var ACTION_TARGET_SELECTOR = [
 var inputTimers = new WeakMap();
 var pendingInputTargets = new Set();
 var activeModalTargets = new Map();
+var recentCheckClickPoints = new WeakMap();
 var modalScanTimer = null;
 var EVENT_QUEUE_KEY = "sopRecorderPendingEvents";
 var MAX_QUEUED_EVENTS = 80;
@@ -59,21 +60,21 @@ document.addEventListener("click", (event) => {
   if (!target) return;
   flushPendingInputs();
   if (isCheckableTarget(target)) {
+    const clickPoint = getClickPoint(event);
+    const checkTarget = getCheckableInput(target) || target;
+    recentCheckClickPoints.set(checkTarget, clickPoint);
+    if (getCheckableInput(target)) return;
     window.setTimeout(() => {
       if (!isActiveContentInstance()) return;
-      sendInputLikeEvent(target, "check");
-    }, 0);
+      sendInputLikeEvent(target, "check", clickPoint);
+    }, 120);
     return;
   }
   const targetMeta = extractTarget(target);
   sendRecorderEvent({
     action: "click",
     target: targetMeta,
-    clickPoint: {
-      x: event.clientX,
-      y: event.clientY,
-      coordinateSpace: "viewport-css-pixel"
-    },
+    clickPoint: getClickPoint(event),
     viewport: getViewport(),
     beforeUrl: location.href,
     privacy: detectPrivacy(target)
@@ -100,7 +101,7 @@ document.addEventListener("change", (event) => {
     return;
   }
   if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) {
-    sendInputLikeEvent(target, "check");
+    sendInputLikeEvent(target, "check", recentCheckClickPoints.get(target) || null);
   }
 }, true);
 
@@ -168,7 +169,7 @@ function flushPendingInput(target) {
   sendInputLikeEvent(target, "input");
 }
 
-function sendInputLikeEvent(target, action) {
+function sendInputLikeEvent(target, action, clickPoint = null) {
   const privacy = detectPrivacy(target);
   const maskedValue = getMaskedValue(target, privacy.containsSensitiveData);
   const checkedState = action === "check" ? getCheckedState(target) : null;
@@ -178,10 +179,19 @@ function sendInputLikeEvent(target, action) {
     maskedValue,
     value: action === "check" && checkedState ? checkedState.label : maskedValue,
     checked: checkedState?.checked ?? null,
+    clickPoint,
     viewport: getViewport(),
     beforeUrl: location.href,
     privacy
   });
+}
+
+function getClickPoint(event) {
+  return {
+    x: event.clientX,
+    y: event.clientY,
+    coordinateSpace: "viewport-css-pixel"
+  };
 }
 
 function isCheckableTarget(target) {

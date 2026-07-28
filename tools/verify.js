@@ -434,10 +434,12 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("[\"Enter\", \"Escape\"].includes(event.key)"), "键盘采集只能记录 Enter/Escape");
   assert(content.includes("event.repeat"), "键盘采集必须忽略长按重复键");
   assert(content.includes("sendInputLikeEvent(target, \"select\")"), "content.js 必须发送 select 事件");
-  assert(content.includes("sendInputLikeEvent(target, \"check\")"), "content.js 必须发送 check 事件");
+  assert(content.includes("sendInputLikeEvent(target, \"check\","), "content.js 必须发送 check 事件");
   assert(content.includes("isCheckableTarget(target)"), "click 事件必须识别原生和自定义 checkbox/radio/switch");
-  assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(target, \"check\")"), "checkbox 点击必须等选中状态更新后再记录");
+  assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(target, \"check\", clickPoint)"), "自定义 checkbox 点击必须等选中状态更新后再记录");
   assert(!content.includes("target.querySelector?.(\"input[type='checkbox']"), "checkbox detection must not scan child rows/cells");
+  assert(content.includes("recentCheckClickPoints"), "checkbox/radio change 事件必须继承最近点击坐标");
+  assert(content.includes("sendInputLikeEvent(target, \"check\", recentCheckClickPoints.get(target) || null)"), "checkbox/radio 必须在 change 后记录选中状态和点击坐标");
   assert(content.includes("action: \"submit\""), "content.js 必须发送 submit 事件");
   assert(content.includes("response?.ok || response?.duplicateEvent"), "content.js 只有收到 background 确认后才能删除事件队列");
   assert(content.includes("chrome.runtime?.id"), "content.js 必须在扩展上下文失效时避免直接调用 sendMessage");
@@ -975,6 +977,35 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(steps[1].title === "勾选 Branch Office", "ArticleStep 必须为单选按钮生成可读标题");
   assert(timeline.segments[0].highlight.width === 220, "VideoTimeline 必须保留表格单元格高亮区域");
   assert(timeline.segments[1].caption === "勾选Branch Office。", "VideoTimeline 必须复用单选按钮说明");
+});
+
+runCheck("点击坐标会生成局部 focusBox，避免长控件整条放大", () => {
+  const shared = readText("extension/shared/artifacts.js");
+  const viewerJs = readText("extension/viewer.js");
+  assert(shared.includes("function focusBoxFromClickPoint"), "共享 artifact 必须按点击坐标生成 focusBox");
+  assert(viewerJs.includes("function focusBoxFromClickPoint"), "预览页必须按点击坐标生成 focusBox");
+
+  const { buildArticleSteps, buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([{
+    id: "node_search",
+    sequence: 1,
+    action: "click",
+    tab: { tabId: 1, tabAlias: "标签页 A：订单", domain: "example.com" },
+    target: {
+      type: "input",
+      placeholder: "搜索方式",
+      boundingBox: { x: 120, y: 64, width: 720, height: 36, coordinateSpace: "viewport-css-pixel" }
+    },
+    clickPoint: { x: 620, y: 82, coordinateSpace: "viewport-css-pixel" },
+    viewport: { width: 1280, height: 720 },
+    generatedInstruction: "点击搜索方式。",
+    status: "auto_generated"
+  }]);
+  const timeline = buildVideoTimeline(steps);
+  assert(steps[0].focusBox.width < 260, "长输入框 focusBox 不应使用整条元素宽度");
+  assert(steps[0].focusBox.x <= 620 && steps[0].focusBox.x + steps[0].focusBox.width >= 620, "focusBox 必须覆盖点击位置 x");
+  assert(steps[0].focusBox.y <= 82 && steps[0].focusBox.y + steps[0].focusBox.height >= 82, "focusBox 必须覆盖点击位置 y");
+  assert(timeline.segments[0].highlight.width === steps[0].focusBox.width, "VideoTimeline 必须复用点击坐标生成的 focusBox");
 });
 
 runCheck("不可见目标不会生成坏步骤或坏高亮", () => {
