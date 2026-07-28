@@ -17,6 +17,7 @@ var ACTION_TARGET_SELECTOR = [
   "[role='menuitem']",
   "[role='checkbox']",
   "[role='radio']",
+  "[role='switch']",
   "td",
   "th",
   "[role='cell']",
@@ -77,7 +78,7 @@ document.addEventListener("click", (event) => {
   if (isCheckableTarget(target)) {
     const checkTarget = getCheckableInput(target) || target;
     recentCheckClickPoints.set(checkTarget, clickPoint);
-    scheduleCheckClickEvent(checkTarget, clickPoint);
+    scheduleCheckClickEvent(checkTarget, clickPoint, extractTarget(getCheckableCaptureTarget(checkTarget, clickPoint)));
     return;
   }
   sendClickEvent(target, clickPoint);
@@ -172,13 +173,18 @@ function flushPendingInput(target) {
   sendInputLikeEvent(target, "input");
 }
 
-function scheduleCheckClickEvent(target, clickPoint) {
+function scheduleCheckClickEvent(target, clickPoint, targetSnapshot = null) {
   window.clearTimeout(pendingCheckClickTimers.get(target));
   pendingCheckClickTimers.set(target, window.setTimeout(() => {
     pendingCheckClickTimers.delete(target);
     if (!isActiveContentInstance()) return;
     recentCheckSentAt.set(target, Date.now());
-    sendInputLikeEvent(target, "check", clickPoint);
+    const liveTarget = findCheckableAtPoint(clickPoint) || target;
+    if (isUsableLiveTarget(liveTarget)) {
+      sendInputLikeEvent(liveTarget, "check", clickPoint);
+      return;
+    }
+    sendCheckEventFromSnapshot(targetSnapshot, clickPoint);
   }, 160));
 }
 
@@ -188,13 +194,36 @@ function shouldSkipCheckChange(target) {
   return Boolean(sentAt && Date.now() - sentAt < 500);
 }
 
+function isUsableLiveTarget(target) {
+  if (!(target instanceof Element)) return false;
+  const box = target.getBoundingClientRect();
+  const visibility = getTargetVisibility(target, box);
+  return Boolean(visibility.visible && box.width > 0 && box.height > 0);
+}
+
+function sendCheckEventFromSnapshot(targetSnapshot, clickPoint) {
+  if (!targetSnapshot) return;
+  sendRecorderEvent({
+    action: "check",
+    target: targetSnapshot,
+    maskedValue: targetSnapshot.type === "radio" ? "单选框" : "多选框",
+    value: targetSnapshot.type === "radio" ? "单选框" : "多选框",
+    checked: null,
+    clickPoint,
+    viewport: getViewport(),
+    beforeUrl: location.href,
+    privacy: { containsSensitiveData: false, reasons: [], maskedFields: [] }
+  });
+}
+
 function sendInputLikeEvent(target, action, clickPoint = null) {
   const privacy = detectPrivacy(target);
   const maskedValue = getMaskedValue(target, privacy.containsSensitiveData);
   const checkedState = action === "check" ? getCheckedState(target) : null;
+  const captureTarget = action === "check" ? getCheckableCaptureTarget(target, clickPoint) : target;
   sendRecorderEvent({
     action,
-    target: extractTarget(target),
+    target: extractTarget(captureTarget),
     maskedValue,
     value: action === "check" && checkedState ? checkedState.label : maskedValue,
     checked: checkedState?.checked ?? null,
@@ -287,13 +316,53 @@ function getCheckedState(target) {
 
 function getCheckableInput(target) {
   if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) return target;
+  if (target instanceof HTMLInputElement && ["checkbox", "radio", "switch"].includes(target.getAttribute("role") || "")) return target;
   if (target instanceof HTMLLabelElement && target.control instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.control.type)) return target.control;
-  const input = target instanceof Element ? target.closest("label")?.querySelector("input[type='checkbox'], input[type='radio']") : null;
+  const input = target instanceof Element ? target.closest("label")?.querySelector(getCheckableInputSelector()) : null;
   if (input instanceof HTMLInputElement) return input;
   const compactOwner = findCompactCheckableOwner(target);
   if (compactOwner) {
-    const ownedInput = compactOwner.querySelector("input[type='checkbox'], input[type='radio']");
+    const ownedInput = compactOwner.querySelector(getCheckableInputSelector());
     if (ownedInput instanceof HTMLInputElement) return ownedInput;
+  }
+  return null;
+}
+
+function getCheckableInputSelector() {
+  return "input[type='checkbox'], input[type='radio'], input[role='checkbox'], input[role='radio'], input[role='switch'], input.PrivateSwitchBase-input";
+}
+
+function getCheckableCaptureTarget(target, clickPoint = null) {
+  if (!(target instanceof Element)) return target;
+  const customTarget = findCustomCheckableTarget(target, clickPoint);
+  if (customTarget && isUsableLiveTarget(customTarget)) return customTarget;
+  const owner = findCompactCheckableOwner(target);
+  if (owner && isUsableLiveTarget(owner)) return owner;
+  const frameworkOwner = findFrameworkCheckableOwner(target);
+  if (frameworkOwner && isUsableLiveTarget(frameworkOwner)) return frameworkOwner;
+  return target;
+}
+
+function findFrameworkCheckableOwner(target) {
+  if (!(target instanceof Element)) return null;
+  let current = target;
+  let depth = 0;
+  while (current && current !== document.body && current !== document.documentElement && depth < 4) {
+    const box = current.getBoundingClientRect();
+    const signature = [
+      current.className,
+      current.getAttribute("role"),
+      current.getAttribute("aria-label"),
+      current.getAttribute("title")
+    ].map((value) => String(value || "")).join(" ").toLowerCase();
+    const hasCheckableInput = current.querySelector?.(getCheckableInputSelector());
+    const looksLikeCheckable = /checkbox|radio|switch|toggle|privateswitchbase|muicheckbox|muiradio|muiswitch|select row|select-row|selection/.test(signature);
+    if ((hasCheckableInput || looksLikeCheckable) && box.width > 0 && box.height > 0 && box.width <= 72 && box.height <= 72) {
+      const visibility = getTargetVisibility(current, box);
+      if (visibility.visible) return current;
+    }
+    current = current.parentElement;
+    depth += 1;
   }
   return null;
 }
@@ -647,7 +716,7 @@ function findCheckableAtPoint(point) {
     const customCheckable = findCustomCheckableTarget(element, point);
     if (customCheckable) return customCheckable;
   }
-  const nearbyInputs = Array.from(document.querySelectorAll("input[type='checkbox'], input[type='radio']"));
+  const nearbyInputs = Array.from(document.querySelectorAll(getCheckableInputSelector()));
   return nearbyInputs.find((input) => {
     const box = input.getBoundingClientRect();
     return point.x >= box.left - 8 && point.x <= box.right + 8 && point.y >= box.top - 8 && point.y <= box.bottom + 8;
@@ -1100,7 +1169,7 @@ function isCheckboxLikeElement(target) {
     target.getAttribute("aria-label"),
     target.getAttribute("title")
   ].map((value) => String(value || "")).join(" ").toLowerCase();
-  return /\b(checkbox|check-box|checkable|selection|select-row|row-select|switch|toggle|slider|ant-checkbox|el-checkbox|mat-checkbox|mui-checkbox|p-checkbox|v-input--selection-controls)\b/.test(signature);
+  return /\b(checkbox|check-box|checkable|selection|select-row|row-select|switch|toggle|slider|ant-checkbox|el-checkbox|mat-checkbox|mui-checkbox|p-checkbox|v-input--selection-controls)\b|privateswitchbase|muicheckbox|muiradio|muiswitch/.test(signature);
 }
 
 function isExplicitCheckable(target) {
@@ -1113,7 +1182,7 @@ function isCompactCheckableBox(target) {
   if (!(target instanceof Element)) return false;
   const box = target.getBoundingClientRect();
   if (box.width <= 0 || box.height <= 0) return false;
-  return box.width <= 36 && box.height <= 36;
+  return box.width <= 48 && box.height <= 48;
 }
 
 function isSwitchLikeElement(target) {

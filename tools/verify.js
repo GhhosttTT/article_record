@@ -296,7 +296,7 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   assert(renderVideo.includes("const VIDEO_WIDTH = 2560") && renderVideo.includes("const VIDEO_HEIGHT = 1440"), "render_video.js must output 2K frames");
   assert(renderVideo.includes("viewBox=\"0 0 ${VIDEO_VIEWBOX_WIDTH} ${VIDEO_VIEWBOX_HEIGHT}\""), "render_video.js must scale legacy coordinates through SVG viewBox");
   assert(renderVideo.includes("--window-size=${VIDEO_WIDTH},${VIDEO_HEIGHT}"), "render_video.js must render PNG frames at 2K resolution");
-  assert(renderVideo.includes("* 4.25"), "render_video.js focus zoom must use stronger magnification");
+  assert(renderVideo.includes("* 2.8"), "render_video.js focus zoom must avoid over-enlarging low-resolution screenshot areas");
   assert(renderVideo.includes("function focusZoomAnchor") && renderVideo.includes("box.width * 0.2"), "render_video.js focus zoom must bias the crop toward the left text area");
   assert(renderVideo.includes("function shouldRenderFocusZoom"), "render_video.js must decide when focus zoom is useful");
   assert(renderVideo.includes("overlapWidth > 0 && overlapHeight > 0"), "render_video.js must hide focus zoom when it overlaps the original highlight");
@@ -442,7 +442,10 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("function scheduleCheckClickEvent"), "checkbox/switch 点击必须主动延迟记录，不能只依赖 change 事件");
   assert(content.includes("function shouldSkipCheckChange"), "checkbox/switch click 和 change 必须去重");
   assert(content.includes("isCheckableTarget(target)"), "click 事件必须识别原生和自定义 checkbox/radio/switch");
-  assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(target, \"check\", clickPoint)"), "自定义 checkbox 点击必须等选中状态更新后再记录");
+  assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(liveTarget, \"check\", clickPoint)"), "自定义 checkbox 点击必须等选中状态更新后再记录");
+  assert(content.includes("sendCheckEventFromSnapshot"), "checkbox/switch click must fall back to the click-time target snapshot after rerender");
+  assert(content.includes("getCheckableCaptureTarget"), "checkbox/switch must highlight the visible control container");
+  assert(content.includes("input.PrivateSwitchBase-input"), "checkbox/switch must detect MUI PrivateSwitchBase inputs");
   assert(!content.includes("target.querySelector?.(\"input[type='checkbox']"), "checkbox detection must not scan child rows/cells");
   assert(content.includes("recentCheckClickPoints"), "checkbox/radio change 事件必须继承最近点击坐标");
   assert(content.includes("sendInputLikeEvent(target, \"check\", recentCheckClickPoints.get(target) || null)"), "checkbox/radio 必须在 change 后记录选中状态和点击坐标");
@@ -529,8 +532,8 @@ runCheck("扩展预览页支持导出文章和视频时间轴", () => {
   assert(viewerJs.includes("const VIDEO_WIDTH = 2560") && viewerJs.includes("const VIDEO_HEIGHT = 1440"), "video export must use 2K canvas");
   assert(viewerJs.includes("ctx.setTransform(VIDEO_SCALE"), "video export must scale virtual coordinates on high-res canvas");
   assert(viewerJs.includes("WEBM_VIDEO_BITS_PER_SECOND = 48_000_000"), "video export must use a high bitrate for clear 2K WebM output");
-  assert(viewerJs.includes("ctx.imageSmoothingEnabled = false"), "video export must avoid browser smoothing when scaling screenshots");
-  assert(viewerJs.includes("* 4.25"), "focus zoom must use stronger magnification");
+  assert(viewerJs.includes("ctx.imageSmoothingEnabled = true") && viewerJs.includes("ctx.imageSmoothingQuality = \"high\""), "video export must use high-quality smoothing when scaling screenshots");
+  assert(viewerJs.includes("* 2.8"), "focus zoom must avoid over-enlarging low-resolution screenshot areas");
   assert(viewerJs.includes("frame.width * 0.43"), "focus zoom window must be larger");
   assert(viewerJs.includes("function focusZoomAnchor") && viewerJs.includes("box.width * 0.2"), "focus zoom must bias the crop toward the left text area");
   assert(viewerJs.includes("function shouldRenderFocusZoom"), "preview video export must decide when focus zoom is useful");
@@ -785,7 +788,7 @@ runCheck("耗时页面加载会生成去重后的 wait 节点", () => {
   assert(content.includes("waitDurationMs"), "content.js 必须传递等待耗时");
   assert(background.includes("shouldSkipWaitNode"), "background 必须对 wait 节点去重");
   assert(background.includes("redundant_wait"), "重复等待节点必须被跳过");
-  assert(background.includes("last.action === \"navigation\""), "紧跟 navigation 的 wait 节点必须跳过");
+  assert(background.includes("[\"navigation\", \"click\", \"submit\", \"key\", \"input\", \"select\", \"check\"].includes(last.action)"), "紧跟 navigation 的 wait 节点必须跳过");
   assert(!background.includes("formatDuration(payload.waitDurationMs)"), "wait 节点说明不应包含等待时长");
   assert(background.includes("Number(payload.waitDurationMs) >= 1200"), "wait 节点必须有最小时长门槛");
   assert(shared.includes("node.action === \"wait\""), "共享 artifact 必须支持 wait 默认标题");
@@ -950,7 +953,7 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(content.includes("function findCompactCheckableOwner"), "checkbox/radio detection must look for inputs inside compact checkbox wrappers");
   assert(content.includes("ownedInput = compactOwner.querySelector"), "checkbox/radio detection must capture hidden native inputs inside compact wrappers");
   assert(content.includes("ant-checkbox") && content.includes("el-checkbox") && content.includes("mat-checkbox"), "checkbox-like 识别必须覆盖常见组件库类名");
-  assert(content.includes("isCompactCheckableBox") && content.includes("box.width <= 36 && box.height <= 36"), "checkbox-like 识别必须限制为小尺寸控件，避免框整列");
+  assert(content.includes("isCompactCheckableBox") && content.includes("box.width <= 48 && box.height <= 48"), "checkbox-like 识别必须限制为小尺寸控件，避免框整列");
   assert(content.includes(".sort((a, b) => a.area - b.area)"), "checkbox-like 点击坐标命中时必须优先返回最小候选控件");
   assert(content.includes("isCheckableTarget(element) ? \"\" : visibleText.slice(0, 120)"), "checkbox/radio 目标不应把整行文本作为标题来源");
   assert(content.includes("ACTION_TARGET_SELECTOR"), "content.js 必须集中维护可操作点击目标选择器");

@@ -229,7 +229,7 @@ function renderFocusZoom(segment, frame) {
   if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
   const zoomRect = focusZoomRect(box, frame);
   if (!shouldRenderFocusZoom(box, zoomRect, frame)) return "";
-  const zoomScale = frame.width / frame.sourceWidth * 4.25;
+  const zoomScale = frame.width / frame.sourceWidth * 2.8;
   const focusAnchor = focusZoomAnchor(box, zoomRect, zoomScale);
   const imageWidth = frame.sourceWidth * zoomScale;
   const imageHeight = frame.sourceHeight * zoomScale;

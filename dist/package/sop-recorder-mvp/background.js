@@ -1044,10 +1044,11 @@ function shouldSkipWaitNode(payload, context) {
   const last = runtimeState.nodes[runtimeState.nodes.length - 1];
   if (!last) return false;
   if (last.tab?.tabId !== context.tabId && last.toTab?.tabId !== context.tabId) return false;
-  if (last.action === "navigation") return true;
+  const ageMs = Date.now() - new Date(last.updatedAt || last.capturedAt || 0).getTime();
+  if (["navigation", "click", "submit", "key", "input", "select", "check"].includes(last.action) && ageMs < 10000) return true;
   if (last.action !== "wait") return false;
   if ((last.afterUrl || last.pageUrl) !== (payload.afterUrl || context.currentUrl)) return false;
-  return Date.now() - new Date(last.updatedAt || last.capturedAt).getTime() < 15000;
+  return ageMs < 15000;
 }
 
 function shouldSkipSubmitAfterEnterKey(payload, context) {

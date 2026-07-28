@@ -572,7 +572,8 @@ async function renderTimelineWebm(timeline) {
   canvas.width = VIDEO_WIDTH;
   canvas.height = VIDEO_HEIGHT;
   const ctx = canvas.getContext("2d");
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.setTransform(VIDEO_SCALE, 0, 0, VIDEO_SCALE, 0, 0);
   const fps = 12;
   const mimeType = pickVideoMimeType();
@@ -736,7 +737,7 @@ function drawFocusZoom(ctx, image, segment, frame) {
   if (!box || !Number.isFinite(box.x)) return;
   const zoom = focusZoomFrameRect(box, frame);
   if (!shouldRenderFocusZoom(box, zoom, frame)) return;
-  const scale = frame.width / frame.sourceWidth * 4.25;
+  const scale = frame.width / frame.sourceWidth * 2.8;
   const focusAnchor = focusZoomAnchor(box, zoom, scale);
   const imageWidth = frame.sourceWidth * scale;
   const imageHeight = frame.sourceHeight * scale;
