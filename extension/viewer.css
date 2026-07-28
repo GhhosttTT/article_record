@@ -296,17 +296,22 @@ button:disabled {
 }
 
 .step-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
   align-items: start;
-  justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--line);
+}
+
+.step-summary {
+  min-width: 0;
 }
 
 .step h3 {
   margin: 0 0 7px;
   font-size: 20px;
+  line-height: 1.35;
 }
 
 .step p {
@@ -315,11 +320,11 @@ button:disabled {
   line-height: 1.5;
 }
 
-.step-side {
-  flex: 0 0 250px;
-  display: grid;
-  justify-items: end;
+.step-meta {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .step-kind {
@@ -338,35 +343,39 @@ button:disabled {
 }
 
 .step-status {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #f1f5f9;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
-  text-align: right;
+  font-weight: 800;
 }
 
 .step-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(92px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  width: 100%;
+  max-width: 620px;
 }
 
 .step-actions button {
-  width: 100%;
+  width: auto;
+  min-width: 72px;
 }
 
 .step-editor {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(320px, 1fr) minmax(300px, .75fr);
+  gap: 14px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   background: #fbfcfd;
 }
 
 .text-editor-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) auto;
   gap: 12px;
   align-items: end;
 }
@@ -432,22 +441,27 @@ button:disabled {
 }
 
 .focus-editor,
-.mask-editor,
-.duration-editor,
-.voiceover-editor {
+.mask-editor {
   display: grid;
   gap: 10px;
   padding-top: 4px;
 }
 
-.duration-editor {
-  grid-template-columns: minmax(160px, 1fr) auto;
+.duration-editor,
+.voiceover-editor {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(140px, 1fr) auto;
+  gap: 10px;
   align-items: end;
 }
 
+.duration-editor {
+  align-self: start;
+}
+
 .voiceover-editor {
-  grid-template-columns: minmax(220px, 1fr) auto;
-  align-items: end;
+  align-self: start;
 }
 
 .voiceover-editor textarea {
@@ -535,11 +549,6 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .step-side {
-    width: 100%;
-    justify-items: start;
-  }
-
   .step-status,
   .step-actions {
     text-align: left;
@@ -547,6 +556,7 @@ button:disabled {
   }
 
   .step-actions,
+  .step-editor,
   .text-editor-grid,
   .duration-editor,
   .voiceover-editor {

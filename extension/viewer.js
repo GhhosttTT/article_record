@@ -356,7 +356,6 @@ function renderStep(node, index, nodes) {
   const isTransition = stepType === "tab_transition" || stepType === "navigation";
   const title = node.titleOverride || (isTransition ? renderTransitionTitle(node) : renderOperationTitle(node));
   const description = node.descriptionOverride || node.generatedInstruction || "";
-  const headerDescription = shouldShowHeaderDescription(node, title, description) ? description : "";
   const voiceoverText = node.voiceoverText || description;
   const durationSeconds = node.durationOverrideSeconds || getDefaultDurationSeconds(description, stepType);
   const focusBox = getNodeFocusBox(node);
@@ -369,24 +368,24 @@ function renderStep(node, index, nodes) {
   return `
     <article id="${escapeHtml(node.id)}" class="step ${isDiscarded ? "discarded" : ""}" data-node-id="${escapeHtml(node.id)}">
       <header class="step-header">
-        <div>
+        <div class="step-summary">
           <h3>${escapeHtml(node.sequence || "-")}. ${escapeHtml(title)}</h3>
-          ${headerDescription ? `<p>${escapeHtml(headerDescription)}</p>` : ""}
-        </div>
-        <div class="step-side">
-          <span class="step-kind ${isTransition ? "tab" : ""}">${escapeHtml(stepKindText(stepType, node.action))}</span>
-          <span class="step-status">${statusText(node.status)}</span>
-          <div class="step-actions">
-            <button type="button" class="small secondary" data-node-action="move" data-node-id="${escapeHtml(node.id)}" data-move-direction="up" ${index === 0 ? "disabled" : ""}>上移</button>
-            <button type="button" class="small secondary" data-node-action="move" data-node-id="${escapeHtml(node.id)}" data-move-direction="down" ${index === nodes.length - 1 ? "disabled" : ""}>下移</button>
-            <button type="button" class="small secondary" data-node-action="merge-next" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !hasNextActive ? "disabled" : ""}>合并下步</button>
-            <button type="button" class="small secondary" data-node-action="merge-form" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !canMergeForm ? "disabled" : ""}>合并表单字段</button>
-            <button type="button" class="small secondary" data-node-action="split-merged" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !isMerged ? "disabled" : ""}>拆分合并</button>
-            <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="reviewed" ${isReviewed || isDiscarded ? "disabled" : ""}>确认</button>
-            <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="${isDiscarded ? "auto_generated" : "discarded"}">${isDiscarded ? "恢复" : "删除"}</button>
+          <div class="step-meta">
+            <span class="step-kind ${isTransition ? "tab" : ""}">${escapeHtml(stepKindText(stepType, node.action))}</span>
+            <span class="step-status">${statusText(node.status)}</span>
           </div>
         </div>
+        <div class="step-actions">
+          <button type="button" class="small secondary" data-node-action="move" data-node-id="${escapeHtml(node.id)}" data-move-direction="up" ${index === 0 ? "disabled" : ""}>上移</button>
+          <button type="button" class="small secondary" data-node-action="move" data-node-id="${escapeHtml(node.id)}" data-move-direction="down" ${index === nodes.length - 1 ? "disabled" : ""}>下移</button>
+          <button type="button" class="small secondary" data-node-action="merge-next" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !hasNextActive ? "disabled" : ""}>合并下步</button>
+          <button type="button" class="small secondary" data-node-action="merge-form" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !canMergeForm ? "disabled" : ""}>合并表单</button>
+          <button type="button" class="small secondary" data-node-action="split-merged" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !isMerged ? "disabled" : ""}>拆分</button>
+          <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="reviewed" ${isReviewed || isDiscarded ? "disabled" : ""}>确认</button>
+          <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="${isDiscarded ? "auto_generated" : "discarded"}">${isDiscarded ? "恢复" : "删除"}</button>
+        </div>
       </header>
+      ${renderScreenshot(node)}
       <section class="step-editor">
         <div class="text-editor-grid">
           <label class="editor-field">
@@ -426,7 +425,6 @@ function renderStep(node, index, nodes) {
         ${focusBox ? renderFocusEditor(node, focusBox, isDiscarded) : ""}
         ${maskBox ? renderMaskEditor(node, maskBox, isDiscarded) : ""}
       </section>
-      ${renderScreenshot(node)}
     </article>
   `;
 }
@@ -479,14 +477,6 @@ function renderOperationTitle(node) {
 
 function renderTransitionTitle(node) {
   return SopArtifactShared.transitionTitle(node);
-}
-
-function shouldShowHeaderDescription(node, title, description) {
-  const normalizedDescription = String(description || "").trim();
-  if (!normalizedDescription) return false;
-  if (normalizedDescription === String(title || "").trim()) return false;
-  if (node.action === "wait") return false;
-  return true;
 }
 
 function stepKindText(stepType, action) {
