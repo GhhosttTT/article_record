@@ -21,6 +21,10 @@
   display: none;
 }
 
+[data-node-action="merge-form"] {
+  display: none;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -978,6 +982,47 @@ button.secondary:hover:not(:disabled),
 
 .step-editor {
   background: #fbfbf8;
+}
+
+.merged-child {
+  margin-top: -10px;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.merged-child-header {
+  min-height: 0;
+  padding: 12px 22px;
+}
+
+.merged-child .step-summary {
+  gap: 6px;
+}
+
+.merged-child h3 {
+  margin: 0;
+  color: #555555;
+  font-size: 18px;
+}
+
+.merged-child .step-kind.merged {
+  background: #eeeeec;
+  color: #555555;
+}
+
+.merged-child .screenshot-wrap {
+  margin-top: 0;
+}
+
+.visual-editor-only {
+  grid-template-columns: 1fr;
+  padding: 12px 18px;
+}
+
+.visual-editor-only .focus-editor,
+.visual-editor-only .mask-editor {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .step-kind,

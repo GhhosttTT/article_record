@@ -1812,8 +1812,8 @@ runCheck("扩展预览页支持合并同一表单字段", () => {
   assert(background.includes("mergePrivacyFromNodes(mergedNodes)"), "同表单字段合并必须聚合隐私元数据");
   assert(background.includes("mergePrivacyMaskBoxesFromNodes(mergedNodes)"), "同表单字段合并必须聚合打码区域");
   assert(background.includes("delete node.formMerge"), "拆分合并步骤时必须清理 formMerge");
-  assert(viewerJs.includes("data-node-action=\"merge-form\""), "viewer.js 必须提供合并表单字段入口");
-  assert(viewerJs.includes("canMergeFormFields"), "viewer.js 必须只在后续同表单字段存在时启用按钮");
+  assert(!viewerJs.includes("data-node-action=\"merge-form\""), "viewer.js 不应再提供合并表单字段入口");
+  assert(!viewerJs.includes("function canMergeFormFields"), "viewer.js 不应再保留合并表单按钮启用逻辑");
   assert(validator.includes("validateFormTarget"), "validate_schema 必须校验 target.form");
   assert(validator.includes("validateFormMerge"), "validate_schema 必须校验 formMerge");
   assert(index.includes("<form id=\"signupForm\""), "注册测试页必须覆盖具名表单");
@@ -1865,7 +1865,10 @@ runCheck("扩展预览页支持拆分已合并步骤", () => {
   assert(background.includes("splitMergedNode"), "background 必须实现拆分合并逻辑");
   assert(background.includes("delete node.mergedNodeIds"), "background 拆分后必须清理 mergedNodeIds");
   assert(background.includes("item.discardReason !== `merged_into:${node.id}`"), "background 只能恢复合并产生的 discarded 节点");
+  assert(background.includes("function markNodeEdited") && background.includes("merged_into:"), "合并子步骤的图片编辑不得把 discarded 状态改回有效步骤");
   assert(viewerJs.includes("data-node-action=\"split-merged\""), "viewer.js 必须提供拆分合并入口");
+  assert(viewerJs.includes("function renderMergedChildStep"), "viewer.js 必须将被合并子步骤渲染为紧凑视觉卡片");
+  assert(viewerJs.includes("visual-editor-only"), "被合并子步骤必须保留高亮/打码图片编辑区");
   assert(viewerJs.includes("isMerged"), "viewer.js 必须只对已合并步骤启用拆分");
 });
 

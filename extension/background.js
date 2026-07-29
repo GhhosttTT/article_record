@@ -435,9 +435,7 @@ async function updateNodeFocus(payload = {}) {
 
   if (payload.clear) {
     delete node.focusBoxOverride;
-    node.status = "reviewed";
-    node.reviewedAt = new Date().toISOString();
-    node.updatedAt = new Date().toISOString();
+    markNodeEdited(node);
     await persistState();
     return fullStateWithScreenshots();
   }
@@ -446,9 +444,7 @@ async function updateNodeFocus(payload = {}) {
   if (!focusBox) return { ok: false, error: "Invalid focus box" };
 
   node.focusBoxOverride = focusBox;
-  node.status = "reviewed";
-  node.reviewedAt = new Date().toISOString();
-  node.updatedAt = new Date().toISOString();
+  markNodeEdited(node);
   await persistState();
   return fullStateWithScreenshots();
 }
@@ -533,11 +529,17 @@ async function updateNodeMask(payload = {}) {
     autoMaskApplied: Boolean(node.privacy?.autoMaskApplied && node.privacyMaskBoxes.length),
     manualMaskApplied: Boolean(node.privacyMaskBoxes.length)
   };
-  node.status = "reviewed";
-  node.reviewedAt = new Date().toISOString();
-  node.updatedAt = new Date().toISOString();
+  markNodeEdited(node);
   await persistState();
   return fullStateWithScreenshots();
+}
+
+function markNodeEdited(node) {
+  if (!node.discardReason?.startsWith("merged_into:")) {
+    node.status = "reviewed";
+    node.reviewedAt = new Date().toISOString();
+  }
+  node.updatedAt = new Date().toISOString();
 }
 
 async function startRecording() {

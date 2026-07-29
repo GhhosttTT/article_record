@@ -139,11 +139,6 @@ els.steps.addEventListener("click", async (event) => {
       type: "recorder:merge-node-next",
       payload: { nodeId }
     });
-  } else if (button.dataset.nodeAction === "merge-form") {
-    state = await chrome.runtime.sendMessage({
-      type: "recorder:merge-form-fields",
-      payload: { nodeId }
-    });
   } else if (button.dataset.nodeAction === "split-merged") {
     state = await chrome.runtime.sendMessage({
       type: "recorder:split-merged-node",
@@ -395,6 +390,7 @@ function renderSteps(nodes) {
 }
 
 function renderStep(node, index, nodes) {
+  if (isMergedChildNode(node)) return renderMergedChildStep(node);
   const stepType = SopArtifactShared.articleStepType(node);
   const isTransition = stepType === "tab_transition" || stepType === "navigation";
   const title = node.titleOverride || (isTransition ? renderTransitionTitle(node) : renderOperationTitle(node));
@@ -406,7 +402,6 @@ function renderStep(node, index, nodes) {
   const isDiscarded = node.status === "discarded";
   const isMerged = Boolean(node.mergedNodeIds?.length);
   const hasNextActive = nodes.slice(index + 1).some((item) => item.status !== "discarded");
-  const canMergeForm = canMergeFormFields(node, nodes.slice(index + 1));
   return `
     <article id="${escapeHtml(node.id)}" class="step ${isDiscarded ? "discarded" : ""}" data-node-id="${escapeHtml(node.id)}">
       <header class="step-header">
@@ -420,7 +415,6 @@ function renderStep(node, index, nodes) {
           <button type="button" class="small secondary" data-node-action="move" data-node-id="${escapeHtml(node.id)}" data-move-direction="up" ${index === 0 ? "disabled" : ""}>上移</button>
           <button type="button" class="small secondary" data-node-action="move" data-node-id="${escapeHtml(node.id)}" data-move-direction="down" ${index === nodes.length - 1 ? "disabled" : ""}>下移</button>
           <button type="button" class="small secondary" data-node-action="merge-next" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !hasNextActive ? "disabled" : ""}>合并下步</button>
-          <button type="button" class="small secondary" data-node-action="merge-form" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !canMergeForm ? "disabled" : ""}>合并表单</button>
           <button type="button" class="small secondary" data-node-action="split-merged" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !isMerged ? "disabled" : ""}>拆分</button>
           <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="${isDiscarded ? "auto_generated" : "discarded"}">${isDiscarded ? "恢复" : "删除"}</button>
         </div>
@@ -486,6 +480,41 @@ function renderFocusEditor(node, box, isDiscarded) {
       </div>
     </div>
   `;
+}
+
+function renderMergedChildStep(node) {
+  const stepType = SopArtifactShared.articleStepType(node);
+  const isTransition = stepType === "tab_transition" || stepType === "navigation";
+  const title = node.titleOverride || (isTransition ? renderTransitionTitle(node) : renderOperationTitle(node));
+  const focusBox = getNodeFocusBox(node);
+  const maskBox = getNodeMaskBox(node);
+  return `
+    <article id="${escapeHtml(node.id)}" class="step merged-child" data-node-id="${escapeHtml(node.id)}">
+      <header class="step-header merged-child-header">
+        <div class="step-summary">
+          <h3>${escapeHtml(node.sequence || "-")}. ${escapeHtml(title)}</h3>
+          <div class="step-meta">
+            <span class="step-kind ${isTransition ? "tab" : ""}">${escapeHtml(stepKindText(stepType, node.action))}</span>
+            <span class="step-kind merged">\u5df2\u5408\u5e76\u5230\u4e0a\u4e00\u6b65</span>
+          </div>
+        </div>
+        <div class="step-actions">
+          <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="auto_generated">\u62c6\u5206\u6062\u590d</button>
+        </div>
+      </header>
+      ${renderScreenshot(node)}
+      ${(focusBox || maskBox) ? `
+        <section class="step-editor visual-editor-only">
+          ${focusBox ? renderFocusEditor(node, focusBox, false) : ""}
+          ${maskBox ? renderMaskEditor(node, maskBox, false) : ""}
+        </section>
+      ` : ""}
+    </article>
+  `;
+}
+
+function isMergedChildNode(node) {
+  return node.status === "discarded" && String(node.discardReason || "").startsWith("merged_into:");
 }
 
 function renderMaskEditor(node, box, isDiscarded) {
@@ -555,18 +584,6 @@ function getNodeFocusBox(node) {
   if (node.action === "modal_close") return null;
   if (node.target?.visibility?.canHighlight === false) return null;
   return node.target?.boundingBox || null;
-}
-
-function canMergeFormFields(node, laterNodes) {
-  const formSelector = node.target?.form?.selector;
-  if (!formSelector || !["input", "select", "check", "upload"].includes(node.action)) return false;
-  const nextActive = laterNodes.find((item) => item.status !== "discarded");
-  return Boolean(
-    nextActive &&
-    ["input", "select", "check", "upload"].includes(nextActive.action) &&
-    nextActive.tab?.tabId === node.tab?.tabId &&
-    nextActive.target?.form?.selector === formSelector
-  );
 }
 
 function getNodeMaskBox(node) {
