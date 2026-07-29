@@ -1861,6 +1861,7 @@ runCheck("扩展预览页支持合并同一表单字段", () => {
 runCheck("扩展预览页支持拆分已合并步骤", () => {
   const background = readText("extension/background.js");
   const viewerJs = readText("extension/viewer.js");
+  const viewerCss = readText("extension/viewer.css");
   assert(background.includes("recorder:split-merged-node"), "background 必须提供拆分合并接口");
   assert(background.includes("splitMergedNode"), "background 必须实现拆分合并逻辑");
   assert(background.includes("delete node.mergedNodeIds"), "background 拆分后必须清理 mergedNodeIds");
@@ -1868,7 +1869,9 @@ runCheck("扩展预览页支持拆分已合并步骤", () => {
   assert(background.includes("function markNodeEdited") && background.includes("merged_into:"), "合并子步骤的图片编辑不得把 discarded 状态改回有效步骤");
   assert(viewerJs.includes("data-node-action=\"split-merged\""), "viewer.js 必须提供拆分合并入口");
   assert(viewerJs.includes("function renderMergedChildStep"), "viewer.js 必须将被合并子步骤渲染为紧凑视觉卡片");
+  assert(viewerJs.includes("merged-child-spacer") && !viewerJs.includes("step-kind merged"), "被合并子步骤不应再展示子步骤标题和状态标签");
   assert(viewerJs.includes("visual-editor-only"), "被合并子步骤必须保留高亮/打码图片编辑区");
+  assert(viewerJs.includes("step-title-line") && viewerCss.includes(".step-title-line"), "步骤类型标签必须跟随标题同行展示");
   assert(viewerJs.includes("isMerged"), "viewer.js 必须只对已合并步骤启用拆分");
 });
 

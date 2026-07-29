@@ -324,8 +324,15 @@ button:disabled {
   min-width: 0;
 }
 
+.step-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .step h3 {
-  margin: 0 0 7px;
+  margin: 0;
   font-size: 20px;
   line-height: 1.35;
 }
@@ -992,22 +999,12 @@ button.secondary:hover:not(:disabled),
 
 .merged-child-header {
   min-height: 0;
-  padding: 12px 22px;
+  padding: 8px 18px;
+  border-bottom: 0;
 }
 
-.merged-child .step-summary {
-  gap: 6px;
-}
-
-.merged-child h3 {
-  margin: 0;
-  color: #555555;
-  font-size: 18px;
-}
-
-.merged-child .step-kind.merged {
-  background: #eeeeec;
-  color: #555555;
+.merged-child-spacer {
+  min-height: 1px;
 }
 
 .merged-child .screenshot-wrap {

@@ -406,8 +406,8 @@ function renderStep(node, index, nodes) {
     <article id="${escapeHtml(node.id)}" class="step ${isDiscarded ? "discarded" : ""}" data-node-id="${escapeHtml(node.id)}">
       <header class="step-header">
         <div class="step-summary">
-          <h3>${escapeHtml(node.sequence || "-")}. ${escapeHtml(title)}</h3>
-          <div class="step-meta">
+          <div class="step-title-line">
+            <h3>${escapeHtml(node.sequence || "-")}. ${escapeHtml(title)}</h3>
             <span class="step-kind ${isTransition ? "tab" : ""}">${escapeHtml(stepKindText(stepType, node.action))}</span>
           </div>
         </div>
@@ -483,21 +483,12 @@ function renderFocusEditor(node, box, isDiscarded) {
 }
 
 function renderMergedChildStep(node) {
-  const stepType = SopArtifactShared.articleStepType(node);
-  const isTransition = stepType === "tab_transition" || stepType === "navigation";
-  const title = node.titleOverride || (isTransition ? renderTransitionTitle(node) : renderOperationTitle(node));
   const focusBox = getNodeFocusBox(node);
   const maskBox = getNodeMaskBox(node);
   return `
     <article id="${escapeHtml(node.id)}" class="step merged-child" data-node-id="${escapeHtml(node.id)}">
       <header class="step-header merged-child-header">
-        <div class="step-summary">
-          <h3>${escapeHtml(node.sequence || "-")}. ${escapeHtml(title)}</h3>
-          <div class="step-meta">
-            <span class="step-kind ${isTransition ? "tab" : ""}">${escapeHtml(stepKindText(stepType, node.action))}</span>
-            <span class="step-kind merged">\u5df2\u5408\u5e76\u5230\u4e0a\u4e00\u6b65</span>
-          </div>
-        </div>
+        <div class="merged-child-spacer"></div>
         <div class="step-actions">
           <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="auto_generated">\u62c6\u5206\u6062\u590d</button>
         </div>
