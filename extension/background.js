@@ -172,7 +172,7 @@ async function handleMessage(message, sender) {
       await chrome.tabs.create({ url: chrome.runtime.getURL("viewer.html") });
       return { ok: true };
     case "recorder:export-json":
-      return exportJson();
+      return exportJson(message.payload);
     case "recorder:set-node-status":
       return setNodeStatus(message.payload);
     case "recorder:move-node":
@@ -1104,17 +1104,26 @@ async function captureVisibleScreenshot(windowId, viewport, captureTiming = "aft
   }
 }
 
-async function exportJson() {
+async function exportJson(options = {}) {
   const fullState = await fullStateWithScreenshots();
-  const payload = buildRecordingExportPayload(fullState);
-  const json = JSON.stringify(payload, null, 2);
+  const exportPayload = buildRecordingExportPayload(fullState);
+  const json = JSON.stringify(exportPayload, null, 2);
   const url = `data:application/json;charset=utf-8,${encodeURIComponent(json)}`;
   await chrome.downloads.download({
     url,
-    filename: `sop-recording-${runtimeState.session?.id || Date.now()}.json`,
+    filename: sanitizeDownloadFilename(options.filename, `sop-recording-${runtimeState.session?.id || Date.now()}.json`),
     saveAs: true
   });
   return { ok: true };
+}
+
+function sanitizeDownloadFilename(value, fallback) {
+  const filename = String(value || "")
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+  return filename || fallback;
 }
 
 function buildRecordingExportPayload(fullState) {

@@ -13,6 +13,7 @@ const els = {
   timelineBtn: document.getElementById("timelineBtn"),
   videoBtn: document.getElementById("videoBtn"),
   articleTitleInput: document.getElementById("articleTitleInput"),
+  exportFileNameInput: document.getElementById("exportFileNameInput"),
   privacyMaskToggle: document.getElementById("privacyMaskToggle")
 };
 
@@ -160,7 +161,10 @@ els.steps.addEventListener("click", async (event) => {
 
 els.exportBtn.addEventListener("click", () => {
   if (!confirmPrivacyBeforeExport("录制 JSON")) return;
-  chrome.runtime.sendMessage({ type: "recorder:export-json" });
+  chrome.runtime.sendMessage({
+    type: "recorder:export-json",
+    payload: { filename: `${exportBaseName()}.json` }
+  });
 });
 
 els.articleBtn.addEventListener("click", () => {
@@ -169,7 +173,7 @@ els.articleBtn.addEventListener("click", () => {
   const options = getExportOptions();
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
   const html = renderArticleHtml(currentState, currentTabs, exportSteps, options);
-  downloadTextFile(`sop-article-${currentState.session?.id || Date.now()}.html`, "text/html", html);
+  downloadTextFile(`${exportBaseName()}.html`, "text/html", html);
 });
 
 els.markdownBtn.addEventListener("click", () => {
@@ -178,7 +182,7 @@ els.markdownBtn.addEventListener("click", () => {
   const options = getExportOptions();
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
   const markdown = renderArticleMarkdown(currentState, currentTabs, exportSteps, options);
-  downloadTextFile(`sop-article-${currentState.session?.id || Date.now()}.md`, "text/markdown", markdown);
+  downloadTextFile(`${exportBaseName()}.md`, "text/markdown", markdown);
 });
 
 els.wordBtn.addEventListener("click", async () => {
@@ -191,7 +195,7 @@ els.wordBtn.addEventListener("click", async () => {
   els.wordBtn.textContent = "正在生成 Word...";
   try {
     const word = await renderArticleWordDocument(currentState, currentTabs, exportSteps, options);
-    await downloadBlobFile(`sop-article-${currentState.session?.id || Date.now()}.docx`, word);
+    await downloadBlobFile(`${exportBaseName()}.docx`, word);
   } finally {
     els.wordBtn.disabled = false;
     els.wordBtn.textContent = originalText;
@@ -203,7 +207,7 @@ els.timelineBtn.addEventListener("click", () => {
   const options = getExportOptions();
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
   const timeline = buildVideoTimeline(exportSteps, options);
-  downloadTextFile(`sop-video-timeline-${currentState?.session?.id || Date.now()}.json`, "application/json", JSON.stringify(timeline, null, 2));
+  downloadTextFile(`${exportBaseName()}-video-timeline.json`, "application/json", JSON.stringify(timeline, null, 2));
 });
 
 els.videoBtn.addEventListener("click", async () => {
@@ -222,7 +226,7 @@ els.videoBtn.addEventListener("click", async () => {
     const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
     const timeline = buildVideoTimeline(exportSteps, options);
     const blob = await renderTimelineWebm(timeline);
-    await downloadBlobFile(`sop-video-${currentState?.session?.id || Date.now()}.webm`, blob);
+    await downloadBlobFile(`${exportBaseName()}-video.webm`, blob);
   } catch (error) {
     console.error(error);
     alert(`视频生成失败：${error?.message || error}`);
@@ -252,6 +256,9 @@ function applyState(state, options = {}) {
   if (!options.preserveTitle && els.articleTitleInput && !els.articleTitleInput.value) {
     els.articleTitleInput.value = defaultArticleTitle(state, tabs);
   }
+  if (!options.preserveTitle && els.exportFileNameInput && !els.exportFileNameInput.value) {
+    els.exportFileNameInput.value = defaultExportBaseName(state, tabs);
+  }
 
   els.status.textContent = state.status || "idle";
   els.nodeCount.textContent = nodes.length;
@@ -268,6 +275,23 @@ function getExportOptions() {
     title: els.articleTitleInput?.value || "",
     privacyMaskingEnabled: els.privacyMaskToggle?.checked !== false
   };
+}
+
+function exportBaseName() {
+  return sanitizeFileBaseName(els.exportFileNameInput?.value) || defaultExportBaseName(currentState, currentTabs);
+}
+
+function defaultExportBaseName(state, tabs) {
+  const title = sanitizeFileBaseName(els.articleTitleInput?.value || defaultArticleTitle(state, tabs));
+  return title || `sop-${state?.session?.id || Date.now()}`;
+}
+
+function sanitizeFileBaseName(value) {
+  return String(value || "")
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
 }
 
 function defaultArticleTitle(state, tabs) {
@@ -361,7 +385,6 @@ function renderStep(node, index, nodes) {
   const focusBox = getNodeFocusBox(node);
   const maskBox = getNodeMaskBox(node);
   const isDiscarded = node.status === "discarded";
-  const isReviewed = node.status === "reviewed";
   const isMerged = Boolean(node.mergedNodeIds?.length);
   const hasNextActive = nodes.slice(index + 1).some((item) => item.status !== "discarded");
   const canMergeForm = canMergeFormFields(node, nodes.slice(index + 1));
@@ -372,7 +395,6 @@ function renderStep(node, index, nodes) {
           <h3>${escapeHtml(node.sequence || "-")}. ${escapeHtml(title)}</h3>
           <div class="step-meta">
             <span class="step-kind ${isTransition ? "tab" : ""}">${escapeHtml(stepKindText(stepType, node.action))}</span>
-            <span class="step-status">${statusText(node.status)}</span>
           </div>
         </div>
         <div class="step-actions">
@@ -381,7 +403,6 @@ function renderStep(node, index, nodes) {
           <button type="button" class="small secondary" data-node-action="merge-next" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !hasNextActive ? "disabled" : ""}>合并下步</button>
           <button type="button" class="small secondary" data-node-action="merge-form" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !canMergeForm ? "disabled" : ""}>合并表单</button>
           <button type="button" class="small secondary" data-node-action="split-merged" data-node-id="${escapeHtml(node.id)}" ${isDiscarded || !isMerged ? "disabled" : ""}>拆分</button>
-          <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="reviewed" ${isReviewed || isDiscarded ? "disabled" : ""}>确认</button>
           <button type="button" class="small secondary" data-node-action="status" data-node-id="${escapeHtml(node.id)}" data-node-status="${isDiscarded ? "auto_generated" : "discarded"}">${isDiscarded ? "恢复" : "删除"}</button>
         </div>
       </header>
@@ -464,12 +485,6 @@ function renderMaskEditor(node, box, isDiscarded) {
       </div>
     </div>
   `;
-}
-
-function statusText(status) {
-  if (status === "reviewed") return "\u5df2\u786e\u8ba4";
-  if (status === "discarded") return "\u5df2\u5220\u9664\uff0c\u4e0d\u53c2\u4e0e\u5bfc\u51fa";
-  return "\u5f85\u786e\u8ba4";
 }
 
 function renderOperationTitle(node) {

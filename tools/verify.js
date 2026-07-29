@@ -116,7 +116,7 @@ runCheck("schema 校验覆盖编辑和隐私扩展字段", () => {
   assert(validator.includes("function validateRecordingRoot"), "validate_schema 必须校验录制 JSON 根结构");
   assert(validator.includes("new Set([\"session\", \"tabContexts\", \"nodes\"])"), "validate_schema 根结构只能允许 session/tabContexts/nodes");
   assert(background.includes("function buildRecordingExportPayload"), "background 必须集中构建录制 JSON 导出 payload");
-  assert(background.includes("const payload = buildRecordingExportPayload(fullState)"), "exportJson 必须通过录制导出 payload 函数输出契约字段");
+  assert(background.includes("buildRecordingExportPayload(fullState)"), "exportJson 必须通过录制导出 payload 函数输出契约字段");
   assert(!background.includes("pendingTabOpens: fullState.pendingTabOpens"), "录制 JSON 导出不得包含 pendingTabOpens");
   assert(!background.includes("pendingNavigations: fullState.pendingNavigations"), "录制 JSON 导出不得包含 pendingNavigations");
   assert(!background.includes("activeTabId: fullState.activeTabId"), "录制 JSON 导出不得包含 activeTabId");
@@ -824,7 +824,7 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   assert(viewerJs.includes("renderArticleMarkdown(currentState, currentTabs, exportSteps, options)"), "viewer.js 必须用隐私安全 ArticleStep 导出 Markdown");
   assert(viewerJs.includes("await renderArticleWordDocument(currentState, currentTabs, exportSteps, options)"), "viewer.js 必须等待隐私安全 ArticleStep 合成后再导出 Word");
   assert(viewerJs.includes(".docx"), "viewer.js 必须导出真正的 .docx 文件");
-  assert(viewerJs.includes("downloadBlobFile(`sop-article-"), "viewer.js 必须以 Blob 下载 DOCX");
+  assert(viewerJs.includes("downloadBlobFile(`${exportBaseName()}.docx`"), "viewer.js 必须以 Blob 下载 DOCX");
   assert(viewerArtifacts.includes("async function renderArticleWordDocument"), "预览页 Word 导出必须支持异步截图合成");
   assert(viewerArtifacts.includes("async function renderWordImage"), "预览页 Word 导出必须把截图和高亮合成为单张图片");
   assert(viewerArtifacts.includes("function buildDocxBlob"), "预览页 Word 导出必须生成 OpenXML DOCX 包");
@@ -1389,7 +1389,6 @@ runCheck("扩展预览页支持删除和恢复步骤状态", () => {
   const viewerCss = readText("extension/viewer.css");
   assert(viewerJs.includes("recorder:set-node-status"), "viewer.js 必须调用节点状态更新接口");
   assert(viewerJs.includes("isDiscarded ? \"auto_generated\" : \"discarded\""), "viewer.js 必须提供删除和恢复步骤入口");
-  assert(viewerJs.includes("data-node-status=\"reviewed\""), "viewer.js 必须提供确认步骤入口");
   assert(viewerCss.includes(".step.discarded"), "viewer.css 必须提供已删除步骤样式");
 });
 
@@ -2305,6 +2304,22 @@ runCheck("video timeline supports a 2 second title intro", () => {
   const renderVideoJs = readText("tools/render_video.js");
   assert(viewerJs.includes("drawTitleIntroFrame"), "viewer.js must draw the video title intro");
   assert(renderVideoJs.includes("renderTitleIntroFrame"), "render_video.js must render title_intro SVG frames");
+});
+
+runCheck("viewer supports editable filenames and no review status UI", () => {
+  const viewerHtml = readText("extension/viewer.html");
+  const viewerJs = readText("extension/viewer.js");
+  const background = readText("extension/background.js");
+  const viewerCss = readText("extension/viewer.css");
+  assert(viewerHtml.includes("exportFileNameInput"), "viewer.html must render editable export file name input");
+  assert(viewerHtml.includes("title-field"), "viewer.html must mark article title as a prominent field");
+  assert(viewerJs.includes("exportBaseName()"), "viewer.js must use the editable export base name");
+  assert(viewerJs.includes("sanitizeFileBaseName"), "viewer.js must sanitize editable file names");
+  assert(background.includes("sanitizeDownloadFilename"), "background.js must sanitize JSON export filenames");
+  assert(!viewerJs.includes("data-node-status=\"reviewed\""), "viewer.js must not show a confirm action");
+  assert(!viewerJs.includes("step-status"), "viewer.js must not show review status text");
+  assert(!viewerJs.includes("function statusText"), "viewer.js must not keep unused review status text");
+  assert(viewerCss.includes(".export-options .title-field span"), "viewer.css must enlarge the article title label");
 });
 
 for (const check of checks) {

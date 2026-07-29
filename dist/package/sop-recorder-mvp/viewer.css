@@ -1109,6 +1109,21 @@ button.secondary:hover:not(:disabled),
   background: #ffffff;
 }
 
+.export-options {
+  grid-template-columns: minmax(340px, 1.15fr) minmax(260px, .85fr) auto;
+}
+
+.export-options .title-field span {
+  color: #111111;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.export-options .title-field input {
+  min-height: 46px;
+  font-size: 16px;
+}
+
 .tab-pill,
 .step-kind,
 .step-kind.tab,
