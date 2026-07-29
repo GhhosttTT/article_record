@@ -2022,7 +2022,7 @@ runCheck("自动打码区域会同步进入文章步骤和视频时间轴", () =
         text: "Password",
         boundingBox: { x: 20, y: 30, width: 160, height: 36 }
       },
-      privacyMaskBoxes: [{ x: 20, y: 30, width: 160, height: 36, coordinateSpace: "viewport-css-pixel" }],
+      privacyMaskBoxes: [{ x: 20, y: 30, width: 160, height: 36, coordinateSpace: "viewport-css-pixel", source: "target_sensitive_input" }],
       privacy: { containsSensitiveData: true, autoMaskApplied: true, manualMaskApplied: false },
       generatedInstruction: "在 Password 中输入内容。",
       status: "auto_generated"
@@ -2045,7 +2045,7 @@ runCheck("同一页面后续敏感步骤会继承已有打码区域", () => {
       target: { type: "input", text: "Email", boundingBox: { x: 100, y: 120, width: 220, height: 36 } },
       screenshot: { dataUrl: "data:image/png;base64,SCREENSHOT_EMAIL", viewportWidth: 800, viewportHeight: 600 },
       privacy: { containsSensitiveData: true, autoMaskApplied: true },
-      privacyMaskBoxes: [{ x: 100, y: 120, width: 220, height: 36 }],
+      privacyMaskBoxes: [{ x: 100, y: 120, width: 220, height: 36, source: "email_password_scan" }],
       generatedInstruction: "填写 Email。",
       status: "auto_generated"
     },
@@ -2057,7 +2057,7 @@ runCheck("同一页面后续敏感步骤会继承已有打码区域", () => {
       target: { type: "password", text: "Password", boundingBox: { x: 100, y: 180, width: 220, height: 36 } },
       screenshot: { dataUrl: "data:image/png;base64,SCREENSHOT_PASSWORD", viewportWidth: 800, viewportHeight: 600 },
       privacy: { containsSensitiveData: true, autoMaskApplied: true },
-      privacyMaskBoxes: [{ x: 100, y: 180, width: 220, height: 36 }],
+      privacyMaskBoxes: [{ x: 100, y: 180, width: 220, height: 36, source: "target_sensitive_input" }],
       generatedInstruction: "填写 Password。",
       status: "auto_generated"
     }
@@ -2315,6 +2315,41 @@ runCheck("video timeline supports a 2 second title intro", () => {
   assert(!viewerJs.includes("SOP Video") && !renderVideoJs.includes("SOP Video"), "video title intro must not render redundant SOP Video label");
   assert(!viewerJs.includes("\\u5f00\\u5934 2 \\u79d2\\u6807\\u9898\\u9875") && !renderVideoJs.includes("\\u5f00\\u5934 2 \\u79d2\\u6807\\u9898\\u9875"), "video title intro must not explain its own 2 second duration");
   assert(viewerJs.includes("isCloseControlSegment") && renderVideoJs.includes("isCloseControlSegment"), "focus zoom must skip close controls and compact UI controls");
+});
+
+runCheck("viewer video export uses filename as title fallback", () => {
+  const viewerJs = readText("extension/viewer.js");
+  assert(viewerJs.includes("els.articleTitleInput?.value || els.exportFileNameInput?.value || defaultExportBaseName"), "video export options must use export filename as title fallback");
+});
+
+runCheck("target-only privacy masks do not leak into later ordinary steps", () => {
+  const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const steps = buildArticleSteps([
+    {
+      id: "node_password_target_mask",
+      sequence: 1,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "Tab A", url: "https://example.com/company/area" },
+      target: { type: "password", text: "Password", boundingBox: { x: 40, y: 60, width: 200, height: 36 } },
+      privacy: { containsSensitiveData: true, autoMaskApplied: true },
+      privacyMaskBoxes: [{ x: 40, y: 60, width: 200, height: 36, source: "target_sensitive_input" }],
+      generatedInstruction: "Type password.",
+      status: "auto_generated"
+    },
+    {
+      id: "node_area_name",
+      sequence: 2,
+      action: "input",
+      tab: { tabId: 1, tabAlias: "Tab A", url: "https://example.com/company/area" },
+      target: { type: "input", text: "Area Name", boundingBox: { x: 40, y: 120, width: 200, height: 36 } },
+      privacy: { containsSensitiveData: false, autoMaskApplied: false },
+      privacyMaskBoxes: [],
+      generatedInstruction: "Type Area Name.",
+      status: "auto_generated"
+    }
+  ]);
+  assert(steps[0].privacyMaskBoxes.length === 1, "current sensitive target must still be masked");
+  assert(steps[1].privacyMaskBoxes.length === 0, "later ordinary steps must not inherit target-only mask boxes");
 });
 
 runCheck("close buttons and checkbox clicks keep the intended target", () => {

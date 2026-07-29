@@ -773,7 +773,7 @@ function buildAutoMaskBoxes(payload = {}) {
   const boxes = [];
   if (payload.privacy?.containsSensitiveData && isEmailOrPasswordPrivacy(payload.privacy)) {
     const targetBox = normalizeFocusBox(payload.target?.boundingBox);
-    if (targetBox) boxes.push(targetBox);
+    if (targetBox) boxes.push({ ...targetBox, source: "target_sensitive_input" });
   }
   if (Array.isArray(payload.pagePrivacyMaskBoxes)) {
     payload.pagePrivacyMaskBoxes.forEach((box) => {

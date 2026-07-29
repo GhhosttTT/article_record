@@ -1053,7 +1053,7 @@ function collectPagePrivacyMaskBoxes() {
 function isEmailOrPasswordElement(element) {
   const value = getElementValue(element);
   return (isPasswordElement(element) && hasNonEmptyValue(element)) ||
-    (element instanceof HTMLInputElement && element.type === "email") ||
+    (element instanceof HTMLInputElement && element.type === "email" && hasNonEmptyValue(element)) ||
     isEmailValue(value);
 }
 

@@ -29,7 +29,8 @@
         : [];
       const priorPrivacyMaskBoxes = contextKey ? privacyMasksByContext[contextKey] || [] : [];
       const privacyMaskBoxes = mergeBoxes([...priorPrivacyMaskBoxes, ...currentPrivacyMaskBoxes]);
-      if (contextKey && currentPrivacyMaskBoxes.length) privacyMasksByContext[contextKey] = privacyMaskBoxes;
+      const inheritablePrivacyMaskBoxes = privacyMaskBoxes.filter(isInheritablePrivacyMaskBox);
+      if (contextKey && inheritablePrivacyMaskBoxes.length) privacyMasksByContext[contextKey] = inheritablePrivacyMaskBoxes;
       return {
         id: `article_step_${String(index + 1).padStart(3, "0")}`,
         nodeId: node.id,
@@ -329,6 +330,10 @@
       result.push(box);
     }
     return result;
+  }
+
+  function isInheritablePrivacyMaskBox(box = {}) {
+    return box.source === "email_password_scan";
   }
 
   function buildVideoTimelineWithChapters(steps, chapters, options = {}) {

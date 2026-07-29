@@ -271,8 +271,9 @@ function applyState(state, options = {}) {
 }
 
 function getExportOptions() {
+  const title = els.articleTitleInput?.value || els.exportFileNameInput?.value || defaultExportBaseName(currentState, currentTabs);
   return {
-    title: els.articleTitleInput?.value || "",
+    title,
     privacyMaskingEnabled: els.privacyMaskToggle?.checked !== false
   };
 }
