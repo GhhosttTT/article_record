@@ -62,7 +62,26 @@ document.addEventListener("pointerdown", (event) => {
   if (!isActiveContentInstance()) return;
   if (event.button !== 0) return;
   const clickPoint = getClickPoint(event);
-  if (findCheckableAtPoint(clickPoint)) return;
+  const checkableAtPoint = findCheckableAtPoint(clickPoint);
+  if (checkableAtPoint) {
+    const checkTarget = getCheckableInput(checkableAtPoint) || checkableAtPoint;
+    const captureTarget = getCheckableCaptureTarget(checkTarget, clickPoint);
+    if (isUsableLiveTarget(captureTarget)) {
+      flushPendingInputs();
+      const now = Date.now();
+      recentPreActionClicks.set(checkableAtPoint, now);
+      recentPreActionClicks.set(checkTarget, now);
+      recentPreActionClicks.set(captureTarget, now);
+      recentCheckClickPoints.set(checkTarget, clickPoint);
+      recentCheckSentAt.set(checkTarget, now);
+      sendInputLikeEvent(checkTarget, "check", clickPoint, {
+        preAction: true,
+        captureTarget,
+        checkedState: getNextCheckedState(checkTarget)
+      });
+    }
+    return;
+  }
   const target = resolveActionTarget(event.target, clickPoint);
   if (!target || isCheckableTarget(target) || !shouldCaptureBeforeClick(target)) return;
   flushPendingInputs();
@@ -219,11 +238,11 @@ function sendCheckEventFromSnapshot(targetSnapshot, clickPoint) {
   });
 }
 
-function sendInputLikeEvent(target, action, clickPoint = null) {
+function sendInputLikeEvent(target, action, clickPoint = null, options = {}) {
   const privacy = detectPrivacy(target);
   const maskedValue = getMaskedValue(target, privacy.containsSensitiveData);
-  const checkedState = action === "check" ? getCheckedState(target) : null;
-  const captureTarget = action === "check" ? getCheckableCaptureTarget(target, clickPoint) : target;
+  const checkedState = action === "check" ? options.checkedState || getCheckedState(target) : null;
+  const captureTarget = options.captureTarget || (action === "check" ? getCheckableCaptureTarget(target, clickPoint) : target);
   sendRecorderEvent({
     action,
     target: extractTarget(captureTarget),
@@ -231,6 +250,7 @@ function sendInputLikeEvent(target, action, clickPoint = null) {
     value: action === "check" && checkedState ? checkedState.label : maskedValue,
     checked: checkedState?.checked ?? null,
     clickPoint,
+    preAction: Boolean(options.preAction),
     viewport: getViewport(),
     beforeUrl: location.href,
     privacy
@@ -315,6 +335,19 @@ function getCheckedState(target) {
     };
   }
   return null;
+}
+
+function getNextCheckedState(target) {
+  const input = getCheckableInput(target);
+  const current = getCheckedState(target);
+  const isRadio = input instanceof HTMLInputElement
+    ? input.type === "radio"
+    : target instanceof Element && target.getAttribute("role") === "radio";
+  const checked = isRadio ? true : !Boolean(current?.checked);
+  return {
+    checked,
+    label: `${checked ? "\u5df2\u52fe\u9009" : "\u5df2\u53d6\u6d88\u52fe\u9009"} ${getElementDisplayName(input || target)}`
+  };
 }
 
 function getCheckableInput(target) {

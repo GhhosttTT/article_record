@@ -445,6 +445,8 @@ runCheck("内容脚本覆盖基础表单事件采集", () => {
   assert(content.includes("window.setTimeout(() =>") && content.includes("sendInputLikeEvent(liveTarget, \"check\", clickPoint)"), "自定义 checkbox 点击必须等选中状态更新后再记录");
   assert(content.includes("sendCheckEventFromSnapshot"), "checkbox/switch click must fall back to the click-time target snapshot after rerender");
   assert(content.includes("getCheckableCaptureTarget"), "checkbox/switch must highlight the visible control container");
+  assert(content.includes("sendInputLikeEvent(checkTarget, \"check\", clickPoint, {") && content.includes("preAction: true"), "checkbox/switch 必须在 pointerdown 阶段发送 preAction check，确保截图发生在状态切换前");
+  assert(content.includes("function getNextCheckedState"), "checkbox/switch preAction 节点必须推算点击后的 checked 状态");
   assert(content.includes("input.PrivateSwitchBase-input"), "checkbox/switch must detect MUI PrivateSwitchBase inputs");
   assert(!content.includes("target.querySelector?.(\"input[type='checkbox']"), "checkbox detection must not scan child rows/cells");
   assert(content.includes("recentCheckClickPoints"), "checkbox/radio change 事件必须继承最近点击坐标");
