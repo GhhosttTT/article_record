@@ -201,8 +201,13 @@
       segments.push(titleSegment);
       cursor = titleSegment.endTime;
     }
+    let lastScreenshotVisual = null;
     (steps || []).forEach((step) => {
       const segment = buildVideoSegment(step, cursor, articleTitle);
+      applyPreviousScreenshotVisual(segment, lastScreenshotVisual);
+      if (segment.visual && !segment.inheritedVisual) {
+        lastScreenshotVisual = { visual: segment.visual, screenshot: segment.screenshot };
+      }
       cursor = segment.endTime;
       segments.push(segment);
     });
@@ -346,6 +351,7 @@
       segments.push(titleSegment);
       cursor = titleSegment.endTime;
     }
+    let lastScreenshotVisual = null;
     for (const chapter of chapters || []) {
       const introDuration = 2;
       segments.push({
@@ -370,6 +376,10 @@
       for (const step of chapter.steps || []) {
         if (!stepSet.has(step)) continue;
         const segment = buildVideoSegment(step, cursor, articleTitle);
+        applyPreviousScreenshotVisual(segment, lastScreenshotVisual);
+        if (segment.visual && !segment.inheritedVisual) {
+          lastScreenshotVisual = { visual: segment.visual, screenshot: segment.screenshot };
+        }
         segments.push(segment);
         cursor = segment.endTime;
       }
@@ -437,6 +447,14 @@
 
   function resolveVideoTitle(options = {}) {
     return normalizeText(options.title || options.fileName || options.exportFileName || "") || "操作步骤";
+  }
+
+  function applyPreviousScreenshotVisual(segment, lastScreenshotVisual) {
+    if (segment.visual || !lastScreenshotVisual?.visual) return;
+    segment.visual = lastScreenshotVisual.visual;
+    segment.screenshot = lastScreenshotVisual.screenshot || null;
+    segment.storyboardVisualType = "screenshot";
+    segment.inheritedVisual = true;
   }
 
   function normalizeDuration(value) {

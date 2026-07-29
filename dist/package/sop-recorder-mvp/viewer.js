@@ -732,8 +732,8 @@ async function drawScreenshotFrame(ctx, segment) {
   roundRect(ctx, frame.x - 4, frame.y - 4, frame.width + 8, frame.height + 8, 18, "#e2e8f0");
   ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
   const visibleMaskBoxes = videoVisibleMaskBoxes(segment, frame);
-  drawVideoHighlight(ctx, segment.highlight, frame);
   visibleMaskBoxes.forEach((box) => drawOverlayBox(ctx, box, frame, "#111827", "#111827", 0));
+  drawVideoHighlight(ctx, segment.highlight, frame);
   drawFocusZoom(ctx, image, segment, frame);
   if (visibleMaskBoxes.length) {
     roundRect(ctx, frame.x + frame.width - 118, frame.y + 12, 104, 34, 17, "rgba(17,24,39,.9)");
@@ -868,9 +868,10 @@ function drawVideoHighlight(ctx, box, frame) {
   ctx.save();
   roundedClip(ctx, frame.x, frame.y, frame.width, frame.height, 14);
   ctx.fillStyle = "rgba(0,0,0,.30)";
-  ctx.fillRect(frame.x, frame.y, frame.width, frame.height);
-  ctx.globalCompositeOperation = "destination-out";
-  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10, "rgba(0,0,0,1)");
+  ctx.fillRect(frame.x, frame.y, frame.width, Math.max(0, rect.y - frame.y));
+  ctx.fillRect(frame.x, rect.y + rect.height, frame.width, Math.max(0, frame.y + frame.height - rect.y - rect.height));
+  ctx.fillRect(frame.x, rect.y, Math.max(0, rect.x - frame.x), rect.height);
+  ctx.fillRect(rect.x + rect.width, rect.y, Math.max(0, frame.x + frame.width - rect.x - rect.width), rect.height);
   ctx.restore();
   roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10, null, "#ffffff", 8);
   roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10, null, "#f18a2a", 5);

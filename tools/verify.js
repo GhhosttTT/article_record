@@ -2331,6 +2331,34 @@ runCheck("video timeline supports a 2 second title intro", () => {
   assert(viewerJs.includes("isCloseControlSegment") && renderVideoJs.includes("isCloseControlSegment"), "focus zoom must skip close controls and compact UI controls");
 });
 
+runCheck("video timeline reuses the previous screenshot for no-image steps", () => {
+  const { buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const timeline = buildVideoTimeline([
+    {
+      id: "node_with_image",
+      sequence: 1,
+      type: "operation",
+      description: "Click Area.",
+      image: "data:image/png;base64,PREVIOUS",
+      screenshot: { dataUrl: "data:image/png;base64,PREVIOUS", viewportWidth: 1280, viewportHeight: 720 },
+      focusBox: { x: 10, y: 10, width: 80, height: 32 },
+      privacyMaskBoxes: []
+    },
+    {
+      id: "node_without_image",
+      sequence: 2,
+      type: "operation",
+      description: "Confirm the result.",
+      image: null,
+      screenshot: null,
+      focusBox: null,
+      privacyMaskBoxes: []
+    }
+  ]);
+  assert(timeline.segments[1].visual === "data:image/png;base64,PREVIOUS", "no-image video steps must reuse the previous screenshot");
+  assert(timeline.segments[1].inheritedVisual === true, "no-image video steps must mark inherited visuals");
+});
+
 runCheck("viewer video export uses filename as title fallback", () => {
   const viewerJs = readText("extension/viewer.js");
   assert(viewerJs.includes("els.articleTitleInput?.value || els.exportFileNameInput?.value || defaultExportBaseName"), "video export options must use export filename as title fallback");
@@ -2425,6 +2453,7 @@ runCheck("video highlight style matches article focus frame", () => {
   const renderVideoJs = readText("tools/render_video.js");
   assert(viewerJs.includes("drawVideoHighlight") && viewerJs.includes("paddedBoxToFrameRect"), "preview video export must render a padded highlight frame");
   assert(viewerJs.includes("rgba(0,0,0,.30)") && viewerJs.includes("\"#ffffff\", 8") && viewerJs.includes("\"#f18a2a\", 5"), "preview video highlight must use dim overlay plus white/orange double stroke");
+  assert(!viewerJs.includes("destination-out"), "preview video highlight must not erase screenshot pixels");
   assert(renderVideoJs.includes("renderVideoHighlight") && renderVideoJs.includes("paddedBoxToFrameRect"), "offline video export must render a padded highlight frame");
   assert(renderVideoJs.includes("fill-rule=\"evenodd\"") && renderVideoJs.includes("stroke=\"#ffffff\" stroke-width=\"8\"") && renderVideoJs.includes("stroke=\"#f18a2a\" stroke-width=\"5\""), "offline video highlight must use dim overlay plus white/orange double stroke");
   assert(viewerJs.includes("videoVisibleMaskBoxes") && viewerJs.includes("overlapRatio(mask, highlight) < 0.45"), "preview video export must not cover ordinary highlights with privacy masks");
