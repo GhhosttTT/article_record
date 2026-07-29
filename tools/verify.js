@@ -2294,6 +2294,19 @@ runCheck("初始 about:blank 的新标签页会在真实 URL 出现后补记 tab
 
 runCheck("video timeline supports a 2 second title intro", () => {
   const { buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const fallbackTimeline = buildVideoTimeline([
+    {
+      id: "node_intro_fallback",
+      sequence: 1,
+      type: "operation",
+      description: "Click Add.",
+      tabAlias: "Tab A",
+      focusBox: null,
+      privacyMaskBoxes: []
+    }
+  ], { forceTitleIntro: true });
+  assert(fallbackTimeline.segments[0].type === "title_intro", "first video segment must always be title_intro");
+  assert(fallbackTimeline.segments[0].caption === "操作步骤", "title_intro must use a default title when no title is provided");
   const timeline = buildVideoTimeline([
     {
       id: "node_intro_check",
@@ -2411,6 +2424,8 @@ runCheck("video highlight style matches article focus frame", () => {
   assert(viewerJs.includes("rgba(0,0,0,.30)") && viewerJs.includes("\"#ffffff\", 8") && viewerJs.includes("\"#f18a2a\", 5"), "preview video highlight must use dim overlay plus white/orange double stroke");
   assert(renderVideoJs.includes("renderVideoHighlight") && renderVideoJs.includes("paddedBoxToFrameRect"), "offline video export must render a padded highlight frame");
   assert(renderVideoJs.includes("fill-rule=\"evenodd\"") && renderVideoJs.includes("stroke=\"#ffffff\" stroke-width=\"8\"") && renderVideoJs.includes("stroke=\"#f18a2a\" stroke-width=\"5\""), "offline video highlight must use dim overlay plus white/orange double stroke");
+  assert(viewerJs.includes("videoVisibleMaskBoxes") && viewerJs.includes("overlapRatio(mask, highlight) < 0.45"), "preview video export must not cover ordinary highlights with privacy masks");
+  assert(renderVideoJs.includes("videoVisibleMaskBoxes") && renderVideoJs.includes("overlapRatio(mask, highlight) < 0.45"), "offline video export must not cover ordinary highlights with privacy masks");
 });
 
 for (const check of checks) {

@@ -219,11 +219,11 @@ function renderScreenshotVisual(segment) {
     imageSize ? { maxOutputWidth: imageSize.width, maxOutputHeight: imageSize.height } : {}
   );
   const highlight = renderVideoHighlight(segment.highlight, frame);
-  const masks = (segment.privacyMaskBoxes || [])
+  const masks = videoVisibleMaskBoxes(segment, frame)
     .map((box) => renderOverlayBox(box, frame, "#111827", "#111827", 0))
     .join("\n  ");
   const zoom = renderFocusZoom(segment, frame);
-  const maskLabel = segment.privacyMaskBoxes?.length
+  const maskLabel = videoVisibleMaskBoxes(segment, frame).length
     ? `<rect x="${frame.x + frame.width - 118}" y="${frame.y + 12}" width="104" height="34" rx="17" fill="#111827" opacity="0.9"/>
   <text x="${frame.x + frame.width - 66}" y="${frame.y + 35}" text-anchor="middle" font-size="17" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">已打码</text>`
     : "";
@@ -259,7 +259,7 @@ function renderFocusZoom(segment, frame) {
   const imageX = zoomRect.x + zoomRect.width / 2 - focusAnchor.x * zoomScale;
   const imageY = zoomRect.y + zoomRect.height / 2 - focusAnchor.y * zoomScale;
   const clipId = `clip_${String(segment.id || "focus").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-  const masks = (segment.privacyMaskBoxes || []).map((mask) => {
+  const masks = videoVisibleMaskBoxes(segment, frame).map((mask) => {
     const x = imageX + mask.x * zoomScale;
     const y = imageY + mask.y * zoomScale;
     return `<rect x="${round(x)}" y="${round(y)}" width="${round(Math.max(1, mask.width * zoomScale))}" height="${round(Math.max(1, mask.height * zoomScale))}" rx="8" fill="#111827" clip-path="url(#${clipId})"/>`;
@@ -458,6 +458,18 @@ function renderOverlayBox(box, frame, stroke, fill, strokeWidth) {
   return `<rect x="${round(x)}" y="${round(y)}" width="${round(width)}" height="${round(height)}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
 }
 
+function videoVisibleMaskBoxes(segment, frame) {
+  const boxes = Array.isArray(segment.privacyMaskBoxes) ? segment.privacyMaskBoxes : [];
+  const highlight = paddedBoxToFrameRect(segment.highlight, frame);
+  const sensitive = Boolean(segment.privacyWarnings?.length);
+  if (!highlight || sensitive) return boxes;
+  return boxes.filter((box) => {
+    const mask = boxToFrameRect(box, frame);
+    if (!mask) return false;
+    return overlapRatio(mask, highlight) < 0.45;
+  });
+}
+
 function renderVideoHighlight(box, frame) {
   const rect = paddedBoxToFrameRect(box, frame);
   if (!rect) return "";
@@ -484,6 +496,14 @@ function paddedBoxToFrameRect(box, frame) {
   const x = Math.max(frame.x, Math.min(frame.x + frame.width - width, centerX - width / 2));
   const y = Math.max(frame.y, Math.min(frame.y + frame.height - height, centerY - height / 2));
   return { x, y, width, height };
+}
+
+function overlapRatio(a, b) {
+  const overlapWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+  const overlapHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+  const overlapArea = overlapWidth * overlapHeight;
+  const baseArea = Math.max(1, Math.min(a.width * a.height, b.width * b.height));
+  return overlapArea / baseArea;
 }
 
 function round(value) {

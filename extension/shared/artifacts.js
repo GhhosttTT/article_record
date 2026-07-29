@@ -196,8 +196,8 @@
     let cursor = 0;
     const articleTitle = normalizeText(options.title || "");
     const segments = [];
-    if (articleTitle) {
-      const titleSegment = buildVideoTitleIntroSegment(articleTitle, cursor);
+    if (articleTitle || options.forceTitleIntro) {
+      const titleSegment = buildVideoTitleIntroSegment(articleTitle || resolveVideoTitle(options), cursor);
       segments.push(titleSegment);
       cursor = titleSegment.endTime;
     }
@@ -341,8 +341,8 @@
     const segments = [];
     const stepSet = new Set(steps || []);
     const articleTitle = normalizeText(options.title || "");
-    if (articleTitle) {
-      const titleSegment = buildVideoTitleIntroSegment(articleTitle, cursor);
+    if (articleTitle || options.forceTitleIntro) {
+      const titleSegment = buildVideoTitleIntroSegment(articleTitle || resolveVideoTitle(options), cursor);
       segments.push(titleSegment);
       cursor = titleSegment.endTime;
     }
@@ -430,8 +430,13 @@
       screenshot: step.screenshot || null,
       storyboardVisualType: step.type === "tab_transition" ? "tab_transition" : step.type === "navigation" ? "navigation" : "screenshot",
       highlight: step.focusBox,
-      privacyMaskBoxes: step.privacyMaskBoxes || []
+      privacyMaskBoxes: step.privacyMaskBoxes || [],
+      privacyWarnings: step.privacyWarnings || []
     };
+  }
+
+  function resolveVideoTitle(options = {}) {
+    return normalizeText(options.title || options.fileName || options.exportFileName || "") || "操作步骤";
   }
 
   function normalizeDuration(value) {
