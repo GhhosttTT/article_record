@@ -2350,6 +2350,9 @@ runCheck("viewer supports editable filenames and no review status UI", () => {
   assert(!viewerJs.includes("step-status"), "viewer.js must not show review status text");
   assert(!viewerJs.includes("function statusText"), "viewer.js must not keep unused review status text");
   assert(viewerCss.includes(".export-options .title-field span"), "viewer.css must enlarge the article title label");
+  assert(viewerJs.includes("function recordingStatusLabel"), "viewer.js must show user-facing recording status labels");
+  assert(viewerJs.includes("sessionStatus === \"completed\"") && viewerJs.includes("\\u5df2\\u7ed3\\u675f"), "completed sessions must display as ended instead of idle");
+  assert(viewerCss.includes("#timelineBtn") && viewerCss.includes("display: none"), "video timeline export must be hidden from the main preview actions");
 });
 
 for (const check of checks) {

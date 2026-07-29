@@ -205,7 +205,7 @@ els.wordBtn.addEventListener("click", async () => {
   }
 });
 
-els.timelineBtn.addEventListener("click", () => {
+els.timelineBtn?.addEventListener("click", () => {
   if (!confirmPrivacyBeforeExport("视频时间轴")) return;
   const options = getExportOptions();
   const exportSteps = buildPrivacySafeArticleSteps(currentSteps, options);
@@ -263,7 +263,7 @@ function applyState(state, options = {}) {
     els.exportFileNameInput.value = defaultExportBaseName(state, tabs);
   }
 
-  els.status.textContent = state.status || "idle";
+  els.status.textContent = recordingStatusLabel(state);
   els.nodeCount.textContent = nodes.length;
   els.tabCount.textContent = tabs.length;
 
@@ -278,6 +278,17 @@ function getExportOptions() {
     title: els.articleTitleInput?.value || "",
     privacyMaskingEnabled: els.privacyMaskToggle?.checked !== false
   };
+}
+
+function recordingStatusLabel(state = {}) {
+  const sessionStatus = state.session?.status;
+  const runtimeStatus = state.status;
+  const nodeCount = Array.isArray(state.nodes) ? state.nodes.length : 0;
+  if (runtimeStatus === "recording" || sessionStatus === "recording") return "\u5f55\u5236\u4e2d";
+  if (runtimeStatus === "paused" || sessionStatus === "paused") return "\u5df2\u6682\u505c";
+  if (sessionStatus === "completed") return "\u5df2\u7ed3\u675f";
+  if (nodeCount > 0) return "\u5df2\u751f\u6210\u9884\u89c8";
+  return "\u672a\u5f55\u5236";
 }
 
 function exportBaseName() {
