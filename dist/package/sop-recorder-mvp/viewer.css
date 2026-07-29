@@ -1147,6 +1147,68 @@ button.secondary:hover:not(:disabled),
   background: rgb(255 255 255 / 82%);
 }
 
+.sidebar {
+  border-right-color: #111111;
+  background: #050505;
+  color: #f7f7f7;
+}
+
+.sidebar h1,
+.sidebar .eyebrow,
+.sidebar .summary strong,
+.sidebar .privacy-card strong,
+.sidebar .chapter-nav > strong,
+.sidebar .chapter-link,
+.sidebar .chapter-steps a {
+  color: #f7f7f7;
+}
+
+.sidebar .eyebrow,
+.sidebar .summary span,
+.sidebar .privacy-card span,
+.sidebar .chapter-steps a,
+.sidebar .chapter-empty {
+  color: #b7b7b7;
+}
+
+.sidebar .summary div,
+.sidebar .privacy-card,
+.sidebar .chapter-nav {
+  border-color: #242424;
+  background: #151515;
+}
+
+.sidebar .privacy-card.ok,
+.sidebar .privacy-card.warn {
+  border-color: #2c2c2c;
+  background: #151515;
+}
+
+.sidebar .chapter-steps {
+  border-left-color: #303030;
+}
+
+.sidebar .chapter-link:hover,
+.sidebar .chapter-steps a:hover {
+  color: #ffffff;
+}
+
+.actions {
+  background: linear-gradient(180deg, rgb(5 5 5 / 0), #050505 18%);
+}
+
+.actions button,
+.actions button.secondary {
+  border-color: #2c2c2c;
+  background: #f7f7f7;
+  color: #111111;
+}
+
+.focus-box {
+  border-color: #f18a2a;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 30%), 0 0 0 2px rgb(255 255 255 / 80%);
+}
+
 @media (max-width: 820px) {
   body {
     display: block;
