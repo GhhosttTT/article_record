@@ -697,14 +697,139 @@ button:hover:not(:disabled) {
   background: #fffdf8;
 }
 
+body {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar {
+  position: relative;
+  height: 100vh;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+  padding: 18px 24px;
+}
+
+.sidebar h1 {
+  margin-bottom: 6px;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.summary {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.summary div {
+  min-height: 58px;
+  padding: 9px 14px;
+}
+
+.summary div:first-child {
+  grid-column: 1 / -1;
+}
+
+.summary span {
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.summary strong {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.privacy-audit {
+  margin-bottom: 0;
+}
+
+.privacy-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 9px 14px;
+}
+
+.privacy-card strong {
+  flex: 0 0 auto;
+  font-size: 14px;
+}
+
+.privacy-card span {
+  min-width: 0;
+  overflow: hidden;
+  color: #fffdf8;
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-nav {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 120px;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.chapter-nav > strong {
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+}
+
+#chapterList {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.actions {
+  position: static;
+  flex: 0 0 auto;
+  gap: 6px;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.actions button {
+  min-height: 34px;
+}
+
+.content {
+  height: 100vh;
+  max-width: none;
+  overflow-y: auto;
+}
+
+.export-options span {
+  color: #050505;
+}
+
 @media (max-width: 820px) {
   body {
     display: block;
+    height: auto;
+    overflow: auto;
   }
 
   .sidebar {
     position: static;
     height: auto;
+    overflow: visible;
+  }
+
+  .content {
+    height: auto;
+    overflow: visible;
   }
 
   .step-header {

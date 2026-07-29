@@ -17,22 +17,14 @@ assert(manifest.manifest_version === 3, "manifest_version must be 3");
 assert(fs.existsSync(path.join(stagedDir, manifest.background.service_worker)), "background service worker missing");
 
 fs.rmSync(zipPath, { force: true });
-const result = spawnSync("powershell", [
-  "-NoProfile",
-  "-Command",
-  `$items = Get-ChildItem -LiteralPath '${escapePowerShellPath(stagedDir)}' -Force; Compress-Archive -Path $items.FullName -DestinationPath '${escapePowerShellPath(zipPath)}' -Force`
-], { encoding: "utf8" });
+const result = spawnSync("tar", ["-a", "-cf", zipPath, "-C", stagedDir, "."], { encoding: "utf8" });
 
 if (result.status !== 0) {
   console.error(result.stderr || result.stdout);
   process.exit(result.status || 1);
 }
 
-const zipCheck = spawnSync("powershell", [
-  "-NoProfile",
-  "-Command",
-  `Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::OpenRead('${escapePowerShellPath(zipPath)}').Entries.FullName -join [Environment]::NewLine`
-], { encoding: "utf8" });
+const zipCheck = spawnSync("tar", ["-tf", zipPath], { encoding: "utf8" });
 if (zipCheck.status !== 0) {
   console.error(zipCheck.stderr || zipCheck.stdout);
   process.exit(zipCheck.status || 1);
@@ -60,10 +52,6 @@ function copyDirectory(from, to) {
       fs.copyFileSync(source, target);
     }
   }
-}
-
-function escapePowerShellPath(value) {
-  return value.replaceAll("'", "''");
 }
 
 function assert(condition, message) {
