@@ -729,7 +729,7 @@ async function drawScreenshotFrame(ctx, segment) {
   });
   roundRect(ctx, frame.x - 4, frame.y - 4, frame.width + 8, frame.height + 8, 18, "#e2e8f0");
   ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
-  drawOverlayBox(ctx, segment.highlight, frame, "#f18a2a", null, 6);
+  drawVideoHighlight(ctx, segment.highlight, frame);
   (segment.privacyMaskBoxes || []).forEach((box) => drawOverlayBox(ctx, box, frame, "#111827", "#111827", 0));
   drawFocusZoom(ctx, image, segment, frame);
   if (segment.privacyMaskBoxes?.length) {
@@ -847,6 +847,20 @@ function drawOverlayBox(ctx, box, frame, stroke, fill, lineWidth) {
   if (stroke && lineWidth) roundRect(ctx, x, y, width, height, 8, null, stroke, lineWidth);
 }
 
+function drawVideoHighlight(ctx, box, frame) {
+  const rect = paddedBoxToFrameRect(box, frame);
+  if (!rect) return;
+  ctx.save();
+  roundedClip(ctx, frame.x, frame.y, frame.width, frame.height, 14);
+  ctx.fillStyle = "rgba(0,0,0,.30)";
+  ctx.fillRect(frame.x, frame.y, frame.width, frame.height);
+  ctx.globalCompositeOperation = "destination-out";
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10, "rgba(0,0,0,1)");
+  ctx.restore();
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10, null, "#ffffff", 8);
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, 10, null, "#f18a2a", 5);
+}
+
 function fitVideoRect(sourceWidth, sourceHeight, bounds, options = {}) {
   const maxLogicalWidth = options.maxOutputWidth ? options.maxOutputWidth / VIDEO_SCALE : Infinity;
   const maxLogicalHeight = options.maxOutputHeight ? options.maxOutputHeight / VIDEO_SCALE : Infinity;
@@ -908,6 +922,23 @@ function boxToFrameRect(box, frame) {
     width: Math.max(1, box.width / frame.sourceWidth * frame.width),
     height: Math.max(1, box.height / frame.sourceHeight * frame.height)
   };
+}
+
+function paddedBoxToFrameRect(box, frame) {
+  const rect = boxToFrameRect(box, frame);
+  if (!rect) return null;
+  const pad = 10;
+  const minWidth = 44;
+  const minHeight = 32;
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+  let width = Math.max(minWidth, rect.width + pad * 2);
+  let height = Math.max(minHeight, rect.height + pad * 2);
+  width = Math.min(width, frame.width);
+  height = Math.min(height, frame.height);
+  const x = Math.max(frame.x, Math.min(frame.x + frame.width - width, centerX - width / 2));
+  const y = Math.max(frame.y, Math.min(frame.y + frame.height - height, centerY - height / 2));
+  return { x, y, width, height };
 }
 
 function focusZoomAnchor(box, zoom, scale) {

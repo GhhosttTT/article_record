@@ -218,7 +218,7 @@ function renderScreenshotVisual(segment) {
     { x: 32, y: 24, width: 1216, height: 548 },
     imageSize ? { maxOutputWidth: imageSize.width, maxOutputHeight: imageSize.height } : {}
   );
-  const highlight = renderOverlayBox(segment.highlight, frame, "#f18a2a", "none", 6);
+  const highlight = renderVideoHighlight(segment.highlight, frame);
   const masks = (segment.privacyMaskBoxes || [])
     .map((box) => renderOverlayBox(box, frame, "#111827", "#111827", 0))
     .join("\n  ");
@@ -456,6 +456,34 @@ function renderOverlayBox(box, frame, stroke, fill, strokeWidth) {
   const width = box.width / frame.sourceWidth * frame.width;
   const height = box.height / frame.sourceHeight * frame.height;
   return `<rect x="${round(x)}" y="${round(y)}" width="${round(width)}" height="${round(height)}" rx="8" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
+}
+
+function renderVideoHighlight(box, frame) {
+  const rect = paddedBoxToFrameRect(box, frame);
+  if (!rect) return "";
+  const framePath = `M${round(frame.x)} ${round(frame.y)}H${round(frame.x + frame.width)}V${round(frame.y + frame.height)}H${round(frame.x)}Z`;
+  const holePath = `M${round(rect.x)} ${round(rect.y)}H${round(rect.x + rect.width)}V${round(rect.y + rect.height)}H${round(rect.x)}Z`;
+  return `
+  <path d="${framePath} ${holePath}" fill="#000000" opacity="0.30" fill-rule="evenodd"/>
+  <rect x="${round(rect.x)}" y="${round(rect.y)}" width="${round(rect.width)}" height="${round(rect.height)}" rx="10" fill="none" stroke="#ffffff" stroke-width="8"/>
+  <rect x="${round(rect.x)}" y="${round(rect.y)}" width="${round(rect.width)}" height="${round(rect.height)}" rx="10" fill="none" stroke="#f18a2a" stroke-width="5"/>`;
+}
+
+function paddedBoxToFrameRect(box, frame) {
+  const rect = boxToFrameRect(box, frame);
+  if (!rect) return null;
+  const pad = 10;
+  const minWidth = 44;
+  const minHeight = 32;
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+  let width = Math.max(minWidth, rect.width + pad * 2);
+  let height = Math.max(minHeight, rect.height + pad * 2);
+  width = Math.min(width, frame.width);
+  height = Math.min(height, frame.height);
+  const x = Math.max(frame.x, Math.min(frame.x + frame.width - width, centerX - width / 2));
+  const y = Math.max(frame.y, Math.min(frame.y + frame.height - height, centerY - height / 2));
+  return { x, y, width, height };
 }
 
 function round(value) {

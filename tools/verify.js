@@ -2369,6 +2369,15 @@ runCheck("video exporters keep the tail frames visible", () => {
   assert(renderVideoJs.includes("FINAL_HOLD_SECONDS"), "offline MP4 export must explicitly hold the final concat frame");
 });
 
+runCheck("video highlight style matches article focus frame", () => {
+  const viewerJs = readText("extension/viewer.js");
+  const renderVideoJs = readText("tools/render_video.js");
+  assert(viewerJs.includes("drawVideoHighlight") && viewerJs.includes("paddedBoxToFrameRect"), "preview video export must render a padded highlight frame");
+  assert(viewerJs.includes("rgba(0,0,0,.30)") && viewerJs.includes("\"#ffffff\", 8") && viewerJs.includes("\"#f18a2a\", 5"), "preview video highlight must use dim overlay plus white/orange double stroke");
+  assert(renderVideoJs.includes("renderVideoHighlight") && renderVideoJs.includes("paddedBoxToFrameRect"), "offline video export must render a padded highlight frame");
+  assert(renderVideoJs.includes("fill-rule=\"evenodd\"") && renderVideoJs.includes("stroke=\"#ffffff\" stroke-width=\"8\"") && renderVideoJs.includes("stroke=\"#f18a2a\" stroke-width=\"5\""), "offline video highlight must use dim overlay plus white/orange double stroke");
+});
+
 for (const check of checks) {
   if (check.error) {
     console.error(`FAIL ${check.name}`);
