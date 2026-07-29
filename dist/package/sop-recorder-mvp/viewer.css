@@ -1164,7 +1164,7 @@ button.secondary:hover:not(:disabled),
 
 .sidebar {
   border-right-color: #111111;
-  background: #050505;
+  background: #272727;
   color: #f7f7f7;
 }
 
@@ -1216,7 +1216,7 @@ button.secondary:hover:not(:disabled),
 }
 
 .actions {
-  background: linear-gradient(180deg, rgb(5 5 5 / 0), #050505 18%);
+  background: linear-gradient(180deg, rgb(39 39 39 / 0), #272727 18%);
 }
 
 .actions button,
