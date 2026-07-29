@@ -2304,6 +2304,32 @@ runCheck("video timeline supports a 2 second title intro", () => {
   const renderVideoJs = readText("tools/render_video.js");
   assert(viewerJs.includes("drawTitleIntroFrame"), "viewer.js must draw the video title intro");
   assert(renderVideoJs.includes("renderTitleIntroFrame"), "render_video.js must render title_intro SVG frames");
+  assert(!viewerJs.includes("SOP Video") && !renderVideoJs.includes("SOP Video"), "video title intro must not render redundant SOP Video label");
+  assert(!viewerJs.includes("\\u5f00\\u5934 2 \\u79d2\\u6807\\u9898\\u9875") && !renderVideoJs.includes("\\u5f00\\u5934 2 \\u79d2\\u6807\\u9898\\u9875"), "video title intro must not explain its own 2 second duration");
+  assert(viewerJs.includes("isCloseControlSegment") && renderVideoJs.includes("isCloseControlSegment"), "focus zoom must skip close controls and compact UI controls");
+});
+
+runCheck("close buttons and checkbox clicks keep the intended target", () => {
+  const content = readText("extension/content.js");
+  const { buildArticleSteps } = require(path.join(root, "extension/shared/artifacts.js"));
+  const closeSteps = buildArticleSteps([{
+    id: "node_dialog_close",
+    sequence: 1,
+    action: "click",
+    tab: { tabId: 1, tabAlias: "Tab A", domain: "example.com" },
+    target: {
+      type: "button",
+      text: "Are you sure to clear all the pending commands?",
+      selector: ".ant-modal-close",
+      attributes: { className: "ant-modal-close", tagName: "button" },
+      boundingBox: { x: 850, y: 438, width: 34, height: 34, coordinateSpace: "viewport-css-pixel" }
+    },
+    generatedInstruction: "Click close.",
+    status: "auto_generated"
+  }]);
+  assert(closeSteps[0].title === "\u70b9\u51fb\u5173\u95ed\u5f39\u7a97", "dialog close click title must not use modal body text");
+  assert(content.includes("const checkableAtPoint = findCheckableAtPoint(clickPoint)"), "click handler must resolve checkbox/switch by point before generic click targets");
+  assert(content.includes("function isCloseButtonLike"), "content target extraction must identify compact modal close buttons");
 });
 
 runCheck("viewer supports editable filenames and no review status UI", () => {

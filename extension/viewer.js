@@ -670,10 +670,10 @@ async function drawVideoFrame(ctx, segment, timelineTitle = "") {
 }
 
 function drawTitleIntroFrame(ctx, segment, timelineTitle = "") {
-  const title = trimMiddle(segment.caption || segment.articleTitle || timelineTitle || "\u64cd\u4f5c\u6b65\u9aa4", 34);
-  ctx.fillStyle = "#fffdf8";
+  const title = trimMiddle(segment.caption || segment.articleTitle || timelineTitle || "\u64cd\u4f5c\u6b65\u9aa4", 38);
+  ctx.fillStyle = "#f7f7f4";
   ctx.fillRect(0, 0, VIDEO_VIEWBOX_WIDTH, VIDEO_VIEWBOX_HEIGHT);
-  ctx.fillStyle = "rgba(5,5,5,.08)";
+  ctx.fillStyle = "rgba(17,24,39,.045)";
   for (let x = 0; x <= VIDEO_VIEWBOX_WIDTH; x += 32) {
     ctx.fillRect(x, 0, 1, VIDEO_VIEWBOX_HEIGHT);
   }
@@ -681,18 +681,9 @@ function drawTitleIntroFrame(ctx, segment, timelineTitle = "") {
     ctx.fillRect(0, y, VIDEO_VIEWBOX_WIDTH, 1);
   }
 
-  roundRect(ctx, 76, 72, 180, 180, 28, "#0d99ff", "#050505", 4);
-  roundRect(ctx, 224, 212, 134, 134, 28, "#ff7262", "#050505", 4);
-  roundRect(ctx, 934, 86, 214, 128, 28, "#ffcd29", "#050505", 4);
-  roundRect(ctx, 1022, 418, 158, 158, 28, "#14ae5c", "#050505", 4);
-  roundRect(ctx, 122, 506, 248, 82, 41, "#a259ff", "#050505", 4);
-
-  roundRect(ctx, 394, 190, 492, 78, 39, "#050505");
-  drawText(ctx, "\u64cd\u4f5c\u6b65\u9aa4", 640, 240, 26, "#fffdf8", "900", "center");
-  drawText(ctx, title, 640, 358, 48, "#050505", "900", "center");
-  drawText(ctx, "SOP Video", 640, 418, 20, "#6b6259", "800", "center");
-  roundRect(ctx, 482, 498, 316, 54, 27, "#fffdf8", "#050505", 3);
-  drawText(ctx, "\u5f00\u5934 2 \u79d2\u6807\u9898\u9875", 640, 534, 20, "#050505", "800", "center");
+  drawText(ctx, title, 640, 350, 54, "#111111", "900", "center");
+  ctx.fillStyle = "#f18a2a";
+  ctx.fillRect(442, 390, 396, 4);
 }
 
 async function drawScreenshotFrame(ctx, segment) {
@@ -794,7 +785,7 @@ function drawFocusZoom(ctx, image, segment, frame) {
   const box = segment.highlight;
   if (!box || !Number.isFinite(box.x)) return;
   const zoom = focusZoomFrameRect(box, frame);
-  if (!shouldRenderFocusZoom(box, zoom, frame)) return;
+  if (!shouldRenderFocusZoom(segment, box, zoom, frame)) return;
   const scale = frame.width / frame.sourceWidth * 2.8;
   const focusAnchor = focusZoomAnchor(box, zoom, scale);
   const imageWidth = frame.sourceWidth * scale;
@@ -858,15 +849,22 @@ function focusZoomFrameRect(box, frame) {
   return { x, y, width, height };
 }
 
-function shouldRenderFocusZoom(box, zoom, frame) {
+function shouldRenderFocusZoom(segment, box, zoom, frame) {
   const highlight = boxToFrameRect(box, frame);
   if (!highlight) return false;
+  if (isCloseControlSegment(segment)) return false;
+  if (highlight.width <= 92 && highlight.height <= 92) return false;
   const overlapWidth = Math.max(0, Math.min(highlight.x + highlight.width, zoom.x + zoom.width) - Math.max(highlight.x, zoom.x));
   const overlapHeight = Math.max(0, Math.min(highlight.y + highlight.height, zoom.y + zoom.height) - Math.max(highlight.y, zoom.y));
   if (overlapWidth > 0 && overlapHeight > 0) return false;
   const highlightArea = highlight.width * highlight.height;
   const frameArea = frame.width * frame.height;
   return highlightArea / frameArea < 0.12;
+}
+
+function isCloseControlSegment(segment = {}) {
+  const text = String([segment.action, segment.caption, segment.voiceoverText].filter(Boolean).join(" ")).toLowerCase();
+  return segment.action === "modal_close" || /(\u5173\u95ed\u5f39\u7a97|\u5173\u95ed|close|discard|cancel)/.test(text);
 }
 
 function boxToFrameRect(box, frame) {

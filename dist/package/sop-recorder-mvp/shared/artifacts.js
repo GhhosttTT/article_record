@@ -34,6 +34,7 @@
         id: `article_step_${String(index + 1).padStart(3, "0")}`,
         nodeId: node.id,
         sequence: index + 1,
+        action: node.action || null,
         type,
         title,
         description,
@@ -404,6 +405,7 @@
     return {
       id: `segment_${String(step.sequence).padStart(3, "0")}`,
       stepId: step.id,
+      action: step.action || null,
       type: step.type,
       startTime: cursor,
       endTime: cursor + duration,
@@ -476,6 +478,7 @@
 
   function operationTitle(node) {
     const target = node.target || {};
+    if (isDialogCloseClick(node)) return "\u70b9\u51fb\u5173\u95ed\u5f39\u7a97";
     const name = node.action === "check"
       ? checkTargetName(target)
       : node.action === "modal_open" || node.action === "modal_close"
@@ -503,6 +506,7 @@
 
   function operationDescription(node) {
     const target = node.target || {};
+    if (isDialogCloseClick(node)) return "";
     const name = node.action === "check"
       ? checkTargetName(target)
       : node.action === "modal_open" || node.action === "modal_close"
@@ -530,6 +534,29 @@
     const explicit = target.ariaLabel || target.labelText || target.title || target.name || target.id;
     if (explicit) return explicit;
     return "\u5f39\u7a97";
+  }
+
+  function isDialogCloseClick(node = {}) {
+    if (node.action !== "click") return false;
+    const target = node.target || {};
+    const source = normalizeText([
+      target.text,
+      target.ariaLabel,
+      target.labelText,
+      target.placeholder,
+      target.title,
+      target.nearbyText,
+      target.name,
+      target.id,
+      target.selector,
+      target.attributes?.role,
+      target.attributes?.tagName,
+      target.attributes?.className
+    ].filter(Boolean).join(" ")).toLowerCase();
+    if (/(\bclose\b|\bdismiss\b|modal-close|dialog-close|drawer-close|ant-modal-close|el-dialog__close|mui.*close|\u5173\u95ed|\u53d6\u6d88|[\u00d7\u2715])/.test(source)) return true;
+    const box = normalizeBox(target.boundingBox);
+    const textLooksLikeDialogBody = /^(are you sure|prompt|confirm|\u786e\u5b9a|\u786e\u8ba4|\u662f\u5426|\u63d0\u793a)/i.test(normalizeText(target.text || target.nearbyText || ""));
+    return Boolean(box && box.width <= 72 && box.height <= 72 && textLooksLikeDialogBody);
   }
 
   function transitionTitle(node) {

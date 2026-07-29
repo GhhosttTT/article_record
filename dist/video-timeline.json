@@ -6,6 +6,7 @@
     {
       "id": "segment_001",
       "stepId": "article_step_001",
+      "action": "click",
       "type": "operation",
       "startTime": 0,
       "endTime": 5,
@@ -47,6 +48,7 @@
     {
       "id": "segment_002",
       "stepId": "article_step_002",
+      "action": "input",
       "type": "operation",
       "startTime": 5,
       "endTime": 10,
@@ -96,6 +98,7 @@
     {
       "id": "segment_003",
       "stepId": "article_step_003",
+      "action": "tab_open",
       "type": "tab_transition",
       "startTime": 10,
       "endTime": 12,
@@ -120,6 +123,7 @@
     {
       "id": "segment_004",
       "stepId": "article_step_004",
+      "action": "click",
       "type": "operation",
       "startTime": 12,
       "endTime": 17,
@@ -161,6 +165,7 @@
     {
       "id": "segment_005",
       "stepId": "article_step_005",
+      "action": "tab_switch",
       "type": "tab_transition",
       "startTime": 17,
       "endTime": 19,
@@ -185,6 +190,7 @@
     {
       "id": "segment_006",
       "stepId": "article_step_006",
+      "action": "upload",
       "type": "operation",
       "startTime": 19,
       "endTime": 23,
@@ -234,6 +240,7 @@
     {
       "id": "segment_007",
       "stepId": "article_step_007",
+      "action": "input",
       "type": "operation",
       "startTime": 23,
       "endTime": 26,
@@ -283,6 +290,7 @@
     {
       "id": "segment_008",
       "stepId": "article_step_008",
+      "action": "input",
       "type": "operation",
       "startTime": 26,
       "endTime": 30,
@@ -339,6 +347,7 @@
     {
       "id": "segment_009",
       "stepId": "article_step_009",
+      "action": "input",
       "type": "operation",
       "startTime": 30,
       "endTime": 34,

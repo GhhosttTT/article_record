@@ -103,27 +103,18 @@ function renderFrame(segment) {
 }
 
 function renderTitleIntroFrame(segment) {
-  const title = trimMiddle(segment.caption || segment.articleTitle || "\u64cd\u4f5c\u6b65\u9aa4", 34);
+  const title = trimMiddle(segment.caption || segment.articleTitle || "\u64cd\u4f5c\u6b65\u9aa4", 38);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" viewBox="0 0 ${VIDEO_VIEWBOX_WIDTH} ${VIDEO_VIEWBOX_HEIGHT}">
   <defs>
     <pattern id="title_grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M32 0H0V32" fill="none" stroke="#050505" stroke-width="1" opacity="0.08"/>
+      <path d="M32 0H0V32" fill="none" stroke="#111827" stroke-width="1" opacity="0.045"/>
     </pattern>
   </defs>
-  <rect width="${VIDEO_VIEWBOX_WIDTH}" height="${VIDEO_VIEWBOX_HEIGHT}" fill="#fffdf8"/>
+  <rect width="${VIDEO_VIEWBOX_WIDTH}" height="${VIDEO_VIEWBOX_HEIGHT}" fill="#f7f7f4"/>
   <rect width="${VIDEO_VIEWBOX_WIDTH}" height="${VIDEO_VIEWBOX_HEIGHT}" fill="url(#title_grid)"/>
-  <rect x="76" y="72" width="180" height="180" rx="28" fill="#0d99ff" stroke="#050505" stroke-width="4"/>
-  <rect x="224" y="212" width="134" height="134" rx="28" fill="#ff7262" stroke="#050505" stroke-width="4"/>
-  <rect x="934" y="86" width="214" height="128" rx="28" fill="#ffcd29" stroke="#050505" stroke-width="4"/>
-  <rect x="1022" y="418" width="158" height="158" rx="28" fill="#14ae5c" stroke="#050505" stroke-width="4"/>
-  <rect x="122" y="506" width="248" height="82" rx="41" fill="#a259ff" stroke="#050505" stroke-width="4"/>
-  <rect x="394" y="190" width="492" height="78" rx="39" fill="#050505"/>
-  <text x="640" y="240" text-anchor="middle" font-size="26" font-weight="900" fill="#fffdf8" font-family="Microsoft YaHei, Segoe UI, sans-serif">\u64cd\u4f5c\u6b65\u9aa4</text>
-  <text x="640" y="358" text-anchor="middle" font-size="48" font-weight="900" fill="#050505" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(title)}</text>
-  <text x="640" y="418" text-anchor="middle" font-size="20" font-weight="800" fill="#6b6259" font-family="Microsoft YaHei, Segoe UI, sans-serif">SOP Video</text>
-  <rect x="482" y="498" width="316" height="54" rx="27" fill="#fffdf8" stroke="#050505" stroke-width="3"/>
-  <text x="640" y="534" text-anchor="middle" font-size="20" font-weight="800" fill="#050505" font-family="Microsoft YaHei, Segoe UI, sans-serif">\u5f00\u5934 2 \u79d2\u6807\u9898\u9875</text>
+  <text x="640" y="350" text-anchor="middle" font-size="54" font-weight="900" fill="#111111" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(title)}</text>
+  <rect x="442" y="390" width="396" height="4" fill="#f18a2a"/>
 </svg>`;
 }
 
@@ -256,7 +247,7 @@ function renderFocusZoom(segment, frame) {
   const box = segment.highlight;
   if (!segment.visual || !box || !Number.isFinite(box.x)) return "";
   const zoomRect = focusZoomRect(box, frame);
-  if (!shouldRenderFocusZoom(box, zoomRect, frame)) return "";
+  if (!shouldRenderFocusZoom(segment, box, zoomRect, frame)) return "";
   const zoomScale = frame.width / frame.sourceWidth * 2.8;
   const focusAnchor = focusZoomAnchor(box, zoomRect, zoomScale);
   const imageWidth = frame.sourceWidth * zoomScale;
@@ -301,15 +292,22 @@ function focusZoomRect(box, frame) {
   return { x: round(x), y: round(y), width, height };
 }
 
-function shouldRenderFocusZoom(box, zoomRect, frame) {
+function shouldRenderFocusZoom(segment, box, zoomRect, frame) {
   const highlight = boxToFrameRect(box, frame);
   if (!highlight) return false;
+  if (isCloseControlSegment(segment)) return false;
+  if (highlight.width <= 92 && highlight.height <= 92) return false;
   const overlapWidth = Math.max(0, Math.min(highlight.x + highlight.width, zoomRect.x + zoomRect.width) - Math.max(highlight.x, zoomRect.x));
   const overlapHeight = Math.max(0, Math.min(highlight.y + highlight.height, zoomRect.y + zoomRect.height) - Math.max(highlight.y, zoomRect.y));
   if (overlapWidth > 0 && overlapHeight > 0) return false;
   const highlightArea = highlight.width * highlight.height;
   const frameArea = frame.width * frame.height;
   return highlightArea / frameArea < 0.12;
+}
+
+function isCloseControlSegment(segment = {}) {
+  const text = String([segment.action, segment.caption, segment.voiceoverText].filter(Boolean).join(" ")).toLowerCase();
+  return segment.action === "modal_close" || /(\u5173\u95ed\u5f39\u7a97|\u5173\u95ed|close|discard|cancel)/.test(text);
 }
 
 function boxToFrameRect(box, frame) {

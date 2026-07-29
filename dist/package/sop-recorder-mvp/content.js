@@ -62,6 +62,7 @@ document.addEventListener("pointerdown", (event) => {
   if (!isActiveContentInstance()) return;
   if (event.button !== 0) return;
   const clickPoint = getClickPoint(event);
+  if (findCheckableAtPoint(clickPoint)) return;
   const target = resolveActionTarget(event.target, clickPoint);
   if (!target || isCheckableTarget(target) || !shouldCaptureBeforeClick(target)) return;
   flushPendingInputs();
@@ -72,11 +73,12 @@ document.addEventListener("pointerdown", (event) => {
 document.addEventListener("click", (event) => {
   if (!isActiveContentInstance()) return;
   const clickPoint = getClickPoint(event);
-  const target = resolveActionTarget(event.target, clickPoint);
+  const checkableAtPoint = findCheckableAtPoint(clickPoint);
+  const target = checkableAtPoint || resolveActionTarget(event.target, clickPoint);
   if (!target) return;
   if (shouldSkipAfterPreActionClick(target)) return;
   flushPendingInputs();
-  if (isCheckableTarget(target)) {
+  if (checkableAtPoint || isCheckableTarget(target)) {
     const checkTarget = getCheckableInput(target) || target;
     recentCheckClickPoints.set(checkTarget, clickPoint);
     scheduleCheckClickEvent(checkTarget, clickPoint, extractTarget(getCheckableCaptureTarget(checkTarget, clickPoint)));
@@ -769,11 +771,12 @@ function extractTarget(element) {
   const labelText = findLabelText(element);
   const dialogTitle = inferTargetType(element) === "dialog" ? findDialogTitle(element) : null;
   const visibleText = normalizeText(element.innerText || element.textContent || "");
+  const closeLabel = isCloseButtonLike(element) ? "\u5173\u95ed" : "";
   const title = element.getAttribute("title");
   const visibility = getTargetVisibility(element, box);
   return {
     type: inferTargetType(element),
-    text: dialogTitle || (isCheckableTarget(element) ? "" : visibleText.slice(0, 120)),
+    text: dialogTitle || closeLabel || (isCheckableTarget(element) ? "" : visibleText.slice(0, 120)),
     ariaLabel: element.getAttribute("aria-label"),
     placeholder: element.getAttribute("placeholder"),
     title,
@@ -799,6 +802,8 @@ function getElementAttributes(element) {
   const attributes = {
     tagName: element.tagName.toLowerCase()
   };
+  const className = typeof element.className === "string" ? element.className : element.getAttribute("class");
+  if (className) attributes.className = String(className).slice(0, 240);
   const role = element.getAttribute("role");
   if (role) attributes.role = role;
   if (element instanceof HTMLAnchorElement) {
@@ -888,6 +893,30 @@ function inferTargetType(element) {
   if (element.closest("button")) return "button";
   if (element.closest("a")) return "link";
   return "unknown";
+}
+
+function isCloseButtonLike(element) {
+  if (!(element instanceof Element)) return false;
+  const box = element.getBoundingClientRect();
+  const source = normalizeText([
+    element.innerText,
+    element.textContent,
+    element.getAttribute("aria-label"),
+    element.getAttribute("title"),
+    element.getAttribute("name"),
+    element.id,
+    element.className,
+    element.getAttribute("class")
+  ].filter(Boolean).join(" ")).toLowerCase();
+  if (/(\bclose\b|\bdismiss\b|modal-close|dialog-close|drawer-close|ant-modal-close|el-dialog__close|mui.*close|\u5173\u95ed|[\u00d7\u2715])/.test(source)) return true;
+  const role = element.getAttribute("role");
+  const isCompactButton = (element.tagName.toLowerCase() === "button" || role === "button" || element.hasAttribute("onclick")) &&
+    box.width > 0 && box.height > 0 && box.width <= 72 && box.height <= 72;
+  if (!isCompactButton) return false;
+  const dialog = element.closest("dialog[open], [role='dialog'], [aria-modal='true'], .modal, .dialog, .popup");
+  if (!dialog) return false;
+  const dialogBox = dialog.getBoundingClientRect();
+  return box.left > dialogBox.left + dialogBox.width * 0.72 && box.top < dialogBox.top + Math.max(96, dialogBox.height * 0.3);
 }
 
 function findLabelText(element) {
