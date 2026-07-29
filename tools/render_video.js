@@ -3,6 +3,7 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const framesOnly = process.argv.includes("--frames-only");
+const resolution = resolveVideoResolution(process.argv);
 const positionalArgs = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const timelinePath = positionalArgs[0] || path.join(__dirname, "..", "dist", "video-timeline.json");
 const outputDir = positionalArgs[1] || path.join(__dirname, "..", "dist", "video");
@@ -10,8 +11,8 @@ const outputDir = positionalArgs[1] || path.join(__dirname, "..", "dist", "video
 const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf8"));
 const frameDir = path.join(outputDir, "frames");
 const pngFrameDir = path.join(outputDir, "png-frames");
-const VIDEO_WIDTH = 2560;
-const VIDEO_HEIGHT = 1440;
+const VIDEO_WIDTH = resolution.width;
+const VIDEO_HEIGHT = resolution.height;
 const VIDEO_VIEWBOX_WIDTH = 1280;
 const VIDEO_VIEWBOX_HEIGHT = 720;
 const FINAL_HOLD_SECONDS = 1;
@@ -73,6 +74,10 @@ if (!framesOnly) {
       "-safe", "0",
       "-i", concatPath,
       "-vf", "fps=30,format=yuv420p",
+      "-c:v", "libx264",
+      "-preset", "slow",
+      "-crf", "16",
+      "-movflags", "+faststart",
       outputPath
     ], { encoding: "utf8" });
     if (result.status !== 0) {
@@ -84,6 +89,14 @@ if (!framesOnly) {
 } else {
   fs.writeFileSync(concatPath, svgConcatLines.join("\n"), "utf8");
   console.log(`Generated concat list: ${concatPath}`);
+}
+
+function resolveVideoResolution(argv) {
+  const arg = argv.find((item) => item === "--4k" || item.startsWith("--resolution="));
+  const value = arg === "--4k" ? "4k" : String(arg || "").split("=")[1] || "2k";
+  if (/^(4k|uhd|2160p)$/i.test(value)) return { width: 3840, height: 2160, label: "4k" };
+  if (/^(1080p|fhd)$/i.test(value)) return { width: 1920, height: 1080, label: "1080p" };
+  return { width: 2560, height: 1440, label: "2k" };
 }
 
 function renderFrame(segment) {

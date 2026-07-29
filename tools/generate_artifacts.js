@@ -8,9 +8,10 @@ const outputDir = process.argv[3] || path.join(__dirname, "..", "dist");
 const recording = JSON.parse(fs.readFileSync(inputPath, "utf8"));
 const nodes = recording.nodes || [];
 const tabs = Object.values(recording.tabContexts || {});
+const exportTitle = recording.session?.title || recording.session?.name || recording.session?.id || "操作步骤";
 const steps = buildArticleSteps(nodes);
 const exportSteps = buildPrivacySafeArticleSteps(steps);
-const timeline = buildVideoTimeline(exportSteps);
+const timeline = buildVideoTimeline(exportSteps, { title: exportTitle, forceTitleIntro: true });
 
 fs.mkdirSync(outputDir, { recursive: true });
 fs.writeFileSync(path.join(outputDir, "article.html"), renderArticle(recording, tabs, exportSteps), "utf8");

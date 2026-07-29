@@ -263,3 +263,8 @@ npm run render-video
 ### 7.4 标签页切换太多
 
 当前 MVP 已过滤没有后续有效操作的 tab 切换，并会按下一次真实操作判断短暂往返切换是否有业务意义；`tab_open` 后立即跟随的同目标 `tab_switch` 也会做基础去重。复杂多窗口并行录制仍未覆盖。
+## MP4 高分辨率导出检查
+
+- `npm run render-video` 应输出 `dist/video/sop-video.mp4`，默认分辨率为 2560x1440。
+- `npm run render-video:4k` 应输出 3840x2160 MP4；该路径依赖本机 Chrome 和 FFmpeg。
+- 预览页直接导出仍是 WebM；浏览器环境不作为可靠 MP4 编码入口。

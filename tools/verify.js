@@ -293,7 +293,8 @@ runCheck("视频帧生成器可渲染真实截图、高亮和打码", () => {
   assert(!renderVideo.includes("目标操作区域"), "render_video.js 不应为普通操作片段伪造系统页面");
   assert(renderVideo.includes("privacyMaskBoxes"), "render_video.js 必须渲染打码区域");
   assert(renderVideo.includes("renderFocusZoom"), "render_video.js 必须基于高亮区域渲染局部放大预览");
-  assert(renderVideo.includes("const VIDEO_WIDTH = 2560") && renderVideo.includes("const VIDEO_HEIGHT = 1440"), "render_video.js must output 2K frames");
+  assert(renderVideo.includes("resolveVideoResolution") && renderVideo.includes("3840, height: 2160") && renderVideo.includes("2560, height: 1440"), "render_video.js must support 2K and 4K MP4 frames");
+  assert(renderVideo.includes("\"-crf\", \"16\"") && renderVideo.includes("\"-preset\", \"slow\"") && renderVideo.includes("\"-movflags\", \"+faststart\""), "render_video.js must use high-quality H.264 MP4 settings");
   assert(renderVideo.includes("viewBox=\"0 0 ${VIDEO_VIEWBOX_WIDTH} ${VIDEO_VIEWBOX_HEIGHT}\""), "render_video.js must scale legacy coordinates through SVG viewBox");
   assert(renderVideo.includes("--window-size=${VIDEO_WIDTH},${VIDEO_HEIGHT}"), "render_video.js must render PNG frames at 2K resolution");
   assert(renderVideo.includes("* 2.8"), "render_video.js focus zoom must avoid over-enlarging low-resolution screenshot areas");
@@ -2412,9 +2413,11 @@ runCheck("viewer supports editable filenames and no review status UI", () => {
 runCheck("video exporters keep the tail frames visible", () => {
   const viewerJs = readText("extension/viewer.js");
   const renderVideoJs = readText("tools/render_video.js");
+  const packageJson = readJson("package.json");
   assert(viewerJs.includes("VIDEO_FINAL_HOLD_MS") && viewerJs.includes("holdLastVideoFrame"), "preview WebM export must hold the final frame before stopping");
   assert(viewerJs.includes("recorder.start(250)"), "preview WebM export must flush MediaRecorder chunks periodically");
   assert(renderVideoJs.includes("FINAL_HOLD_SECONDS"), "offline MP4 export must explicitly hold the final concat frame");
+  assert(packageJson.scripts["render-video:4k"] === "node tools/render_video.js --resolution=4k", "package.json must expose a 4K MP4 render script");
 });
 
 runCheck("video highlight style matches article focus frame", () => {

@@ -151,6 +151,7 @@ npm run render-video:frames
 
 ```powershell
 npm run render-video
+npm run render-video:4k
 ```
 
 该命令会先把 SVG 帧渲染为 `dist/video/png-frames/*.png`，再在 `dist/video/sop-video.mp4` 输出基础 MP4。没有安装 Chrome 或 FFmpeg 时，脚本会保留已生成的 SVG 视频帧并提示安装依赖。
@@ -189,3 +190,13 @@ package.json
 - 当前已支持基于截图生成 SVG 视频帧；如本机安装 Chrome 和 FFmpeg，可进一步通过 PNG 中间帧合成 MP4。
 - 录制状态存储在 `chrome.storage.local`；截图 dataUrl 存储在 IndexedDB。重新开始录制或清空时会清理已知旧截图；单次录制会保留最近 120 张截图，超出后淘汰最早截图并保留步骤文本和截图元数据。
 - 多标签页已记录为节点，并会按下一次真实操作过滤没有业务意义的切换和短暂往返切换；复杂多窗口并行录制还未支持。
+## MP4 高分辨率导出
+
+预览页里的“导出视频 WebM”仍由浏览器 `MediaRecorder` 生成；Chrome 环境通常不能稳定直接编码 MP4。需要 MP4 时，先导出/生成视频时间轴，再在本机运行：
+
+```powershell
+npm run render-video
+npm run render-video:4k
+```
+
+`npm run render-video` 输出 2560x1440 MP4；`npm run render-video:4k` 输出 3840x2160 MP4，并使用高质量 H.264 参数减少截图颗粒感。MP4 生成依赖本机 Chrome 和 FFmpeg。
