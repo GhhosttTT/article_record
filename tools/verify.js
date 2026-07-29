@@ -2285,6 +2285,28 @@ runCheck("初始 about:blank 的新标签页会在真实 URL 出现后补记 tab
   assert(testing.includes("初始 about:blank 的新标签页应在真实 URL 出现后补记 tab_open"), "TESTING.md 必须覆盖延迟 tab_open");
 });
 
+runCheck("video timeline supports a 2 second title intro", () => {
+  const { buildVideoTimeline } = require(path.join(root, "extension/shared/artifacts.js"));
+  const timeline = buildVideoTimeline([
+    {
+      id: "node_intro_check",
+      sequence: 1,
+      type: "operation",
+      description: "Click Add.",
+      tabAlias: "Tab A",
+      focusBox: null,
+      privacyMaskBoxes: []
+    }
+  ], { title: "ZKBio TimeCloud" });
+  assert(timeline.segments[0].type === "title_intro", "first video segment must be title_intro when article title is present");
+  assert(timeline.segments[0].startTime === 0 && timeline.segments[0].endTime === 2, "title_intro must last exactly 2 seconds");
+  assert(timeline.segments[1].startTime === 2, "first operation segment must start after title_intro");
+  const viewerJs = readText("extension/viewer.js");
+  const renderVideoJs = readText("tools/render_video.js");
+  assert(viewerJs.includes("drawTitleIntroFrame"), "viewer.js must draw the video title intro");
+  assert(renderVideoJs.includes("renderTitleIntroFrame"), "render_video.js must render title_intro SVG frames");
+});
+
 for (const check of checks) {
   if (check.error) {
     console.error(`FAIL ${check.name}`);

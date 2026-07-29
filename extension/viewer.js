@@ -627,6 +627,10 @@ function pickVideoMimeType() {
 async function drawVideoFrame(ctx, segment, timelineTitle = "") {
   ctx.fillStyle = "#111827";
   ctx.fillRect(0, 0, VIDEO_VIEWBOX_WIDTH, VIDEO_VIEWBOX_HEIGHT);
+  if (segment.type === "title_intro") {
+    drawTitleIntroFrame(ctx, segment, timelineTitle);
+    return;
+  }
   if (segment.visual) {
     await drawScreenshotFrame(ctx, segment);
   } else if (segment.type === "tab_transition") {
@@ -640,6 +644,32 @@ async function drawVideoFrame(ctx, segment, timelineTitle = "") {
   drawArticleTitle(ctx, segment.articleTitle || timelineTitle);
   if (segment.key) drawKeyBadge(ctx, segment.key);
   drawSubtitle(ctx, segment);
+}
+
+function drawTitleIntroFrame(ctx, segment, timelineTitle = "") {
+  const title = trimMiddle(segment.caption || segment.articleTitle || timelineTitle || "\u64cd\u4f5c\u6b65\u9aa4", 34);
+  ctx.fillStyle = "#fffdf8";
+  ctx.fillRect(0, 0, VIDEO_VIEWBOX_WIDTH, VIDEO_VIEWBOX_HEIGHT);
+  ctx.fillStyle = "rgba(5,5,5,.08)";
+  for (let x = 0; x <= VIDEO_VIEWBOX_WIDTH; x += 32) {
+    ctx.fillRect(x, 0, 1, VIDEO_VIEWBOX_HEIGHT);
+  }
+  for (let y = 0; y <= VIDEO_VIEWBOX_HEIGHT; y += 32) {
+    ctx.fillRect(0, y, VIDEO_VIEWBOX_WIDTH, 1);
+  }
+
+  roundRect(ctx, 76, 72, 180, 180, 28, "#0d99ff", "#050505", 4);
+  roundRect(ctx, 224, 212, 134, 134, 28, "#ff7262", "#050505", 4);
+  roundRect(ctx, 934, 86, 214, 128, 28, "#ffcd29", "#050505", 4);
+  roundRect(ctx, 1022, 418, 158, 158, 28, "#14ae5c", "#050505", 4);
+  roundRect(ctx, 122, 506, 248, 82, 41, "#a259ff", "#050505", 4);
+
+  roundRect(ctx, 394, 190, 492, 78, 39, "#050505");
+  drawText(ctx, "\u64cd\u4f5c\u6b65\u9aa4", 640, 240, 26, "#fffdf8", "900", "center");
+  drawText(ctx, title, 640, 358, 48, "#050505", "900", "center");
+  drawText(ctx, "SOP Video", 640, 418, 20, "#6b6259", "800", "center");
+  roundRect(ctx, 482, 498, 316, 54, 27, "#fffdf8", "#050505", 3);
+  drawText(ctx, "\u5f00\u5934 2 \u79d2\u6807\u9898\u9875", 640, 534, 20, "#050505", "800", "center");
 }
 
 async function drawScreenshotFrame(ctx, segment) {

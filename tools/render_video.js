@@ -83,6 +83,7 @@ if (!framesOnly) {
 }
 
 function renderFrame(segment) {
+  if (segment.type === "title_intro") return renderTitleIntroFrame(segment);
   const isTab = segment.type === "tab_transition";
   const isNavigation = segment.type === "navigation";
   const isChapter = segment.type === "chapter_intro";
@@ -98,6 +99,31 @@ function renderFrame(segment) {
   ${renderArticleTitle(segment.articleTitle)}
   ${segment.key ? renderKeyBadge(segment.key) : ""}
   ${renderSubtitle(segment)}
+</svg>`;
+}
+
+function renderTitleIntroFrame(segment) {
+  const title = trimMiddle(segment.caption || segment.articleTitle || "\u64cd\u4f5c\u6b65\u9aa4", 34);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${VIDEO_WIDTH}" height="${VIDEO_HEIGHT}" viewBox="0 0 ${VIDEO_VIEWBOX_WIDTH} ${VIDEO_VIEWBOX_HEIGHT}">
+  <defs>
+    <pattern id="title_grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#050505" stroke-width="1" opacity="0.08"/>
+    </pattern>
+  </defs>
+  <rect width="${VIDEO_VIEWBOX_WIDTH}" height="${VIDEO_VIEWBOX_HEIGHT}" fill="#fffdf8"/>
+  <rect width="${VIDEO_VIEWBOX_WIDTH}" height="${VIDEO_VIEWBOX_HEIGHT}" fill="url(#title_grid)"/>
+  <rect x="76" y="72" width="180" height="180" rx="28" fill="#0d99ff" stroke="#050505" stroke-width="4"/>
+  <rect x="224" y="212" width="134" height="134" rx="28" fill="#ff7262" stroke="#050505" stroke-width="4"/>
+  <rect x="934" y="86" width="214" height="128" rx="28" fill="#ffcd29" stroke="#050505" stroke-width="4"/>
+  <rect x="1022" y="418" width="158" height="158" rx="28" fill="#14ae5c" stroke="#050505" stroke-width="4"/>
+  <rect x="122" y="506" width="248" height="82" rx="41" fill="#a259ff" stroke="#050505" stroke-width="4"/>
+  <rect x="394" y="190" width="492" height="78" rx="39" fill="#050505"/>
+  <text x="640" y="240" text-anchor="middle" font-size="26" font-weight="900" fill="#fffdf8" font-family="Microsoft YaHei, Segoe UI, sans-serif">\u64cd\u4f5c\u6b65\u9aa4</text>
+  <text x="640" y="358" text-anchor="middle" font-size="48" font-weight="900" fill="#050505" font-family="Microsoft YaHei, Segoe UI, sans-serif">${escapeXml(title)}</text>
+  <text x="640" y="418" text-anchor="middle" font-size="20" font-weight="800" fill="#6b6259" font-family="Microsoft YaHei, Segoe UI, sans-serif">SOP Video</text>
+  <rect x="482" y="498" width="316" height="54" rx="27" fill="#fffdf8" stroke="#050505" stroke-width="3"/>
+  <text x="640" y="534" text-anchor="middle" font-size="20" font-weight="800" fill="#050505" font-family="Microsoft YaHei, Segoe UI, sans-serif">\u5f00\u5934 2 \u79d2\u6807\u9898\u9875</text>
 </svg>`;
 }
 
@@ -307,7 +333,7 @@ function focusZoomAnchor(box, zoomRect, zoomScale) {
 
 function cleanGeneratedFrames(frameDir) {
   for (const entry of fs.readdirSync(frameDir, { withFileTypes: true })) {
-    if (entry.isFile() && /^(segment_|chapter_intro_).+\.svg$/.test(entry.name)) {
+    if (entry.isFile() && /^(?:segment_.+|chapter_intro_.+|title_intro)\.svg$/.test(entry.name)) {
       fs.unlinkSync(path.join(frameDir, entry.name));
     }
   }
@@ -315,7 +341,7 @@ function cleanGeneratedFrames(frameDir) {
 
 function cleanGeneratedPngFrames(frameDir) {
   for (const entry of fs.readdirSync(frameDir, { withFileTypes: true })) {
-    if (entry.isFile() && /^(segment_|chapter_intro_).+\.png$/.test(entry.name)) {
+    if (entry.isFile() && /^(?:segment_.+|chapter_intro_.+|title_intro)\.png$/.test(entry.name)) {
       fs.unlinkSync(path.join(frameDir, entry.name));
     }
   }

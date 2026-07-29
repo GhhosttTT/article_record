@@ -193,10 +193,16 @@
     }
     let cursor = 0;
     const articleTitle = normalizeText(options.title || "");
-    const segments = (steps || []).map((step) => {
+    const segments = [];
+    if (articleTitle) {
+      const titleSegment = buildVideoTitleIntroSegment(articleTitle, cursor);
+      segments.push(titleSegment);
+      cursor = titleSegment.endTime;
+    }
+    (steps || []).forEach((step) => {
       const segment = buildVideoSegment(step, cursor, articleTitle);
       cursor = segment.endTime;
-      return segment;
+      segments.push(segment);
     });
     return {
       version: "0.1.0",
@@ -329,6 +335,11 @@
     const segments = [];
     const stepSet = new Set(steps || []);
     const articleTitle = normalizeText(options.title || "");
+    if (articleTitle) {
+      const titleSegment = buildVideoTitleIntroSegment(articleTitle, cursor);
+      segments.push(titleSegment);
+      cursor = titleSegment.endTime;
+    }
     for (const chapter of chapters || []) {
       const introDuration = 2;
       segments.push({
@@ -362,6 +373,27 @@
       title: articleTitle || null,
       duration: cursor,
       segments
+    };
+  }
+
+  function buildVideoTitleIntroSegment(articleTitle, cursor = 0) {
+    return {
+      id: "title_intro",
+      stepId: null,
+      type: "title_intro",
+      startTime: cursor,
+      endTime: cursor + 2,
+      caption: articleTitle,
+      voiceoverText: articleTitle,
+      currentTabAlias: null,
+      pageTitle: null,
+      pageUrl: null,
+      articleTitle,
+      visual: null,
+      screenshot: null,
+      storyboardVisualType: "title_intro",
+      highlight: null,
+      privacyMaskBoxes: []
     };
   }
 
