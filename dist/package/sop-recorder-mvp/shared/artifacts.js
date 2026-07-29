@@ -454,6 +454,8 @@
     segment.visual = lastScreenshotVisual.visual;
     segment.screenshot = lastScreenshotVisual.screenshot || null;
     segment.storyboardVisualType = "screenshot";
+    segment.highlight = null;
+    segment.privacyMaskBoxes = [];
     segment.inheritedVisual = true;
   }
 

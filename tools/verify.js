@@ -2351,12 +2351,14 @@ runCheck("video timeline reuses the previous screenshot for no-image steps", () 
       description: "Confirm the result.",
       image: null,
       screenshot: null,
-      focusBox: null,
-      privacyMaskBoxes: []
+      focusBox: { x: 300, y: 220, width: 120, height: 40 },
+      privacyMaskBoxes: [{ x: 300, y: 220, width: 120, height: 40 }]
     }
   ]);
   assert(timeline.segments[1].visual === "data:image/png;base64,PREVIOUS", "no-image video steps must reuse the previous screenshot");
   assert(timeline.segments[1].inheritedVisual === true, "no-image video steps must mark inherited visuals");
+  assert(timeline.segments[1].highlight === null, "no-image video steps must not render stale highlights on inherited screenshots");
+  assert(timeline.segments[1].privacyMaskBoxes.length === 0, "no-image video steps must not render masks on inherited screenshots");
 });
 
 runCheck("viewer video export uses filename as title fallback", () => {
