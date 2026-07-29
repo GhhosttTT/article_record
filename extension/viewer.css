@@ -1169,43 +1169,50 @@ button.secondary:hover:not(:disabled),
 }
 
 .sidebar h1,
-.sidebar .eyebrow,
-.sidebar .summary strong,
-.sidebar .privacy-card strong,
-.sidebar .chapter-nav > strong,
-.sidebar .chapter-link,
-.sidebar .chapter-steps a {
+.sidebar .eyebrow {
   color: #f7f7f7;
 }
 
-.sidebar .eyebrow,
-.sidebar .summary span,
-.sidebar .privacy-card span,
-.sidebar .chapter-steps a,
-.sidebar .chapter-empty {
+.sidebar .eyebrow {
   color: #b7b7b7;
 }
 
 .sidebar .summary div,
 .sidebar .privacy-card,
 .sidebar .chapter-nav {
-  border-color: #242424;
-  background: #151515;
+  border-color: #e2e2e2;
+  background: #ffffff;
+  color: #111111;
 }
 
 .sidebar .privacy-card.ok,
 .sidebar .privacy-card.warn {
-  border-color: #2c2c2c;
-  background: #151515;
+  border-color: #e2e2e2;
+  background: #ffffff;
+}
+
+.sidebar .summary strong,
+.sidebar .privacy-card strong,
+.sidebar .chapter-nav > strong,
+.sidebar .chapter-link,
+.sidebar .chapter-steps a {
+  color: #111111;
+}
+
+.sidebar .summary span,
+.sidebar .privacy-card span,
+.sidebar .chapter-steps a,
+.sidebar .chapter-empty {
+  color: #646464;
 }
 
 .sidebar .chapter-steps {
-  border-left-color: #303030;
+  border-left-color: #dddddd;
 }
 
 .sidebar .chapter-link:hover,
 .sidebar .chapter-steps a:hover {
-  color: #ffffff;
+  color: #111111;
 }
 
 .actions {
