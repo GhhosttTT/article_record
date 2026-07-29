@@ -2456,8 +2456,8 @@ runCheck("video highlight style matches article focus frame", () => {
   assert(!viewerJs.includes("destination-out"), "preview video highlight must not erase screenshot pixels");
   assert(renderVideoJs.includes("renderVideoHighlight") && renderVideoJs.includes("paddedBoxToFrameRect"), "offline video export must render a padded highlight frame");
   assert(renderVideoJs.includes("fill-rule=\"evenodd\"") && renderVideoJs.includes("stroke=\"#ffffff\" stroke-width=\"8\"") && renderVideoJs.includes("stroke=\"#f18a2a\" stroke-width=\"5\""), "offline video highlight must use dim overlay plus white/orange double stroke");
-  assert(viewerJs.includes("videoVisibleMaskBoxes") && viewerJs.includes("overlapRatio(mask, highlight) < 0.45"), "preview video export must not cover ordinary highlights with privacy masks");
-  assert(renderVideoJs.includes("videoVisibleMaskBoxes") && renderVideoJs.includes("overlapRatio(mask, highlight) < 0.45"), "offline video export must not cover ordinary highlights with privacy masks");
+  assert(viewerJs.indexOf("maskBoxes.forEach") < viewerJs.indexOf("drawVideoHighlight(ctx, segment.highlight, frame)"), "preview video export must draw highlight borders above privacy masks");
+  assert(renderVideoJs.indexOf("${masks}") < renderVideoJs.indexOf("${highlight}"), "offline video export must draw highlight borders above privacy masks");
 });
 
 for (const check of checks) {

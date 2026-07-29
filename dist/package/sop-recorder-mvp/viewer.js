@@ -731,11 +731,11 @@ async function drawScreenshotFrame(ctx, segment) {
   });
   roundRect(ctx, frame.x - 4, frame.y - 4, frame.width + 8, frame.height + 8, 18, "#e2e8f0");
   ctx.drawImage(image, frame.x, frame.y, frame.width, frame.height);
-  const visibleMaskBoxes = videoVisibleMaskBoxes(segment, frame);
-  visibleMaskBoxes.forEach((box) => drawOverlayBox(ctx, box, frame, "#111827", "#111827", 0));
+  const maskBoxes = Array.isArray(segment.privacyMaskBoxes) ? segment.privacyMaskBoxes : [];
+  maskBoxes.forEach((box) => drawOverlayBox(ctx, box, frame, "#111827", "#111827", 0));
   drawVideoHighlight(ctx, segment.highlight, frame);
   drawFocusZoom(ctx, image, segment, frame);
-  if (visibleMaskBoxes.length) {
+  if (maskBoxes.length) {
     roundRect(ctx, frame.x + frame.width - 118, frame.y + 12, 104, 34, 17, "rgba(17,24,39,.9)");
     drawText(ctx, "已打码", frame.x + frame.width - 66, frame.y + 35, 17, "#fff", "800", "center");
   }
@@ -832,7 +832,7 @@ function drawFocusZoom(ctx, image, segment, frame) {
   ctx.save();
   roundedClip(ctx, zoom.x, zoom.y, zoom.width, zoom.height, 14);
   ctx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-  videoVisibleMaskBoxes(segment, frame).forEach((mask) => {
+  (segment.privacyMaskBoxes || []).forEach((mask) => {
     roundRect(ctx, imageX + mask.x * scale, imageY + mask.y * scale, Math.max(1, mask.width * scale), Math.max(1, mask.height * scale), 8, "#111827");
   });
   ctx.restore();
@@ -848,18 +848,6 @@ function drawOverlayBox(ctx, box, frame, stroke, fill, lineWidth) {
   const height = Math.max(1, box.height / frame.sourceHeight * frame.height);
   if (fill) roundRect(ctx, x, y, width, height, 8, fill);
   if (stroke && lineWidth) roundRect(ctx, x, y, width, height, 8, null, stroke, lineWidth);
-}
-
-function videoVisibleMaskBoxes(segment, frame) {
-  const boxes = Array.isArray(segment.privacyMaskBoxes) ? segment.privacyMaskBoxes : [];
-  const highlight = paddedBoxToFrameRect(segment.highlight, frame);
-  const sensitive = Boolean(segment.privacyWarnings?.length);
-  if (!highlight || sensitive) return boxes;
-  return boxes.filter((box) => {
-    const mask = boxToFrameRect(box, frame);
-    if (!mask) return false;
-    return overlapRatio(mask, highlight) < 0.45;
-  });
 }
 
 function drawVideoHighlight(ctx, box, frame) {
@@ -938,14 +926,6 @@ function boxToFrameRect(box, frame) {
     width: Math.max(1, box.width / frame.sourceWidth * frame.width),
     height: Math.max(1, box.height / frame.sourceHeight * frame.height)
   };
-}
-
-function overlapRatio(a, b) {
-  const overlapWidth = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-  const overlapHeight = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-  const overlapArea = overlapWidth * overlapHeight;
-  const baseArea = Math.max(1, Math.min(a.width * a.height, b.width * b.height));
-  return overlapArea / baseArea;
 }
 
 function paddedBoxToFrameRect(box, frame) {
