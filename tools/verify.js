@@ -2361,6 +2361,14 @@ runCheck("viewer supports editable filenames and no review status UI", () => {
   assert(viewerCss.includes("#timelineBtn") && viewerCss.includes("display: none"), "video timeline export must be hidden from the main preview actions");
 });
 
+runCheck("video exporters keep the tail frames visible", () => {
+  const viewerJs = readText("extension/viewer.js");
+  const renderVideoJs = readText("tools/render_video.js");
+  assert(viewerJs.includes("VIDEO_FINAL_HOLD_MS") && viewerJs.includes("holdLastVideoFrame"), "preview WebM export must hold the final frame before stopping");
+  assert(viewerJs.includes("recorder.start(250)"), "preview WebM export must flush MediaRecorder chunks periodically");
+  assert(renderVideoJs.includes("FINAL_HOLD_SECONDS"), "offline MP4 export must explicitly hold the final concat frame");
+});
+
 for (const check of checks) {
   if (check.error) {
     console.error(`FAIL ${check.name}`);

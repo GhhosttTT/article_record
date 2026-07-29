@@ -27,6 +27,8 @@ const VIDEO_VIEWBOX_WIDTH = 1280;
 const VIDEO_VIEWBOX_HEIGHT = 720;
 const VIDEO_SCALE = VIDEO_WIDTH / VIDEO_VIEWBOX_WIDTH;
 const WEBM_VIDEO_BITS_PER_SECOND = 48_000_000;
+const VIDEO_EXPORT_FPS = 12;
+const VIDEO_FINAL_HOLD_MS = 1000;
 
 els.privacyMaskToggle?.addEventListener("change", () => {
   if (currentState) applyState(currentState, { preserveTitle: true });
@@ -619,7 +621,6 @@ async function renderTimelineWebm(timeline) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.setTransform(VIDEO_SCALE, 0, 0, VIDEO_SCALE, 0, 0);
-  const fps = 12;
   const mimeType = pickVideoMimeType();
   const stream = canvas.captureStream(0);
   const recorderOptions = {
@@ -637,10 +638,11 @@ async function renderTimelineWebm(timeline) {
     recorder.addEventListener("error", () => reject(recorder.error), { once: true });
   });
 
-  recorder.start();
+  recorder.start(250);
   for (const segment of timeline.segments || []) {
-    await renderSegmentFrames(ctx, stream, segment, fps, timeline.title);
+    await renderSegmentFrames(ctx, stream, segment, VIDEO_EXPORT_FPS, timeline.title);
   }
+  await holdLastVideoFrame(stream, VIDEO_EXPORT_FPS, VIDEO_FINAL_HOLD_MS);
   recorder.stop();
   await stopped;
   stream.getTracks().forEach((track) => track.stop());
@@ -653,9 +655,21 @@ async function renderSegmentFrames(ctx, stream, segment, fps, timelineTitle = ""
   const frameCount = Math.max(1, Math.ceil(durationMs / (1000 / fps)));
   await drawVideoFrame(ctx, segment, timelineTitle);
   for (let index = 0; index < frameCount; index += 1) {
-    stream.getVideoTracks?.()[0]?.requestFrame?.();
+    requestCanvasFrame(stream);
     await wait(1000 / fps);
   }
+}
+
+async function holdLastVideoFrame(stream, fps, durationMs) {
+  const frameCount = Math.max(1, Math.ceil(durationMs / (1000 / fps)));
+  for (let index = 0; index < frameCount; index += 1) {
+    requestCanvasFrame(stream);
+    await wait(1000 / fps);
+  }
+}
+
+function requestCanvasFrame(stream) {
+  stream.getVideoTracks?.()[0]?.requestFrame?.();
 }
 
 function pickVideoMimeType() {

@@ -14,6 +14,7 @@ const VIDEO_WIDTH = 2560;
 const VIDEO_HEIGHT = 1440;
 const VIDEO_VIEWBOX_WIDTH = 1280;
 const VIDEO_VIEWBOX_HEIGHT = 720;
+const FINAL_HOLD_SECONDS = 1;
 fs.mkdirSync(frameDir, { recursive: true });
 fs.mkdirSync(pngFrameDir, { recursive: true });
 cleanGeneratedFrames(frameDir);
@@ -30,6 +31,7 @@ for (const segment of timeline.segments || []) {
 if (timeline.segments?.length) {
   const lastFrame = path.join(frameDir, `${timeline.segments.at(-1).id}.svg`);
   svgConcatLines.push(`file '${toFfmpegPath(lastFrame)}'`);
+  svgConcatLines.push(`duration ${FINAL_HOLD_SECONDS}`);
 }
 
 const concatPath = path.join(outputDir, "concat.txt");
@@ -56,6 +58,8 @@ if (!framesOnly) {
     }
     if (timeline.segments?.length) {
       const lastPng = path.join(pngFrameDir, `${timeline.segments.at(-1).id}.png`);
+      pngConcatLines.push(`file '${toFfmpegPath(lastPng)}'`);
+      pngConcatLines.push(`duration ${FINAL_HOLD_SECONDS}`);
       pngConcatLines.push(`file '${toFfmpegPath(lastPng)}'`);
     }
     fs.writeFileSync(concatPath, pngConcatLines.join("\n"), "utf8");
