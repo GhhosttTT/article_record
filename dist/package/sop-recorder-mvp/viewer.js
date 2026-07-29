@@ -32,6 +32,9 @@ els.privacyMaskToggle?.addEventListener("change", () => {
   if (currentState) applyState(currentState, { preserveTitle: true });
 });
 
+els.articleTitleInput?.addEventListener("input", refreshMetaTitle);
+els.exportFileNameInput?.addEventListener("input", refreshMetaTitle);
+
 els.steps.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-node-action]");
   if (!button) return;
@@ -304,11 +307,16 @@ function defaultArticleTitle(state, tabs) {
 
 function renderMeta(session, tabs) {
   els.flowMeta.innerHTML = `
-    <h2>${escapeHtml(session?.id || "尚未录制")}</h2>
+    <h2 data-export-title>${escapeHtml(exportBaseName() || session?.id || "尚未录制")}</h2>
     <div class="tabs">
       ${tabs.map((tab) => `<span class="tab-pill">${escapeHtml(tab.tabAlias)} · ${escapeHtml(tab.domain || "unknown")}</span>`).join("") || "<span class=\"tab-pill\">暂无标签页</span>"}
     </div>
   `;
+}
+
+function refreshMetaTitle() {
+  const title = els.flowMeta?.querySelector("[data-export-title]");
+  if (title) title.textContent = exportBaseName();
 }
 
 function renderPrivacyAudit(steps) {

@@ -2314,6 +2314,8 @@ runCheck("viewer supports editable filenames and no review status UI", () => {
   assert(viewerHtml.includes("exportFileNameInput"), "viewer.html must render editable export file name input");
   assert(viewerHtml.includes("title-field"), "viewer.html must mark article title as a prominent field");
   assert(viewerJs.includes("exportBaseName()"), "viewer.js must use the editable export base name");
+  assert(viewerJs.includes("data-export-title"), "viewer.js must render the visible flow title from export file name");
+  assert(viewerJs.includes("refreshMetaTitle"), "viewer.js must refresh the visible flow title when export names change");
   assert(viewerJs.includes("sanitizeFileBaseName"), "viewer.js must sanitize editable file names");
   assert(background.includes("sanitizeDownloadFilename"), "background.js must sanitize JSON export filenames");
   assert(!viewerJs.includes("data-node-status=\"reviewed\""), "viewer.js must not show a confirm action");
