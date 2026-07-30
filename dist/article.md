@@ -51,15 +51,11 @@
 
 在 Business License 中上传文件。
 
-打码区域：x=780, y=430, width=320, height=42
-
 ### 7. 填写 Support Contact
 
 **类型**：操作步骤
 
 在 Support Contact 中输入内容。
-
-打码区域：x=780, y=430, width=320, height=42
 
 ### 8. 填写 Legal Representative ID
 
@@ -69,7 +65,7 @@
 
 > 此步骤包含敏感字段，已脱敏。
 
-打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42
+打码区域：x=760, y=730, width=320, height=42
 
 ### 9. 填写 Billing Bank Card
 
@@ -79,4 +75,4 @@
 
 > 此步骤包含敏感字段，已脱敏。
 
-打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42; x=760, y=790, width=320, height=42
+打码区域：x=760, y=790, width=320, height=42

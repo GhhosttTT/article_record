@@ -1102,15 +1102,110 @@ function normalizeRectToMaskBox(rect) {
 }
 
 function mergeMaskBoxes(boxes) {
+  if (!boxes || boxes.length === 0) return [];
+  
+  // 先去重
   const seen = new Set();
-  const result = [];
+  const uniqueBoxes = [];
   boxes.forEach((box) => {
     const key = [box.x, box.y, box.width, box.height].join(":");
     if (seen.has(key)) return;
     seen.add(key);
-    result.push(box);
+    uniqueBoxes.push(box);
   });
-  return result;
+  
+  // 合并相邻或重叠的矩形
+  const merged = [];
+  const used = new Set();
+  
+  for (let i = 0; i < uniqueBoxes.length; i++) {
+    if (used.has(i)) continue;
+    
+    let current = { ...uniqueBoxes[i] };
+    let changed = true;
+    
+    // 持续尝试合并，直到没有可合并的矩形
+    while (changed) {
+      changed = false;
+      
+      for (let j = 0; j < uniqueBoxes.length; j++) {
+        if (used.has(j) || i === j) continue;
+        
+        const other = uniqueBoxes[j];
+        const mergedBox = tryMergeAdjacentBoxes(current, other);
+        
+        if (mergedBox) {
+          current = mergedBox;
+          used.add(j);
+          changed = true;
+        }
+      }
+    }
+    
+    used.add(i);
+    merged.push(current);
+  }
+  
+  return merged;
+}
+
+function tryMergeAdjacentBoxes(box1, box2) {
+  const MERGE_THRESHOLD = 8; // 允许的间隙阈值（像素）
+  
+  // 检查是否在同一行（Y 坐标相近，高度相似）
+  const sameRow = Math.abs(box1.y - box2.y) <= MERGE_THRESHOLD &&
+                  Math.abs(box1.height - box2.height) <= MERGE_THRESHOLD;
+  
+  // 检查是否在同一列（X 坐标相近，宽度相似）
+  const sameColumn = Math.abs(box1.x - box2.x) <= MERGE_THRESHOLD &&
+                     Math.abs(box1.width - box2.width) <= MERGE_THRESHOLD;
+  
+  // 检查水平相邻（同一行，X 轴相邻或重叠）
+  if (sameRow) {
+    const box1Right = box1.x + box1.width;
+    const box2Right = box2.x + box2.width;
+    const horizontalGap = Math.min(
+      Math.abs(box1Right - box2.x),
+      Math.abs(box2Right - box1.x)
+    );
+    
+    // 检查是否重叠或间隙小于阈值
+    const overlapsOrAdjacent = (box1.x <= box2Right + MERGE_THRESHOLD) && 
+                               (box2.x <= box1Right + MERGE_THRESHOLD);
+    
+    if (overlapsOrAdjacent) {
+      return {
+        x: Math.min(box1.x, box2.x),
+        y: Math.min(box1.y, box2.y),
+        width: Math.max(box1Right, box2Right) - Math.min(box1.x, box2.x),
+        height: Math.max(box1.height, box2.height),
+        coordinateSpace: box1.coordinateSpace || "viewport-css-pixel",
+        source: box1.source || box2.source
+      };
+    }
+  }
+  
+  // 检查垂直相邻（同一列，Y 轴相邻或重叠）
+  if (sameColumn) {
+    const box1Bottom = box1.y + box1.height;
+    const box2Bottom = box2.y + box2.height;
+    
+    const overlapsOrAdjacent = (box1.y <= box2Bottom + MERGE_THRESHOLD) && 
+                               (box2.y <= box1Bottom + MERGE_THRESHOLD);
+    
+    if (overlapsOrAdjacent) {
+      return {
+        x: Math.min(box1.x, box2.x),
+        y: Math.min(box1.y, box2.y),
+        width: Math.max(box1.width, box2.width),
+        height: Math.max(box1Bottom, box2Bottom) - Math.min(box1.y, box2.y),
+        coordinateSpace: box1.coordinateSpace || "viewport-css-pixel",
+        source: box1.source || box2.source
+      };
+    }
+  }
+  
+  return null;
 }
 function getMaskedValue(element, sensitive) {
   if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) return null;

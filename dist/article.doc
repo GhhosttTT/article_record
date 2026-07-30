@@ -96,7 +96,7 @@
   
   
   
-  <p class="coords">打码区域：x=780, y=430, width=320, height=42</p>
+  
 </article>
 <article class="step">
   <h3>7. 填写 Support Contact</h3>
@@ -107,7 +107,7 @@
   
   
   
-  <p class="coords">打码区域：x=780, y=430, width=320, height=42</p>
+  
 </article>
 <article class="step">
   <h3>8. 填写 Legal Representative ID</h3>
@@ -118,7 +118,7 @@
   <p class="warning">此步骤包含敏感字段，已脱敏。</p>
   
   
-  <p class="coords">打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42</p>
+  <p class="coords">打码区域：x=760, y=730, width=320, height=42</p>
 </article>
 <article class="step">
   <h3>9. 填写 Billing Bank Card</h3>
@@ -129,7 +129,7 @@
   <p class="warning">此步骤包含敏感字段，已脱敏。</p>
   
   
-  <p class="coords">打码区域：x=780, y=430, width=320, height=42; x=760, y=730, width=320, height=42; x=760, y=790, width=320, height=42</p>
+  <p class="coords">打码区域：x=760, y=790, width=320, height=42</p>
 </article>
 </body>
 </html>

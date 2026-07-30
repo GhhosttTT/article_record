@@ -9,7 +9,8 @@
   <text x="640" y="354" text-anchor="middle" font-size="22" fill="#66717d" font-family="Microsoft YaHei, Segoe UI, sans-serif">请根据底部字幕完成该步骤</text>
   <rect x="34" y="28" width="134" height="42" rx="21" fill="#e8f2fa" opacity="0.96"/>
   <text x="101" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#145985" font-family="Microsoft YaHei, Segoe UI, sans-serif">操作步骤</text>
-  
+  <rect x="844" y="28" width="402" height="42" rx="21" fill="#0f172a" opacity="0.86"/>
+  <text x="1045" y="56" text-anchor="middle" font-size="19" font-weight="800" fill="#f8fafc" font-family="Microsoft YaHei, Segoe UI, sans-serif">rec_sample_zkbiotime</text>
   
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
   <text x="640" y="650" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面。</text>

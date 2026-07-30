@@ -14,7 +14,8 @@
   <text x="997" y="444" text-anchor="middle" font-size="28" font-weight="900" fill="#fed7aa" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页 A：ZKBio TimeCloud 注册页</text>
   <rect x="34" y="28" width="158" height="42" rx="21" fill="#fff1e4" opacity="0.96"/>
   <text x="113" y="56" text-anchor="middle" font-size="20" font-weight="800" fill="#a65016" font-family="Microsoft YaHei, Segoe UI, sans-serif">标签页切换</text>
-  
+  <rect x="844" y="28" width="402" height="42" rx="21" fill="#0f172a" opacity="0.86"/>
+  <text x="1045" y="56" text-anchor="middle" font-size="19" font-weight="800" fill="#f8fafc" font-family="Microsoft YaHei, Segoe UI, sans-serif">rec_sample_zkbiotime</text>
   
   <rect x="0" y="586" width="1280" height="134" fill="#111827" opacity="0.88"/>
   <text x="640" y="650" text-anchor="middle" font-size="24" font-weight="800" fill="#ffffff" font-family="Microsoft YaHei, Segoe UI, sans-serif">完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。</text>

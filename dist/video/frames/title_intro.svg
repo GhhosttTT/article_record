@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 1280 720">
+  <defs>
+    <pattern id="title_grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#111827" stroke-width="1" opacity="0.045"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="720" fill="#f7f7f4"/>
+  <rect width="1280" height="720" fill="url(#title_grid)"/>
+  <text x="640" y="350" text-anchor="middle" font-size="54" font-weight="900" fill="#111111" font-family="Microsoft YaHei, Segoe UI, sans-serif">rec_sample_zkbiotime</text>
+  <rect x="442" y="390" width="396" height="4" fill="#f18a2a"/>
+</svg>

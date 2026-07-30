@@ -1,15 +1,33 @@
 {
   "version": "0.1.0",
-  "title": null,
-  "duration": 34,
+  "title": "rec_sample_zkbiotime",
+  "duration": 36,
   "segments": [
+    {
+      "id": "title_intro",
+      "stepId": null,
+      "type": "title_intro",
+      "startTime": 0,
+      "endTime": 2,
+      "caption": "rec_sample_zkbiotime",
+      "voiceoverText": "rec_sample_zkbiotime",
+      "currentTabAlias": null,
+      "pageTitle": null,
+      "pageUrl": null,
+      "articleTitle": "rec_sample_zkbiotime",
+      "visual": null,
+      "screenshot": null,
+      "storyboardVisualType": "title_intro",
+      "highlight": null,
+      "privacyMaskBoxes": []
+    },
     {
       "id": "segment_001",
       "stepId": "article_step_001",
       "action": "click",
       "type": "operation",
-      "startTime": 0,
-      "endTime": 5,
+      "startTime": 2,
+      "endTime": 7,
       "caption": "点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面。",
       "voiceoverText": "点击 SIGN UP，进入ZKBio TimeCloud 注册表单页面。",
       "voiceoverTextOverridden": false,
@@ -20,7 +38,7 @@
       "toUrl": null,
       "pageTitle": null,
       "pageUrl": null,
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": {
@@ -43,15 +61,16 @@
         "height": 44,
         "coordinateSpace": "viewport-css-pixel"
       },
-      "privacyMaskBoxes": []
+      "privacyMaskBoxes": [],
+      "privacyWarnings": []
     },
     {
       "id": "segment_002",
       "stepId": "article_step_002",
       "action": "input",
       "type": "operation",
-      "startTime": 5,
-      "endTime": 10,
+      "startTime": 7,
+      "endTime": 12,
       "caption": "Enter the registration email, then wait for the activation message.",
       "voiceoverText": "Enter the registration email, then wait for the activation message.",
       "voiceoverTextOverridden": true,
@@ -62,7 +81,7 @@
       "toUrl": null,
       "pageTitle": null,
       "pageUrl": null,
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": {
@@ -93,6 +112,9 @@
           "height": 42,
           "coordinateSpace": "viewport-css-pixel"
         }
+      ],
+      "privacyWarnings": [
+        "此步骤包含敏感字段，已脱敏。"
       ]
     },
     {
@@ -100,8 +122,8 @@
       "stepId": "article_step_003",
       "action": "tab_open",
       "type": "tab_transition",
-      "startTime": 10,
-      "endTime": 12,
+      "startTime": 12,
+      "endTime": 14,
       "caption": "打开标签页 B：邮箱收件箱，查收账号激活邮件。",
       "voiceoverText": "打开标签页 B：邮箱收件箱，查收账号激活邮件。",
       "voiceoverTextOverridden": false,
@@ -112,21 +134,22 @@
       "toUrl": "https://mail.example.com",
       "pageTitle": null,
       "pageUrl": "https://mail.example.com",
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": null,
       "storyboardVisualType": "tab_transition",
       "highlight": null,
-      "privacyMaskBoxes": []
+      "privacyMaskBoxes": [],
+      "privacyWarnings": []
     },
     {
       "id": "segment_004",
       "stepId": "article_step_004",
       "action": "click",
       "type": "operation",
-      "startTime": 12,
-      "endTime": 17,
+      "startTime": 14,
+      "endTime": 19,
       "caption": "在邮箱中点击 Activate Account，激活刚注册的账号。",
       "voiceoverText": "在邮箱中点击 Activate Account，激活刚注册的账号。",
       "voiceoverTextOverridden": false,
@@ -137,7 +160,7 @@
       "toUrl": null,
       "pageTitle": null,
       "pageUrl": null,
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": {
@@ -160,15 +183,16 @@
         "height": 38,
         "coordinateSpace": "viewport-css-pixel"
       },
-      "privacyMaskBoxes": []
+      "privacyMaskBoxes": [],
+      "privacyWarnings": []
     },
     {
       "id": "segment_005",
       "stepId": "article_step_005",
       "action": "tab_switch",
       "type": "tab_transition",
-      "startTime": 17,
-      "endTime": 19,
+      "startTime": 19,
+      "endTime": 21,
       "caption": "完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。",
       "voiceoverText": "完成邮箱激活后，切回标签页 A：ZKBio TimeCloud 注册页，继续登录操作。",
       "voiceoverTextOverridden": false,
@@ -179,21 +203,22 @@
       "toUrl": "https://biotimecloud.info/onboard/sign-in",
       "pageTitle": null,
       "pageUrl": "https://biotimecloud.info/onboard/sign-in",
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": null,
       "storyboardVisualType": "tab_transition",
       "highlight": null,
-      "privacyMaskBoxes": []
+      "privacyMaskBoxes": [],
+      "privacyWarnings": []
     },
     {
       "id": "segment_006",
       "stepId": "article_step_006",
       "action": "upload",
       "type": "operation",
-      "startTime": 19,
-      "endTime": 23,
+      "startTime": 21,
+      "endTime": 25,
       "caption": "在 Business License 中上传文件。",
       "voiceoverText": "在 Business License 中上传文件。",
       "voiceoverTextOverridden": false,
@@ -204,7 +229,7 @@
       "toUrl": null,
       "pageTitle": null,
       "pageUrl": null,
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": {
@@ -227,23 +252,16 @@
         "height": 42,
         "coordinateSpace": "viewport-css-pixel"
       },
-      "privacyMaskBoxes": [
-        {
-          "x": 780,
-          "y": 430,
-          "width": 320,
-          "height": 42,
-          "coordinateSpace": "viewport-css-pixel"
-        }
-      ]
+      "privacyMaskBoxes": [],
+      "privacyWarnings": []
     },
     {
       "id": "segment_007",
       "stepId": "article_step_007",
       "action": "input",
       "type": "operation",
-      "startTime": 23,
-      "endTime": 26,
+      "startTime": 25,
+      "endTime": 28,
       "caption": "在 Support Contact 中输入内容。",
       "voiceoverText": "在 Support Contact 中输入内容。",
       "voiceoverTextOverridden": false,
@@ -254,7 +272,7 @@
       "toUrl": null,
       "pageTitle": null,
       "pageUrl": null,
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": {
@@ -277,23 +295,16 @@
         "height": 42,
         "coordinateSpace": "viewport-css-pixel"
       },
-      "privacyMaskBoxes": [
-        {
-          "x": 780,
-          "y": 430,
-          "width": 320,
-          "height": 42,
-          "coordinateSpace": "viewport-css-pixel"
-        }
-      ]
+      "privacyMaskBoxes": [],
+      "privacyWarnings": []
     },
     {
       "id": "segment_008",
       "stepId": "article_step_008",
       "action": "input",
       "type": "operation",
-      "startTime": 26,
-      "endTime": 30,
+      "startTime": 28,
+      "endTime": 32,
       "caption": "在 Legal Representative ID 中输入内容。",
       "voiceoverText": "在 Legal Representative ID 中输入内容。",
       "voiceoverTextOverridden": false,
@@ -304,7 +315,7 @@
       "toUrl": null,
       "pageTitle": null,
       "pageUrl": null,
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": {
@@ -329,19 +340,15 @@
       },
       "privacyMaskBoxes": [
         {
-          "x": 780,
-          "y": 430,
-          "width": 320,
-          "height": 42,
-          "coordinateSpace": "viewport-css-pixel"
-        },
-        {
           "x": 760,
           "y": 730,
           "width": 320,
           "height": 42,
           "coordinateSpace": "viewport-css-pixel"
         }
+      ],
+      "privacyWarnings": [
+        "此步骤包含敏感字段，已脱敏。"
       ]
     },
     {
@@ -349,8 +356,8 @@
       "stepId": "article_step_009",
       "action": "input",
       "type": "operation",
-      "startTime": 30,
-      "endTime": 34,
+      "startTime": 32,
+      "endTime": 36,
       "caption": "在 Billing Bank Card 中输入内容。",
       "voiceoverText": "在 Billing Bank Card 中输入内容。",
       "voiceoverTextOverridden": false,
@@ -361,7 +368,7 @@
       "toUrl": null,
       "pageTitle": null,
       "pageUrl": null,
-      "articleTitle": null,
+      "articleTitle": "rec_sample_zkbiotime",
       "key": null,
       "visual": null,
       "screenshot": {
@@ -386,26 +393,15 @@
       },
       "privacyMaskBoxes": [
         {
-          "x": 780,
-          "y": 430,
-          "width": 320,
-          "height": 42,
-          "coordinateSpace": "viewport-css-pixel"
-        },
-        {
-          "x": 760,
-          "y": 730,
-          "width": 320,
-          "height": 42,
-          "coordinateSpace": "viewport-css-pixel"
-        },
-        {
           "x": 760,
           "y": 790,
           "width": 320,
           "height": 42,
           "coordinateSpace": "viewport-css-pixel"
         }
+      ],
+      "privacyWarnings": [
+        "此步骤包含敏感字段，已脱敏。"
       ]
     }
   ]

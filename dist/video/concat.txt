@@ -1,3 +1,5 @@
+file 'C:/Users/Administrator/Documents/article/dist/video/frames/title_intro.svg'
+duration 2
 file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_001.svg'
 duration 5
 file 'C:/Users/Administrator/Documents/article/dist/video/frames/segment_002.svg'
