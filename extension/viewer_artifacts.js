@@ -210,9 +210,9 @@ async function renderWordImage(step) {
 }
 
 async function renderWordScreenshotDataUrl(step) {
+  if (!step.image) return null;
   const box = step.focusBox;
   const masks = step.privacyMaskBoxes || [];
-  if (!box && !masks.length) return step.image;
   try {
     const image = await loadImageElement(step.image);
     const shot = step.screenshot || {};
@@ -297,6 +297,7 @@ function buildDocxBlob(title, tabs, steps, images) {
     .map((item, index) => ({
       ...item,
       relId: `rIdImage${index + 1}`,
+      drawingId: index + 1,
       path: `word/media/${item.filename}`,
       bytes: dataUrlToBytes(item.dataUrl)
     }));
@@ -304,8 +305,13 @@ function buildDocxBlob(title, tabs, steps, images) {
   const parts = [
     { path: "[Content_Types].xml", text: docxContentTypes(mediaFiles) },
     { path: "_rels/.rels", text: docxRootRels() },
+    { path: "docProps/core.xml", text: docxCoreProps(title) },
+    { path: "docProps/app.xml", text: docxAppProps() },
     { path: "word/_rels/document.xml.rels", text: docxDocumentRels(mediaFiles) },
     { path: "word/document.xml", text: docxDocumentXml(title, tabs, steps, imageByStep) },
+    { path: "word/styles.xml", text: docxStyles() },
+    { path: "word/settings.xml", text: docxSettings() },
+    { path: "word/theme/theme1.xml", text: docxTheme() },
     ...mediaFiles.map((file) => ({ path: file.path, bytes: file.bytes }))
   ];
   return new Blob([zipStore(parts)], {
@@ -320,14 +326,21 @@ function docxContentTypes(mediaFiles) {
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   ${pngOverride}
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+  <Override PartName="/word/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
 </Types>`;
 }
 
 function docxRootRels() {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rIdOfficeDocument" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rIdCore" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rIdApp" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>`;
 }
 
@@ -336,7 +349,12 @@ function docxDocumentRels(mediaFiles) {
     `<Relationship Id="${file.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${escapeXml(file.filename)}"/>`
   ).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${imageRels}</Relationships>`;
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+  <Relationship Id="rIdTheme" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
+  ${imageRels}
+</Relationships>`;
 }
 
 function docxDocumentXml(title, tabs, steps, imageByStep) {
@@ -376,14 +394,88 @@ function docxParagraph(text, style = "") {
 
 function docxImageParagraph(image) {
   const dims = docxImageSize(image.screenshot);
+  const drawingId = Number(image.drawingId) || Number(String(image.relId).replace(/\D/g, "")) || 1;
   return `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">
-    <wp:extent cx="${dims.width}" cy="${dims.height}"/><wp:docPr id="${image.relId.replace(/\D/g, "") || 1}" name="${escapeXml(image.filename)}"/>
+    <wp:extent cx="${dims.width}" cy="${dims.height}"/>
+    <wp:effectExtent l="0" t="0" r="0" b="0"/>
+    <wp:docPr id="${drawingId}" name="${escapeXml(image.filename)}"/>
+    <wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>
     <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>
-      <pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(image.filename)}"/><pic:cNvPicPr/></pic:nvPicPr>
-      <pic:blipFill><a:blip r:embed="${image.relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+      <pic:nvPicPr><pic:cNvPr id="${drawingId}" name="${escapeXml(image.filename)}"/><pic:cNvPicPr/></pic:nvPicPr>
+      <pic:blipFill><a:blip r:embed="${image.relId}" cstate="print"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
       <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${dims.width}" cy="${dims.height}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
     </pic:pic></a:graphicData></a:graphic>
   </wp:inline></w:drawing></w:r></w:p>`;
+}
+
+function docxCoreProps(title) {
+  const now = new Date().toISOString();
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${escapeXml(title || "SOP")}</dc:title>
+  <dc:creator>SOP Recorder</dc:creator>
+  <cp:lastModifiedBy>SOP Recorder</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
+</cp:coreProperties>`;
+}
+
+function docxAppProps() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>SOP Recorder</Application>
+  <DocSecurity>0</DocSecurity>
+  <ScaleCrop>false</ScaleCrop>
+  <Company></Company>
+  <LinksUpToDate>false</LinksUpToDate>
+  <SharedDoc>false</SharedDoc>
+  <HyperlinksChanged>false</HyperlinksChanged>
+  <AppVersion>16.0000</AppVersion>
+</Properties>`;
+}
+
+function docxSettings() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:zoom w:percent="100"/>
+  <w:defaultTabStop w:val="720"/>
+  <w:compat/>
+</w:settings>`;
+}
+
+function docxStyles() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei" w:hAnsi="Microsoft YaHei"/><w:sz w:val="22"/></w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:rPr><w:b/><w:sz w:val="48"/></w:rPr><w:pPr><w:spacing w:after="240"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:qFormat/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:pPr><w:spacing w:before="320" w:after="160"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:qFormat/><w:rPr><w:b/><w:sz w:val="26"/></w:rPr><w:pPr><w:spacing w:before="240" w:after="120"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Meta"><w:name w:val="Meta"/><w:basedOn w:val="Normal"/><w:rPr><w:color w:val="66717D"/><w:sz w:val="20"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Kind"><w:name w:val="Kind"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:color w:val="145985"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Warning"><w:name w:val="Warning"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:color w:val="9A3F00"/></w:rPr></w:style>
+</w:styles>`;
+}
+
+function docxTheme() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="SOP Recorder">
+  <a:themeElements>
+    <a:clrScheme name="SOP Recorder">
+      <a:dk1><a:srgbClr val="111827"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="374151"/></a:dk2><a:lt2><a:srgbClr val="F9FAFB"/></a:lt2>
+      <a:accent1><a:srgbClr val="F18A2A"/></a:accent1><a:accent2><a:srgbClr val="145985"/></a:accent2>
+      <a:accent3><a:srgbClr val="14AE5C"/></a:accent3><a:accent4><a:srgbClr val="0D99FF"/></a:accent4>
+      <a:accent5><a:srgbClr val="A259FF"/></a:accent5><a:accent6><a:srgbClr val="FF7262"/></a:accent6>
+      <a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink>
+    </a:clrScheme>
+    <a:fontScheme name="SOP Recorder"><a:majorFont><a:latin typeface="Microsoft YaHei"/><a:ea typeface="Microsoft YaHei"/></a:majorFont><a:minorFont><a:latin typeface="Microsoft YaHei"/><a:ea typeface="Microsoft YaHei"/></a:minorFont></a:fontScheme>
+    <a:fmtScheme name="SOP Recorder"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme>
+  </a:themeElements>
+</a:theme>`;
 }
 
 function docxImageSize(screenshot = {}) {

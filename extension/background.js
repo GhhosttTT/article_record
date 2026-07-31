@@ -1,5 +1,7 @@
 const STORAGE_KEY = "sopRecorderState";
+const HISTORY_KEY = "sopRecordingHistory";
 const MAX_SCREENSHOT_RECORDS = 120;
+const MAX_HISTORY_RECORDS = 50;
 
 importScripts("db.js");
 
@@ -163,8 +165,14 @@ async function handleMessage(message, sender) {
       return privacyAuditState();
     case "recorder:get-full-state":
       return fullStateWithScreenshots();
+    case "recorder:list-recordings":
+      return listRecordingHistory();
+    case "recorder:open-recording":
+      return openRecordingFromHistory(message.payload);
+    case "recorder:delete-recording":
+      return deleteRecordingFromHistory(message.payload);
     case "recorder:reset":
-      await cleanupCurrentSessionScreenshots();
+      await cleanupCurrentSessionScreenshotsIfUnarchived();
       runtimeState = structuredClone(initialState);
       await persistState();
       return publicState();
@@ -546,7 +554,7 @@ async function startRecording() {
   const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const activeTabIsRecordable = Boolean(activeTab?.id && !isIgnoredTab(activeTab));
   const now = new Date().toISOString();
-  await cleanupCurrentSessionScreenshots();
+  await cleanupCurrentSessionScreenshotsIfUnarchived();
   runtimeState = {
     status: "recording",
     session: {
@@ -586,6 +594,11 @@ async function cleanupCurrentSessionScreenshots() {
   await deleteScreenshotRecords(runtimeState.nodes.map((node) => node.screenshot?.id));
 }
 
+async function cleanupCurrentSessionScreenshotsIfUnarchived() {
+  if (await hasHistorySnapshot(runtimeState.session?.id)) return;
+  await cleanupCurrentSessionScreenshots();
+}
+
 async function pauseRecording() {
   if (runtimeState.status !== "recording") return publicState();
   runtimeState.status = "paused";
@@ -612,6 +625,7 @@ async function stopRecording() {
   if (runtimeState.session) {
     runtimeState.session.status = "completed";
     runtimeState.session.endedAt = new Date().toISOString();
+    runtimeState.session.updatedAt = runtimeState.session.endedAt;
   }
   await persistState();
   return publicState();
@@ -1200,6 +1214,132 @@ function privacyAuditState() {
   };
 }
 
+function shouldSaveCurrentSessionToHistory() {
+  return Boolean(runtimeState.session?.id && runtimeState.session?.status === "completed" && runtimeState.nodes.length);
+}
+
+async function getHistoryEntries() {
+  const saved = await chrome.storage.local.get(HISTORY_KEY);
+  return Array.isArray(saved[HISTORY_KEY]) ? saved[HISTORY_KEY] : [];
+}
+
+async function setHistoryEntries(entries) {
+  await chrome.storage.local.set({ [HISTORY_KEY]: entries });
+}
+
+async function hasHistorySnapshot(sessionId) {
+  if (!sessionId) return false;
+  const entries = await getHistoryEntries();
+  return entries.some((entry) => entry.id === sessionId);
+}
+
+async function saveCurrentSessionToHistory() {
+  const entry = buildHistoryEntry(runtimeState, new Date().toISOString());
+  if (!entry) return null;
+  const existing = await getHistoryEntries();
+  const sortedEntries = [
+    entry,
+    ...existing.filter((item) => item.id !== entry.id)
+  ].sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  const nextEntries = sortedEntries.slice(0, MAX_HISTORY_RECORDS);
+  const prunedEntries = sortedEntries.slice(MAX_HISTORY_RECORDS);
+  await setHistoryEntries(nextEntries);
+  for (const prunedEntry of prunedEntries) {
+    if (prunedEntry?.state) await cleanupHistoryScreenshotsIfUnused(prunedEntry.state, nextEntries);
+  }
+  return entry;
+}
+
+function buildHistoryEntry(state, fallbackUpdatedAt) {
+  if (!state.session?.id || !state.nodes?.length) return null;
+  const tabs = Object.values(state.tabContexts || {});
+  const title = normalizeText(state.session.title || defaultSessionTitle(state.session, tabs));
+  const updatedAt = state.session.updatedAt || state.session.endedAt || fallbackUpdatedAt;
+  return {
+    id: state.session.id,
+    title,
+    nodeCount: state.nodes.length,
+    tabCount: tabs.length,
+    startedAt: state.session.startedAt || null,
+    endedAt: state.session.endedAt || null,
+    updatedAt,
+    status: state.session.status || "completed",
+    state: {
+      ...state,
+      status: "idle",
+      session: {
+        ...state.session,
+        title,
+        updatedAt
+      },
+      pendingNavigations: {},
+      pendingTabOpens: {},
+      nodes: (state.nodes || []).map(stripInlineScreenshotData)
+    }
+  };
+}
+
+function defaultSessionTitle(session = {}, tabs = []) {
+  const firstTab = tabs.find((tab) => tab.title || tab.domain);
+  return session.id || firstTab?.title || firstTab?.domain || "SOP 录制";
+}
+
+function stripInlineScreenshotData(node) {
+  if (!node?.screenshot?.dataUrl) return node;
+  const { dataUrl, ...screenshot } = node.screenshot;
+  return { ...node, screenshot };
+}
+
+async function listRecordingHistory() {
+  const entries = await getHistoryEntries();
+  return {
+    ok: true,
+    recordings: entries.map(({ state, ...entry }) => entry)
+  };
+}
+
+async function openRecordingFromHistory(payload = {}) {
+  const id = payload.id;
+  if (!id) return { ok: false, error: "Missing recording id" };
+  if (runtimeState.status === "recording" || runtimeState.status === "paused") {
+    return { ok: false, error: "请先停止当前录制，再打开历史 SOP" };
+  }
+  const entries = await getHistoryEntries();
+  const entry = entries.find((item) => item.id === id);
+  if (!entry?.state) return { ok: false, error: "历史 SOP 不存在" };
+  if (runtimeState.session?.id !== id) await cleanupCurrentSessionScreenshotsIfUnarchived();
+  runtimeState = structuredClone(entry.state);
+  runtimeState.status = "idle";
+  runtimeState.pendingNavigations = {};
+  runtimeState.pendingTabOpens = {};
+  await persistState();
+  return { ok: true, state: publicState() };
+}
+
+async function deleteRecordingFromHistory(payload = {}) {
+  const id = payload.id;
+  if (!id) return { ok: false, error: "Missing recording id" };
+  const entries = await getHistoryEntries();
+  const target = entries.find((item) => item.id === id);
+  const nextEntries = entries.filter((item) => item.id !== id);
+  await setHistoryEntries(nextEntries);
+  if (target?.state && runtimeState.session?.id !== id) {
+    await cleanupHistoryScreenshotsIfUnused(target.state, nextEntries);
+  }
+  return listRecordingHistory();
+}
+
+async function cleanupHistoryScreenshotsIfUnused(state, remainingEntries) {
+  const protectedIds = new Set([
+    ...runtimeState.nodes.map((node) => node.screenshot?.id).filter(Boolean),
+    ...remainingEntries.flatMap((entry) => (entry.state?.nodes || []).map((node) => node.screenshot?.id).filter(Boolean))
+  ]);
+  const ids = (state.nodes || [])
+    .map((node) => node.screenshot?.id)
+    .filter((id) => id && !protectedIds.has(id));
+  await deleteScreenshotRecords(ids);
+}
+
 async function fullStateWithScreenshots() {
   const screenshotMap = await getScreenshotRecords(runtimeState.nodes.map((node) => node.screenshot?.id));
   return {
@@ -1375,6 +1515,7 @@ async function hydrateState() {
 
 async function persistState() {
   await chrome.storage.local.set({ [STORAGE_KEY]: runtimeState });
+  if (shouldSaveCurrentSessionToHistory()) await saveCurrentSessionToHistory();
   const text = runtimeState.status === "recording" ? String(runtimeState.nodes.length) : "";
   await chrome.action.setBadgeText({ text });
   await chrome.action.setBadgeBackgroundColor({ color: "#1b6aa8" });

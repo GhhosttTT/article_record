@@ -266,13 +266,14 @@ function getClickPoint(event) {
 }
 
 function sendClickEvent(target, clickPoint, options = {}) {
+  const actionTarget = resolveActionTarget(target, clickPoint) || target;
   sendRecorderEvent({
     action: "click",
-    target: extractTarget(target),
+    target: extractTarget(actionTarget),
     clickPoint,
     viewport: getViewport(),
     beforeUrl: location.href,
-    privacy: detectPrivacy(target),
+    privacy: detectPrivacy(actionTarget),
     preAction: Boolean(options.preAction)
   });
 }
@@ -684,6 +685,8 @@ function resolveActionTarget(target, clickPoint = null) {
 
 function findPreferredActionTarget(target) {
   if (!(target instanceof Element)) return null;
+  const buttonRoot = findButtonLikeAncestor(target);
+  if (buttonRoot) return buttonRoot;
   const prioritySelectors = [
     "button",
     "[role='button']",
@@ -708,6 +711,80 @@ function findPreferredActionTarget(target) {
     if (candidate instanceof Element && candidate.closest(ACTION_TARGET_SELECTOR)) return expandActionContainer(candidate);
   }
   return null;
+}
+
+function findButtonLikeAncestor(target) {
+  if (!(target instanceof Element) || isCheckableTarget(target) || getCheckableInput(target)) return null;
+  const iconAction = findIconActionAncestor(target);
+  if (iconAction) return iconAction;
+  let current = target;
+  let depth = 0;
+  while (current && current !== document.body && current !== document.documentElement && depth < 8) {
+    if (isButtonRootCandidate(current)) {
+      const box = current.getBoundingClientRect();
+      const visibility = getTargetVisibility(current, box);
+      if (visibility.visible && box.width >= 12 && box.height >= 12) return current;
+    }
+    current = current.parentElement;
+    depth += 1;
+  }
+  return null;
+}
+
+function isButtonRootCandidate(element) {
+  if (!(element instanceof Element)) return false;
+  if (element.matches("button, [role='button'], [datatype='action'], .MuiButton-root, .MuiButtonBase-root, .MuiIconButton-root, .ant-btn, .ant-btn-icon-only, .el-button, .btn, .icon-btn, .icon-button")) return true;
+  const signature = [
+    element.tagName,
+    element.className,
+    element.getAttribute("class"),
+    element.getAttribute("role"),
+    element.getAttribute("datatype"),
+    element.getAttribute("title"),
+    element.getAttribute("aria-label")
+  ].map((value) => String(value || "")).join(" ").toLowerCase();
+  return /\b(button|btn|mui-button|muiiconbutton|muibutton|ant-btn|el-button|icon-button|icon-btn)\b/.test(signature);
+}
+
+function findIconActionAncestor(target) {
+  if (!(target instanceof Element) || !isIconElement(target)) return null;
+  let current = target.parentElement;
+  let depth = 0;
+  while (current && current !== document.body && current !== document.documentElement && depth < 8) {
+    if (isCheckableTarget(current) || getCheckableInput(current)) return null;
+    if (isIconActionRootCandidate(current, target)) return current;
+    current = current.parentElement;
+    depth += 1;
+  }
+  return null;
+}
+
+function isIconElement(element) {
+  if (!(element instanceof Element)) return false;
+  const tag = element.tagName.toLowerCase();
+  if (["svg", "path", "use", "i"].includes(tag)) return true;
+  const signature = [
+    element.className,
+    element.getAttribute("class"),
+    element.getAttribute("data-icon"),
+    element.getAttribute("aria-hidden"),
+    element.getAttribute("role")
+  ].map((value) => String(value || "")).join(" ").toLowerCase();
+  return /\b(svg-inline--fa|fa-|icon|muiicon|material-icons)\b/.test(signature);
+}
+
+function isIconActionRootCandidate(element, originalIcon) {
+  if (!(element instanceof Element)) return false;
+  const box = element.getBoundingClientRect();
+  const iconBox = originalIcon.getBoundingClientRect();
+  const visibility = getTargetVisibility(element, box);
+  if (!visibility.visible || box.width < 12 || box.height < 12) return false;
+  if (box.width < iconBox.width || box.height < iconBox.height) return false;
+  if (box.width > Math.max(180, iconBox.width + 140) || box.height > Math.max(72, iconBox.height + 52)) return false;
+  if (isButtonRootCandidate(element) || element.hasAttribute("onclick")) return true;
+  const style = window.getComputedStyle(element);
+  const hasName = Boolean(normalizeText(element.getAttribute("aria-label") || element.getAttribute("title") || element.getAttribute("datatype") || ""));
+  return style.cursor === "pointer" && hasName;
 }
 
 function expandActionContainer(element) {
@@ -742,6 +819,8 @@ function closestVisibleActionElement(element) {
   let current = element;
   let depth = 0;
   while (current && current !== document.body && current !== document.documentElement && depth < 5) {
+    const buttonRoot = findButtonLikeAncestor(current);
+    if (buttonRoot) return buttonRoot;
     const type = inferTargetType(current);
     if (["button", "link", "menuitem"].includes(type) || current.hasAttribute("onclick")) {
       const box = current.getBoundingClientRect();
@@ -800,6 +879,7 @@ function findPointerCursorTarget(element) {
 }
 
 function extractTarget(element) {
+  element = findButtonLikeAncestor(element) || element;
   const box = element.getBoundingClientRect();
   const labelText = findLabelText(element);
   const dialogTitle = inferTargetType(element) === "dialog" ? findDialogTitle(element) : null;

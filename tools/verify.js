@@ -656,8 +656,8 @@ runCheck("录制控制状态会保持 runtime 和 session 一致", () => {
   const popupJs = readText("extension/popup.js");
   const popupCss = readText("extension/popup.css");
   assert(background.includes("cleanupCurrentSessionScreenshots"), "background 必须集中清理当前录制截图");
-  assert(normalizedBackground.includes("await cleanupCurrentSessionScreenshots();\n  runtimeState = {"), "重新开始录制前必须清理上一段录制截图");
-  assert(normalizedBackground.includes("await cleanupCurrentSessionScreenshots();\n      runtimeState = structuredClone(initialState);"), "清空录制前必须清理当前截图");
+  assert(normalizedBackground.includes("await cleanupCurrentSessionScreenshotsIfUnarchived();\n  runtimeState = {"), "重新开始录制前必须清理未归档的上一段录制截图");
+  assert(normalizedBackground.includes("await cleanupCurrentSessionScreenshotsIfUnarchived();\n      runtimeState = structuredClone(initialState);"), "清空录制前必须清理未归档的当前截图");
   assert(background.includes("const activeTabIsRecordable = Boolean(activeTab?.id && !isIgnoredTab(activeTab))"), "开始录制时必须先判断当前 tab 是否可记录");
   assert(background.includes("activeTabId: activeTabIsRecordable ? activeTab.id : null"), "从内部页开始录制时 activeTabId 必须保持为空");
   assert(background.includes("if (activeTabIsRecordable)") && background.includes("await ensureTabContext(activeTab, activeTab.windowId)"), "开始录制时只能为可记录 tab 建立上下文");
@@ -832,6 +832,10 @@ runCheck("离线和预览 Markdown/Word 导出复用 ArticleStep 数据", () => 
   assert(viewerArtifacts.includes("async function renderWordImage"), "预览页 Word 导出必须把截图和高亮合成为单张图片");
   assert(viewerArtifacts.includes("function buildDocxBlob"), "预览页 Word 导出必须生成 OpenXML DOCX 包");
   assert(viewerArtifacts.includes("[Content_Types].xml") && viewerArtifacts.includes("word/document.xml"), "预览页 Word 导出必须包含 DOCX 核心部件");
+  assert(viewerArtifacts.includes("word/styles.xml") && viewerArtifacts.includes("word/settings.xml"), "预览页 Word 导出必须包含标准 styles/settings 部件，提升复制粘贴兼容性");
+  assert(viewerArtifacts.includes("docProps/core.xml") && viewerArtifacts.includes("docProps/app.xml"), "预览页 Word 导出必须包含标准 docProps 部件");
+  assert(viewerArtifacts.includes("drawingId") && viewerArtifacts.includes("<wp:cNvGraphicFramePr>"), "Word 图片 drawing 必须使用唯一 ID 和标准 graphic frame 属性");
+  assert(!viewerArtifacts.includes("if (!box && !masks.length) return step.image"), "Word 导出必须把所有截图统一渲染为 PNG，避免复制后图片资源破损");
   assert(viewerArtifacts.includes("drawWordFocusOverlay"), "预览页 Word 导出必须把高亮和阴影画进图片");
   assert(viewerArtifacts.includes("canvas.toDataURL(\"image/png\")"), "预览页 Word 导出必须导出已渲染 PNG，避免 Word 丢失 CSS 叠层");
   assert(viewerArtifacts.includes("privacyMaskBoxes"), "预览 Markdown/Word 必须包含打码区域信息");
@@ -947,6 +951,14 @@ runCheck("点击目标会归一到可操作元素并覆盖单选和表格单元�
   assert(content.includes("function findPreferredActionTarget"), "click target normalization must prioritize the real actionable element");
   assert(content.includes("\"button\",") && content.includes("\"[tabindex]\""), "click target normalization must prefer buttons before generic tabindex wrappers");
   assert(content.includes("function expandActionContainer"), "button clicks on inner icons/text must expand to the visible action wrapper");
+  assert(content.includes("function findButtonLikeAncestor"), "button clicks on inner p/span/svg/path must resolve to the outer button root");
+  assert(content.includes("function isButtonRootCandidate"), "button root detection must cover UI-library button classes");
+  assert(content.includes("element.matches(\"button, [role='button'], [datatype='action'], .MuiButton-root, .MuiButtonBase-root, .MuiIconButton-root"), "button root detection must cover MUI and business action buttons");
+  assert(content.includes("function findIconActionAncestor"), "icon clicks must resolve to the outer clickable parent");
+  assert(content.includes("[\"svg\", \"path\", \"use\", \"i\"].includes(tag)"), "icon click normalization must explicitly cover svg/path/i targets");
+  assert(content.includes("box.width > Math.max(180, iconBox.width + 140)"), "icon parent expansion must stay tightly scoped");
+  assert(content.includes("const actionTarget = resolveActionTarget(target, clickPoint) || target"), "sendClickEvent must normalize again before extracting the target box");
+  assert(content.includes("element = findButtonLikeAncestor(element) || element"), "extractTarget must not persist inner text/icon boxes for button clicks");
   assert(content.includes("wrapperBox.width > innerBox.width + 90"), "button wrapper expansion must stay tightly scoped");
   assert(content.includes("looksLikeTightTextButton"), "icon clicks inside text buttons must expand to the full button label");
   assert(content.includes("findCheckableAtPoint"), "checkbox/radio 点击必须优先按点击坐标定位真实控件");
